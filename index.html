@@ -173,6 +173,33 @@ const FLASHCARDS=[
   {id:26,domain:'cost',front:'AWS Trusted Advisor Categories',back:'Cost Optimization: idle/underutilized resources. Performance: service limits, config. Security: open ports, MFA, IAM. Fault Tolerance: backups, Multi-AZ. Service Limits: usage vs limits.'},
   {id:27,domain:'cost',front:'Data Transfer Costs',back:'Free: inbound from internet, same-AZ same-service, S3→CloudFront, S3/DynamoDB via Gateway Endpoint. Charged: outbound to internet, inter-AZ ($0.01/GB), inter-region.'},
   {id:28,domain:'cost',front:'Compute Optimizer vs Trusted Advisor',back:'Compute Optimizer: ML-based, EC2/Lambda/ECS/EBS rightsizing with detailed analysis. Trusted Advisor: broader scope (cost/security/perf/limits), less granular on compute recommendations.'},
+  {id:29,domain:'resilient',front:'Aurora Key Features',back:'6 copies across 3 AZs (2 per AZ), auto-scales 10GB→128TB, up to 15 read replicas, 5× faster than MySQL. Global DB: primary + 5 secondary regions, <1s replication. Serverless: auto-scales to zero for intermittent workloads. Backtrack: rewind DB without restore.'},
+  {id:30,domain:'performing',front:'DynamoDB DAX vs ElastiCache',back:'DAX: DynamoDB-native in-memory cache, microsecond reads, write-through, 1-10 nodes. ElastiCache: standalone Redis/Memcached, works with any DB. Use DAX exclusively for DynamoDB acceleration; use ElastiCache for RDS or multi-source workloads.'},
+  {id:31,domain:'resilient',front:'VPC Core Components',back:'IGW: public subnet → internet (bidirectional). NAT Gateway: private subnet → internet (outbound only). Route Table: directs traffic. NACLs: stateless, subnet-level. VPC Peering: 1:1 non-transitive. Transit Gateway: hub-and-spoke transitive routing across many VPCs.'},
+  {id:32,domain:'resilient',front:'Route 53 Record Types & Alias',back:'A: IPv4, AAAA: IPv6, CNAME: hostname→hostname (not root domain). Alias: hostname→AWS resource (works at root, free queries). MX: mail servers. TXT: verification/SPF. Alias can point to ELB, CloudFront, Beanstalk, S3 static website, another Route 53 record.'},
+  {id:33,domain:'secure',front:'CloudFront Security Controls',back:'OAC (Origin Access Control): restricts S3 access to CloudFront only (replaces legacy OAI). Signed URLs: single file time-limited access. Signed Cookies: multiple files. WAF: L7 protection. Shield Standard: auto DDoS. Geo-restriction: allowlist or blocklist countries.'},
+  {id:34,domain:'performing',front:'CloudFormation Core Concepts',back:'Template (JSON/YAML): declares resources. Stack: set of resources managed together. Change Set: preview changes before applying. StackSets: deploy across multiple accounts/regions with one operation. Nested Stacks: reuse shared components. Drift detection: find manual changes.'},
+  {id:35,domain:'secure',front:'CloudTrail vs CloudWatch vs Config',back:'CloudTrail: WHO did WHAT API call and when (audit log, 90 days free). CloudWatch: WHAT is happening now (metrics, logs, alarms, dashboards). Config: WHAT changed over time (resource config history, compliance rules). All three complement each other.'},
+  {id:36,domain:'secure',front:'KMS Envelope Encryption',back:'1. Generate DEK (Data Encryption Key) via KMS. 2. Encrypt data with plaintext DEK. 3. Encrypt DEK with CMK → store alongside data. 4. Decrypt: send encrypted DEK to KMS → get plaintext DEK → decrypt data. Never store unencrypted DEK. Reduces KMS API calls.'},
+  {id:37,domain:'resilient',front:'Transit Gateway vs VPC Peering',back:'VPC Peering: 1:1, non-transitive, free data transfer, works with intra-region security groups. Transit Gateway: hub-and-spoke, transitive, $0.05/GB + $0.05/hr per attachment, supports multicast, 50 Gbps burst per AZ. Use TGW when connecting more than 3 VPCs.'},
+  {id:38,domain:'resilient',front:'Direct Connect vs Site-to-Site VPN',back:'Direct Connect: dedicated 1/10 Gbps physical link, consistent performance, no public internet, weeks to provision, higher cost. VPN: IPSec over internet, minutes to provision, variable performance, cheap. DX + VPN: use as backup. DX Gateway: connects to multiple VPCs/regions.'},
+  {id:39,domain:'performing',front:'ECS vs EKS vs Fargate (Launch Type)',back:'ECS: AWS-native orchestration, simple, tight AWS integration, task definitions in JSON. EKS: managed Kubernetes, portable, standard K8s tools. Fargate: serverless compute for ECS or EKS (no EC2 management), billed per vCPU+memory. EC2 launch type: you manage nodes.'},
+  {id:40,domain:'secure',front:'Secrets Manager vs SSM Parameter Store',back:'Secrets Manager: auto-rotation for RDS/Redshift/DocumentDB, cross-account sharing, $0.40/secret/month. SSM Parameter Store: free (standard), manual rotation, SecureString via KMS, no rotation automation. Use Secrets Manager for credentials that need automated rotation.'},
+  {id:41,domain:'resilient',front:'S3 Glacier Retrieval Options',back:'Glacier Instant Retrieval: ms access (like S3-IA). Glacier Flexible: Expedited 1-5 min, Standard 3-5 hr, Bulk 5-12 hr. Deep Archive: Standard 12 hr, Bulk 48 hr. Min storage: Glacier=90 days, Deep Archive=180 days. Free tier: 10 GB/month standard retrieval.'},
+  {id:42,domain:'performing',front:'Redshift Architecture',back:'Leader Node: manages queries & client connections. Compute Nodes: store data & execute queries (up to 128). Massively Parallel Processing (MPP). Columnar storage + compression (no indexes needed). Redshift Spectrum: query S3 data. Runs in one AZ but snapshots can restore to another.'},
+  {id:43,domain:'performing',front:'Kinesis Data Streams vs Firehose',back:'Data Streams: real-time (<200ms), manual shard management, 1-365 day retention, custom consumer code. Firehose: near real-time (60s min buffer), fully managed, auto-scales, delivers to S3/Redshift/OpenSearch/Splunk. Use Streams for real-time analytics; Firehose for simple ETL loading.'},
+  {id:44,domain:'secure',front:'AWS WAF Rule Types',back:'IP Set: allow/block CIDRs. AWS Managed Rules: OWASP Top 10, bot control, known bad IPs. Rate-based: throttle per IP (DDoS). Geo Match: block/allow countries. Size Constraint: block oversized requests. String/Regex Match: block patterns. WAF attaches to ALB, CloudFront, API Gateway, AppSync.'},
+  {id:45,domain:'secure',front:'IAM Policy Evaluation Logic',back:'1. Explicit DENY → always DENY. 2. SCP restricts what is possible. 3. Resource-based policy can ALLOW without identity policy (cross-account). 4. Permission Boundary caps max identity permissions. 5. Session policy limits assumed role. 6. Identity policy. Default: implicit DENY.'},
+  {id:46,domain:'cost',front:'Snow Family Sizing Guide',back:'Snowcone: 8TB, battery-powered, portable for edge. Snowball Edge Compute: 40 vCPUs + local compute, edge processing. Snowball Edge Storage: 80TB usable, 52 vCPUs. Snowmobile: truck, up to 100PB, exabyte migrations. Rule of thumb: use Snow when transfer would take >1 week via internet.'},
+  {id:47,domain:'performing',front:'EFS vs EBS vs Instance Store',back:'EFS: NFS shared across many EC2, regional multi-AZ, auto-scales to PBs, $0.30/GB/month. EBS: block, one EC2, AZ-specific, fixed provisioned size, $0.08/GB/month. Instance Store: ephemeral, highest IOPS, data lost on stop/terminate. Choose EFS for shared; EBS for single-instance DB/OS.'},
+  {id:48,domain:'resilient',front:'API Gateway Types',back:'REST API: full features (usage plans, caching, API keys, request transforms). HTTP API: 70% cheaper, Lambda/HTTP backends only, no AWS service integration. WebSocket API: stateful, real-time (chat, live dashboards). Endpoint: Edge-optimized (CloudFront), Regional, Private (VPC endpoint).'},
+  {id:49,domain:'resilient',front:'ELB Routing & Target Groups',back:'ALB path routing: /api/* → API service. ALB host routing: api.example.com vs app.example.com. Weighted target groups: canary/blue-green deployments. NLB: L4 TCP/UDP, static IP, preserve source IP, millions RPS. GLB: inline security appliances (firewalls, IDS). Health check removes unhealthy targets.'},
+  {id:50,domain:'cost',front:'AWS Cost Management Tools',back:'Cost Explorer: visualize 12mo history + 12mo forecast, RI/SP recommendations. Budgets: alerts when cost/usage exceeds threshold ($0.10/day). Cost & Usage Report: most detailed, delivered to S3 up to 3×/day. Compute Optimizer: ML-based EC2/Lambda rightsizing. Pricing Calculator: pre-deployment estimates.'},
+  {id:51,domain:'performing',front:'Amazon Athena & AWS Glue',back:'Athena: serverless SQL on S3, pay $5/TB scanned, supports CSV/JSON/Parquet/ORC. Use Parquet+compression to cut costs 10×. Glue: serverless ETL, Data Catalog (shared metadata store), Crawlers (auto-discover S3 schemas), Glue Studio (visual ETL). Athena uses Glue Catalog for table definitions.'},
+  {id:52,domain:'resilient',front:'AWS DMS & Migration Hub',back:'DMS: migrate databases with minimal downtime, homogeneous (MySQL→MySQL) or heterogeneous (Oracle→Aurora). Schema Conversion Tool (SCT): converts DDL between incompatible engines. Migration Hub: centralized dashboard for all migrations. Application Discovery: inventory on-prem servers before migration.'},
+  {id:53,domain:'secure',front:'Amazon Cognito Authentication Flow',back:'User Pools: sign-up/sign-in → JWT tokens (ID, access, refresh). Identity Pools: exchange any token (User Pool JWT, Google, Facebook, SAML) for temporary IAM credentials. Combined: User Pool authenticates → Identity Pool authorizes → access S3/DynamoDB/etc. Scales to millions of users.'},
+  {id:54,domain:'performing',front:'EventBridge vs SNS vs SQS',back:'EventBridge: event bus with rules+filters+targets, schema registry, 90+ AWS sources, third-party SaaS, serverless. SNS: pub/sub fan-out, push to Lambda/SQS/email/SMS/HTTP, supports standard and FIFO topics. SQS: queue, pull-based, decouple services, DLQ for failures. EventBridge for event-driven architecture.'},
+  {id:55,domain:'resilient',front:'Organizations, SCPs & Control Tower',back:'Organizations: root→OUs→member accounts. SCPs: restrict max permissions in member accounts (NOT management account), do not grant permissions. Consolidated billing: volume discounts across all accounts. Control Tower: extends Org with Landing Zone, Account Factory, guardrails (preventive+detective).'},
 ];
 
 // ── Daily Lessons ─────────────────────────────────────────────────────────────
@@ -294,6 +321,257 @@ Default behavior → Path-based behaviors (evaluated in order)
 **Storage performance:**
 - EBS: per-volume IOPS limits. io2 Block Express = 256k IOPS max
 - Instance store: ephemeral, highest IOPS, data lost on stop/terminate`},
+  {day:9,domain:'resilient',title:'VPC Networking Deep Dive',content:`**VPC building blocks:**
+- CIDR block: /16 to /28. 5 IPs reserved per subnet (network, VPC router, DNS, future, broadcast)
+- Internet Gateway (IGW): route 0.0.0.0/0 → IGW for public subnets
+- NAT Gateway: managed, AZ-specific, Elastic IP required, outbound IPv4 only
+
+**Security layers:**
+1. Security Groups: stateful, instance-level, allow only
+2. NACLs: stateless, subnet-level, allow + deny, evaluated lowest # first
+3. VPC Flow Logs: capture metadata (not contents), store in S3 or CloudWatch Logs
+
+**Connectivity options:**
+- VPC Peering: non-transitive, works across regions and accounts
+- Transit Gateway: transitive hub, supports VPN and Direct Connect attachments
+- PrivateLink: expose service privately via endpoint (no VPC peering needed)
+- VPN: Site-to-Site (IPSec), Client VPN (OpenVPN)
+
+**Exam trap:** Security groups are stateful — return traffic is always allowed. NACLs are stateless — you must allow both inbound AND outbound for each connection.`},
+  {day:10,domain:'performing',title:'Container Services Overview',content:`**ECS (Elastic Container Service):**
+- AWS-native, simpler, tight integration with ALB/CloudWatch/IAM
+- Task Definition (JSON): specifies container images, CPU, memory, ports
+- Service: maintains desired task count, handles rolling updates
+- Launch types: EC2 (you manage nodes) or Fargate (serverless)
+
+**EKS (Elastic Kubernetes Service):**
+- Fully managed Kubernetes control plane
+- Standard Kubernetes tooling (kubectl, Helm)
+- Node groups: managed (AWS handles lifecycle) or self-managed
+- Fargate profiles: run pods serverlessly without nodes
+
+**Fargate:**
+- Serverless compute for ECS or EKS
+- Billed per vCPU + memory per second
+- Each task/pod gets dedicated kernel (no noisy neighbors)
+- Use EFS for persistent shared storage with Fargate
+
+**ECR (Elastic Container Registry):**
+- Stores Docker images, integrated with ECS/EKS/Lambda
+- Images stored in S3 (11 9s durability), cross-region replication`},
+  {day:11,domain:'resilient',title:'Database Services Decision Tree',content:`**Relational (RDS):**
+- MySQL, PostgreSQL, MariaDB, Oracle, SQL Server, Aurora
+- Use when: structured data, ACID compliance, existing SQL workloads
+- Aurora preferred: 5× faster MySQL, 3× faster PostgreSQL, auto-grows
+
+**NoSQL Options:**
+- DynamoDB: key-value + document, single-digit ms, serverless, global tables
+- DocumentDB: MongoDB-compatible, JSON, flexible schema, RBAC
+- Neptune: graph database, Gremlin/SPARQL, social networks, knowledge graphs
+- ElastiCache: Redis (persistence, pub/sub, Multi-AZ) or Memcached (simple, multithreaded)
+- Keyspaces: Apache Cassandra-compatible, CQL, unlimited storage
+
+**Analytics:**
+- Redshift: data warehouse, petabyte-scale, columnar, MPP, BI tools
+- Athena: serverless SQL on S3, no ETL needed, pay per query
+
+**Migration:**
+- DMS: online migration with minimal downtime
+- SCT: schema conversion for heterogeneous migrations`},
+  {day:12,domain:'secure',title:'Security Services Overview',content:`**Identity & Access:**
+- IAM: users/groups/roles/policies, least privilege, MFA
+- Cognito: user authentication for apps (User Pools) + AWS access (Identity Pools)
+- Directory Service: managed Microsoft AD for enterprise SSO
+- RAM: share resources across accounts (subnets, Aurora clusters, etc.)
+
+**Threat Detection & Protection:**
+- GuardDuty: ML-based threat detection (DNS, VPC Flow Logs, CloudTrail)
+- Inspector: automated vulnerability scanning (EC2, ECR images, Lambda)
+- Macie: S3 data classification (PII discovery, sensitive data)
+- Security Hub: aggregates findings from all security services + compliance (CIS, PCI)
+
+**Encryption & Secrets:**
+- KMS: manage encryption keys, envelope encryption, CloudTrail auditable
+- ACM: free SSL/TLS certificates for ALB/CloudFront/API Gateway
+- Secrets Manager: store + auto-rotate database credentials, API keys
+
+**Network Protection:**
+- WAF: L7 rules (OWASP, rate limiting, geo-blocking)
+- Shield Standard: free DDoS protection. Shield Advanced: $3k/month, 24/7 DRT`},
+  {day:13,domain:'performing',title:'Serverless Architecture Patterns',content:`**Core serverless services:**
+- Lambda: functions up to 15 min, 10GB memory, 1000 concurrency/region
+- API Gateway: REST/HTTP/WebSocket APIs, throttling, caching, auth
+- DynamoDB: serverless NoSQL, on-demand or provisioned capacity
+- SQS/SNS: decouple and fan-out messages
+- EventBridge: event-driven routing between services
+- Step Functions: orchestrate multi-step workflows with retries/branching
+
+**Lambda best practices:**
+- Keep functions small and single-purpose
+- Use environment variables for config (not hardcoded)
+- Use Layers for shared dependencies (up to 250MB)
+- Provisioned Concurrency: eliminate cold starts for latency-sensitive functions
+- Lambda@Edge: run code at CloudFront edge (viewer/origin request/response)
+
+**Common patterns:**
+- Web: API Gateway → Lambda → DynamoDB
+- Event processing: S3/DynamoDB Streams → Lambda
+- Fan-out: SNS → multiple SQS queues → Lambda
+- Workflow: Step Functions → Lambda → RDS/DynamoDB
+
+**Exam trap:** Lambda max timeout is 15 min. For longer tasks use Fargate or EC2.`},
+  {day:14,domain:'performing',title:'Analytics & Streaming Data',content:`**Batch analytics:**
+- Athena: serverless SQL on S3, pay $5/TB scanned, use Parquet to cut costs 10×
+- EMR: managed Hadoop/Spark clusters, process petabytes, decouples compute from S3 storage
+- Redshift: data warehouse, columnar, MPP, Spectrum can query S3 directly
+- Glue: serverless ETL, Data Catalog, Crawlers for schema discovery
+
+**Streaming data:**
+- Kinesis Data Streams: real-time, 1MB/s per shard write, 2MB/s read, 1-365 day retention
+- Kinesis Firehose: fully managed, near real-time (60s buffer), delivers to S3/Redshift/OpenSearch
+- MSK (Managed Kafka): run Kafka without managing brokers, ZooKeeper, multi-AZ
+- Flink (Managed): real-time stream processing, sub-second latency
+
+**Visualization:**
+- QuickSight: serverless BI, auto-forecasting, ML-powered, pay-per-session
+
+**Data lake pattern:**
+- Raw data → S3 → Glue Crawlers (catalog) → Athena (query) → QuickSight (visualize)
+- Or: Kinesis → S3 → Glue → Redshift Spectrum for mixed workloads`},
+  {day:15,domain:'resilient',title:'Resilience & DR Patterns',content:`**RTO vs RPO:**
+- RTO: how long can system be down? (Recovery Time Objective)
+- RPO: how much data loss is acceptable? (Recovery Point Objective)
+
+**DR strategies (cost/complexity low→high):**
+1. Backup & Restore: S3 snapshots, RTO hours, RPO hours
+2. Pilot Light: core infra running (DB replication), scale up on DR
+3. Warm Standby: scaled-down full copy, reduce RTO to minutes
+4. Multi-site Active/Active: full production in 2+ regions, near-zero RTO
+
+**High availability patterns:**
+- Multi-AZ: automatic failover within region (RDS, ElastiCache, ALB)
+- Multi-region: Route 53 failover/latency routing, Aurora Global
+- ASG + ALB: automatically replace unhealthy EC2 instances
+- DynamoDB Global Tables: multi-region multi-active (last-writer-wins)
+
+**Backup tools:**
+- AWS Backup: centralized backup across RDS, EFS, EBS, DynamoDB, FSx
+- S3 Cross-Region Replication: async object-level replication
+- RDS automated backups: 1-35 day retention, point-in-time restore`},
+  {day:16,domain:'cost',title:'Cost Optimization & FinOps',content:`**Pricing model selection:**
+- On-Demand: dev/test, unpredictable, short-lived
+- Reserved Instances (1-3yr): steady-state, predictable → up to 72% off
+  - Standard RI: specific family/size/OS, can sell in Marketplace
+  - Convertible RI: flexible attributes, up to 66% off, cannot sell
+- Savings Plans: flexible (compute across EC2+Fargate+Lambda) → up to 66% off
+- Spot: fault-tolerant batch, HPC, big data → up to 90% off (interruptible)
+
+**Storage optimization:**
+- S3 Intelligent-Tiering: auto-move objects between tiers (unknown access patterns)
+- S3 Lifecycle Policies: transition to IA/Glacier after N days
+- EBS: snapshot older volumes, delete unattached, use gp3 over gp2
+
+**Compute optimization:**
+- Graviton (ARM): up to 40% better price/performance
+- Spot Instances for stateless/batch workloads
+- Auto Scaling: scale in during off-peak hours
+- Compute Optimizer: ML rightsizing recommendations
+
+**Monitoring costs:**
+- Cost Explorer: identify top services, view trends
+- AWS Budgets: set alerts (cost/usage/RI coverage)
+- Cost & Usage Report: most granular, export to S3`},
+  {day:17,domain:'secure',title:'Monitoring, Auditing & Compliance',content:`**CloudWatch:**
+- Metrics: EC2 (CPU, network, disk), RDS, Lambda, custom namespaces
+- Logs: Log Groups → Log Streams, structured queries with Insights
+- Alarms: breaches trigger SNS, EC2 actions, Auto Scaling
+- Dashboards: cross-account, cross-region visibility
+- Container Insights: ECS/EKS metrics. Lambda Insights: function-level metrics
+
+**CloudTrail:**
+- Logs every API call: who, what, when, source IP
+- Management events: default enabled, 90 days free
+- Data events: S3 object-level, Lambda invocations (extra cost)
+- Insights: detect unusual API call volume/patterns
+- Store in S3 for long-term retention, analyze with Athena
+
+**AWS Config:**
+- Records resource configuration history
+- Managed rules: common compliance checks (150/region)
+- Custom rules: Lambda-backed for custom logic
+- Aggregator: compliance view across all accounts in Org
+- Use cases: drift detection, compliance reports, change history
+
+**Security Hub → GuardDuty → Inspector → Macie:** findings flow up to Security Hub for centralized view.`},
+  {day:18,domain:'resilient',title:'Networking & Content Delivery',content:`**CloudFront CDN:**
+- 450+ edge locations globally
+- Origins: S3, ALB, EC2, MediaStore, custom HTTP
+- Cache behaviors: path-based routing, TTL settings
+- Security: WAF, Shield, HTTPS (ACM certs free), signed URLs/cookies
+- Lambda@Edge: run code at edge for dynamic content
+
+**Elastic Load Balancing:**
+- ALB (L7): HTTP/HTTPS/gRPC, path/host/header routing, WAF, redirects
+- NLB (L4): TCP/UDP/TLS, static IP, ultra-low latency, millions RPS
+- GLB (L3): inline traffic inspection for security appliances
+- All ELBs support cross-zone load balancing, health checks, access logs
+
+**API Gateway:**
+- Throttling: 10,000 RPS default, 5,000 burst (per account/region)
+- Usage plans + API keys for monetization
+- Caching: reduces backend load, configurable TTL
+- Auth: IAM, Cognito, Lambda authorizers
+
+**Route 53 advanced:**
+- Health checks: monitor endpoints, CloudWatch alarms, other health checks
+- Traffic flow: visual routing policy editor
+- Private DNS: resolve custom domains within VPC
+
+**Exam tip:** CloudFront reduces latency AND S3 egress costs. Always consider CDN before increasing origin capacity.`},
+  {day:19,domain:'performing',title:'Migration & Transfer Services',content:`**7 Rs of migration (cloud journey):**
+1. Retire: decommission what you don't need
+2. Retain: keep on-premises (regulatory, latency)
+3. Rehost (Lift & Shift): move as-is (MGN, VM Import)
+4. Relocate: move Kubernetes to EKS, VMware to VMware Cloud on AWS
+5. Repurchase: move to SaaS (Salesforce, ServiceNow)
+6. Replatform (Lift & Optimize): move to managed services (RDS, Beanstalk)
+7. Refactor/Re-architect: rebuild for cloud-native (Lambda, ECS, DynamoDB)
+
+**Migration tools:**
+- AWS MGN (Application Migration Service): lift-and-shift EC2 replication
+- DMS: database migration with CDC (Change Data Capture)
+- DataSync: file transfer from NFS/SMB/S3 to AWS (TLS encrypted, up to 10Gbps)
+- Transfer Family: SFTP/FTPS/FTP to/from S3 and EFS
+- Snow Family: physical data transfer when network bandwidth is insufficient
+
+**Assessment tools:**
+- Application Discovery Service: inventory on-prem servers, map dependencies
+- Migration Hub: centralized tracking for all migration activities
+
+**Exam trap:** DataSync is for one-time or scheduled data transfer (not real-time streaming). Storage Gateway is for ongoing hybrid access.`},
+  {day:20,domain:'resilient',title:'Management & Governance Tools',content:`**Infrastructure as Code:**
+- CloudFormation: declarative JSON/YAML, free for AWS resources, StackSets for multi-account
+- CDK (Cloud Development Kit): define IaC using Python/TypeScript/Java (compiles to CloudFormation)
+- Systems Manager: run commands, patch, config management across EC2 + on-prem
+
+**Account governance:**
+- Organizations: hierarchy, consolidated billing, SCPs for guardrails
+- Control Tower: Landing Zone, Account Factory, detective + preventive guardrails
+- IAM Identity Center (SSO): centralized access for all accounts + apps
+
+**Compliance & governance:**
+- Config: resource config history, compliance rules, aggregated view
+- CloudTrail: immutable API audit log (export to S3 for >90 day retention)
+- Trusted Advisor: checks cost/security/performance/fault tolerance/limits
+- License Manager: track software licenses (BYOL for Oracle, SAP, Microsoft)
+
+**Operational tools:**
+- CloudWatch: metrics/logs/alarms/dashboards
+- EventBridge: automated responses to AWS events
+- Systems Manager OpsCenter: investigate and resolve operational issues
+- Health Dashboard: personalized service health for your account
+
+**Exam tip:** For multi-account compliance enforcement → Organizations + SCPs + Config Aggregator + Security Hub. Each layer adds a different control plane.`},
 ];
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
