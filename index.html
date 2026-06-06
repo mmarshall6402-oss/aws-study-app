@@ -18,7 +18,7 @@ body{background:#f1f5f9}
 .flip-card{perspective:1000px;height:280px}
 .flip-inner{position:relative;width:100%;height:100%;transition:transform .5s cubic-bezier(.4,0,.2,1);transform-style:preserve-3d}
 .flip-inner.flipped{transform:rotateY(180deg)}
-.flip-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.07),0 1px 4px rgba(0,0,0,.04)}
+.flip-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.07),0 1px 4px rgba(0,0,0,.04)}
 .flip-back{transform:rotateY(180deg)}
 textarea:focus{outline:none}
 input:focus{outline:none}
@@ -30,7 +30,7 @@ input:focus{outline:none}
 .lift{transition:box-shadow .15s,transform .15s}
 .lift:hover{box-shadow:0 8px 28px rgba(0,0,0,.10);transform:translateY(-2px)}
 /* Domain tag pill */
-.tag{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border-width:1px}
+.tag{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border-width:1px;border-style:solid}
 /* Answer letter badge */
 .opt-letter{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f1f5f9;font-size:.7rem;font-weight:700;flex-shrink:0;margin-right:10px}
 </style>
@@ -707,7 +707,7 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
     <div className="p-4 md:p-6 space-y-6">
       <div className="pb-2">
         <div className="text-slate-400 text-xs mb-1">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
-        <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'18ch'}}>AWS SAA-C03 Hub</h1>
+        <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'22ch'}}>AWS SAA-C03 Hub</h1>
         <p className="text-slate-500 text-sm mt-1">Keep the streak going. You've got this.</p>
       </div>
 
@@ -1112,6 +1112,15 @@ function Flashcards(){
 }
 
 // ── Practice Exam ─────────────────────────────────────────────────────────────
+const examAnswerCorrect=(userAns,qAns)=>{
+  if(userAns===undefined||userAns===null)return false;
+  if(Array.isArray(qAns)){
+    if(!Array.isArray(userAns))return false;
+    return qAns.length===userAns.length&&qAns.every(a=>userAns.includes(a));
+  }
+  return userAns===qAns;
+};
+
 function PracticeExam({onExamComplete}){
   const[phase,setPhase]=useState('setup');
   const[questions,setQuestions]=useState([]);
@@ -1140,12 +1149,12 @@ function PracticeExam({onExamComplete}){
 
   useEffect(()=>{
     if(phase==='result'&&questions.length>0){
-      const correct=questions.filter((q,i)=>answers[i]===q.ans).length;
+      const correct=questions.filter((q,i)=>examAnswerCorrect(answers[i],q.ans)).length;
       const score=Math.round(correct/questions.length*100);
       const byDomain={};
       Object.keys(DOMAINS).forEach(d=>{
         const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
-        byDomain[d]={correct:dqs.filter(q=>answers[q.i]===q.ans).length,total:dqs.length};
+        byDomain[d]={correct:dqs.filter(q=>examAnswerCorrect(answers[q.i],q.ans)).length,total:dqs.length};
       });
       onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today()});
     }
@@ -1184,13 +1193,13 @@ function PracticeExam({onExamComplete}){
   }
 
   if(phase==='result'){
-    const correct=questions.filter((q,i)=>answers[i]===q.ans).length;
+    const correct=questions.filter((q,i)=>examAnswerCorrect(answers[i],q.ans)).length;
     const score=Math.round(correct/questions.length*100);
     const pass=score>=72;
     const byDomain={};
     Object.keys(DOMAINS).forEach(d=>{
       const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
-      byDomain[d]={correct:dqs.filter(q=>answers[q.i]===q.ans).length,total:dqs.length};
+      byDomain[d]={correct:dqs.filter(q=>examAnswerCorrect(answers[q.i],q.ans)).length,total:dqs.length};
     });
     return(
       <div className="p-4 md:p-6 max-w-2xl">
@@ -1530,7 +1539,7 @@ function Settings({settings,setSettings,onReset}){
     <div className="p-4 md:p-6 max-w-xl space-y-6">
       <h1 className="text-slate-800 text-xl font-semibold">Settings</h1>
 
-      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-gray-800">
+      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-200">
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
             <div className="text-slate-700 text-sm">Exam Target Date</div>
