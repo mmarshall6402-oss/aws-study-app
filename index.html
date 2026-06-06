@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AWS SAA-C03 Study Terminal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{mono:['IBM Plex Mono','monospace']},colors:{sec:'#22c55e',res:'#06b6d4',perf:'#f97316',cost:'#ec4899'}}}}
+</script>
+<style>
+*{font-family:'IBM Plex Mono',monospace;box-sizing:border-box}
+body{background:#050508}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0f}::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:2px}
+.flip-card{perspective:1000px;height:260px}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip-inner.flipped{transform:rotateY(180deg)}
+.flip-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.flip-back{transform:rotateY(180deg)}
+textarea:focus{outline:none}
+input:focus{outline:none}
+</style>
+</head>
+<body class="min-h-screen text-gray-100">
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+// ── Storage ──────────────────────────────────────────────────────────────────
+const S={
+  get:(k)=>{try{const w=window.storage;return JSON.parse(w?w.getItem(k):localStorage.getItem(k))}catch{return null}},
+  set:(k,v)=>{try{const s=JSON.stringify(v);window.storage?window.storage.setItem(k,s):localStorage.setItem(k,s)}catch{}}
+};
+const useStore=(k,def)=>{
+  const[v,sv]=useState(()=>{const s=S.get(k);return s!==null?s:def});
+  const set=useCallback(x=>{const n=typeof x==='function'?x(v):x;sv(n);S.set(k,n)},[k,v]);
+  return[v,set];
+};
+
+// ── Domain meta ──────────────────────────────────────────────────────────────
+const DOMAINS={
+  secure:{label:'Secure',color:'text-green-400',bg:'bg-green-400/10',border:'border-green-400/30',pct:30},
+  resilient:{label:'Resilient',color:'text-cyan-400',bg:'bg-cyan-400/10',border:'border-cyan-400/30',pct:26},
+  performing:{label:'Performing',color:'text-orange-400',bg:'bg-orange-400/10',border:'border-orange-400/30',pct:24},
+  cost:{label:'Cost',color:'text-pink-400',bg:'bg-pink-400/10',border:'border-pink-400/30',pct:20},
+};
+
+// ── Question Bank (65 questions) ──────────────────────────────────────────────
+const QUESTIONS=[
+// ── SECURE (20) ──
+{id:1,domain:'secure',sub:'IAM',q:'A company needs to grant an EC2 instance access to S3 without hardcoding credentials. What is the recommended approach?',opts:['Embed IAM access keys in user data','Attach an IAM role to the EC2 instance','Store credentials in AWS Secrets Manager and retrieve at startup','Create an IAM user and install the CLI'],ans:1,exp:'IAM roles attached to EC2 instances provide temporary, automatically-rotated credentials via the metadata service. No static keys needed.'},
+{id:2,domain:'secure',sub:'IAM',q:'Which IAM policy type can restrict what services even the root account can use across an AWS Organization?',opts:['Permission Boundaries','Resource-based Policies','Service Control Policies (SCPs)','Session Policies'],ans:2,exp:'SCPs are org-level guardrails that restrict maximum permissions for all accounts in an OU, including the root user of member accounts.'},
+{id:3,domain:'secure',sub:'Network',q:'A security team wants to block traffic from specific IP ranges at the subnet level. Which service should they use?',opts:['Security Groups','Network ACLs','AWS WAF','AWS Shield'],ans:1,exp:'NACLs are stateless, subnet-level firewalls that support explicit DENY rules. Security Groups are stateful and instance-level with no explicit deny.'},
+{id:4,domain:'secure',sub:'Encryption',q:'A company wants to control when their KMS keys are rotated and keep key material in their own HSMs. Which key type should they use?',opts:['AWS managed keys','Customer managed keys','AWS owned keys','CloudHSM with automatic KMS integration'],ans:1,exp:'Customer managed keys give full control over rotation schedule, key policies, and optionally allow importing external key material.'},
+{id:5,domain:'secure',sub:'S3',q:'An S3 bucket contains sensitive PII. A bucket policy allows public read. An IAM policy denies read. What is the effective permission for an IAM user?',opts:['Allow — bucket policy wins','Deny — explicit deny always wins','Allow — both must allow for access','Deny — default deny applies when policies conflict'],ans:1,exp:'An explicit Deny in any policy always overrides Allow. The IAM deny makes the effective permission Deny regardless of the bucket policy.'},
+{id:6,domain:'secure',sub:'Detection',q:'Which service uses machine learning to detect unusual API call patterns and potential threats in AWS accounts?',opts:['AWS Inspector','AWS Macie','Amazon GuardDuty','AWS Security Hub'],ans:2,exp:'GuardDuty continuously analyzes CloudTrail, VPC Flow Logs, and DNS logs using ML to detect threats like credential compromise and crypto-mining.'},
+{id:7,domain:'secure',sub:'Detection',q:'A company needs to automatically discover and protect sensitive data stored in S3 buckets. Which service does this?',opts:['GuardDuty','Macie','Inspector','Config'],ans:1,exp:'Macie uses ML to automatically discover, classify, and protect sensitive data (PII, financial data) in S3.'},
+{id:8,domain:'secure',sub:'Secrets',q:'An application needs database credentials that automatically rotate every 30 days. Which service handles this?',opts:['AWS KMS','AWS Secrets Manager','SSM Parameter Store SecureString','AWS Certificate Manager'],ans:1,exp:'Secrets Manager natively integrates with RDS, Redshift, and DocumentDB to automatically rotate credentials on a schedule using Lambda.'},
+{id:9,domain:'secure',sub:'Cognito',q:'A mobile app needs user sign-up/sign-in with social identity provider (Google) federation. Which Cognito component handles this?',opts:['Cognito Identity Pools','Cognito User Pools','Cognito Sync','AWS IAM Identity Center'],ans:1,exp:'User Pools handle authentication (sign-up/sign-in, MFA, social federation). Identity Pools handle authorization (swap tokens for AWS credentials).'},
+{id:10,domain:'secure',sub:'Network',q:'A developer wants to access S3 from an EC2 instance in a private VPC without traffic leaving the AWS network. What should they use?',opts:['NAT Gateway','Internet Gateway','VPC Gateway Endpoint','VPC Interface Endpoint'],ans:2,exp:'Gateway Endpoints for S3 and DynamoDB route traffic through the AWS private network at no additional cost. Interface Endpoints use PrivateLink and incur hourly charges.'},
+{id:11,domain:'secure',sub:'Compliance',q:'Which service records all API calls made in an AWS account for auditing and compliance?',opts:['CloudWatch Logs','AWS Config','CloudTrail','VPC Flow Logs'],ans:2,exp:'CloudTrail records who made API calls, when, from where, and what changed. It\'s the primary audit trail for AWS account activity.'},
+{id:12,domain:'secure',sub:'Compliance',q:'A company must prove their AWS resources have been configured correctly continuously. Which service tracks resource configuration changes over time?',opts:['CloudTrail','AWS Config','Security Hub','Systems Manager'],ans:1,exp:'AWS Config records resource configurations and changes over time, enabling compliance auditing, security analysis, and change tracking.'},
+{id:13,domain:'secure',sub:'IAM',q:'A contractor needs temporary access to an AWS account for 3 days. What is the most secure approach?',opts:['Create an IAM user, delete after 3 days','Share the root account credentials','Use IAM roles with STS AssumeRole and time-limited session','Add to an IAM group with expiring permissions'],ans:2,exp:'STS AssumeRole provides short-lived, temporary credentials without creating permanent IAM users. Sessions can be limited to hours.'},
+{id:14,domain:'secure',sub:'Network',q:'Which AWS WAF feature can rate-limit requests from a single IP address?',opts:['Managed Rule Groups','IP Set Rules','Rate-based Rules','Geo Match Rules'],ans:2,exp:'WAF rate-based rules automatically block IPs that exceed a defined request threshold within a 5-minute window — effective against DDoS and brute-force.'},
+{id:15,domain:'secure',sub:'Network',q:'An application needs protection against infrastructure-layer DDoS attacks at no extra cost. Which service provides this automatically?',opts:['AWS WAF','AWS Shield Standard','AWS Shield Advanced','AWS Firewall Manager'],ans:1,exp:'Shield Standard is automatically enabled for all AWS accounts at no cost and protects against common Layer 3/4 DDoS attacks.'},
+{id:16,domain:'secure',sub:'Encryption',q:'Which service provides dedicated hardware security modules (HSMs) under your exclusive control for regulatory requirements?',opts:['AWS KMS','AWS CloudHSM','AWS Secrets Manager','AWS Certificate Manager'],ans:1,exp:'CloudHSM provides FIPS 140-2 Level 3 validated HSMs in a single-tenant environment. KMS is multi-tenant. CloudHSM gives you full key control.'},
+{id:17,domain:'secure',sub:'IAM',q:'A role has a permission boundary that allows S3:* and EC2:*. The role\'s identity policy allows S3:*, EC2:*, and RDS:*. What can the role do?',opts:['S3, EC2, and RDS — identity policy wins','S3 and EC2 only — intersection of both policies','Nothing — conflicting policies cancel out','RDS only — most restrictive wins'],ans:1,exp:'Permission boundaries set the maximum permissions. The effective permission is the intersection: what both the identity policy AND boundary allow. RDS is outside the boundary.'},
+{id:18,domain:'secure',sub:'S3',q:'How should you ensure all objects uploaded to S3 are encrypted at rest, even if the uploader forgets to specify encryption?',opts:['Enable bucket versioning','Set default encryption on the bucket','Use a bucket policy that denies unencrypted uploads','Both B and C'],ans:3,exp:'Default bucket encryption auto-encrypts objects missing encryption headers. A deny policy for s3:x-amz-server-side-encryption ensures clients can\'t bypass it.'},
+{id:19,domain:'secure',sub:'Network',q:'A company runs a web app behind an ALB. They want to block SQL injection attacks. What should they implement?',opts:['Security Groups with deep packet inspection','AWS WAF with SQL injection match rules','Network ACLs with payload filtering','AWS Shield Advanced'],ans:1,exp:'WAF operates at Layer 7 and can inspect HTTP request bodies, headers, and query strings for SQL injection patterns. Security groups and NACLs are Layer 3/4 only.'},
+{id:20,domain:'secure',sub:'IAM',q:'Which IAM feature lets you test what actions a principal can perform without actually making API calls?',opts:['IAM Access Analyzer','IAM Policy Simulator','AWS Trusted Advisor','CloudTrail Insights'],ans:1,exp:'IAM Policy Simulator lets you test the effect of IAM policies against specific actions and resources before applying them to production.'},
+
+// ── RESILIENT (17) ──
+{id:21,domain:'resilient',sub:'Multi-AZ',q:'An RDS MySQL instance fails. What happens with Multi-AZ enabled?',opts:['AWS sends an alert; manual failover required','Automatic failover to standby in same AZ','Automatic failover to standby in different AZ within ~1-2 min','Read replica is promoted automatically'],ans:2,exp:'RDS Multi-AZ maintains a synchronous standby in a different AZ. Failover is automatic, typically completing in 1-2 minutes with no data loss.'},
+{id:22,domain:'resilient',sub:'Load Balancing',q:'Which load balancer type supports WebSockets and HTTP/2 natively and routes based on path and host?',opts:['Classic Load Balancer','Network Load Balancer','Application Load Balancer','Gateway Load Balancer'],ans:2,exp:'ALB is Layer 7 and supports path-based routing, host-based routing, HTTP/2, WebSockets, and gRPC. NLB is Layer 4, optimized for TCP/UDP performance.'},
+{id:23,domain:'resilient',sub:'DNS',q:'A company needs DNS failover — primary region down should automatically route to backup. Which Route 53 policy?',opts:['Latency routing','Weighted routing','Failover routing','Geoproximity routing'],ans:2,exp:'Route 53 Failover routing uses health checks. When the primary endpoint fails health checks, traffic is automatically routed to the secondary.'},
+{id:24,domain:'resilient',sub:'Decoupling',q:'Two microservices are tightly coupled. If Service B slows down, Service A queues up and crashes. What AWS pattern solves this?',opts:['Direct Lambda invocation','SQS queue between services','API Gateway with throttling','ElastiCache caching layer'],ans:1,exp:'SQS decouples producers from consumers. Service A writes to the queue at its own pace; Service B reads at its own pace. Neither is blocked by the other.'},
+{id:25,domain:'resilient',sub:'Auto Scaling',q:'An ASG\'s scale-out policy triggers but new instances are failing health checks. The ASG keeps launching and terminating instances. What is this called?',opts:['Scaling thrash','Instance refresh loop','Impaired status loop','Scaling oscillation'],ans:2,exp:'This is a scaling loop / thrash. Fix: investigate why instances fail health checks (bad AMI, misconfigured user data), set a cooldown, or use instance warmup.'},
+{id:26,domain:'resilient',sub:'Database',q:'Which Aurora feature allows read scaling across up to 15 replicas with minimal replication lag using shared storage?',opts:['Multi-AZ replicas','Aurora Global Database','Aurora Read Replicas','RDS Read Replicas'],ans:2,exp:'Aurora Read Replicas share the same underlying storage volume as the primary, giving sub-10ms replication lag. Up to 15 replicas vs 5 for standard RDS.'},
+{id:27,domain:'resilient',sub:'Messaging',q:'A notification system needs to fan-out a single message to SQS queues, Lambda functions, and email subscribers simultaneously. Which service?',opts:['SQS with multiple consumers','SNS with multiple subscriptions','EventBridge with multiple targets','Kinesis with multiple shards'],ans:1,exp:'SNS is a pub/sub service that pushes messages to multiple subscribers (SQS, Lambda, HTTP, email, SMS) simultaneously via a single publish call.'},
+{id:28,domain:'resilient',sub:'S3',q:'A company needs their S3 data replicated to another region for disaster recovery. Objects must appear in the destination within minutes. Which feature?',opts:['S3 batch operations','S3 Cross-Region Replication (CRR)','S3 Transfer Acceleration','S3 Sync with Lambda'],ans:1,exp:'S3 CRR asynchronously replicates objects to a destination bucket in another region. Enable S3 Replication Time Control (RTC) for a 15-minute SLA.'},
+{id:29,domain:'resilient',sub:'Disaster Recovery',q:'RTO is 4 hours, RPO is 1 hour. Which DR strategy is most cost-effective?',opts:['Multi-site active-active','Warm standby','Pilot light','Backup and restore'],ans:2,exp:'Pilot light keeps minimal core infrastructure running (DB replication, no app servers). Recovery involves scaling up. Good for RTO hours, RPO minutes. Warm standby is more expensive (scaled-down full copy).'},
+{id:30,domain:'resilient',sub:'Auto Scaling',q:'You want new EC2 instances to pass health checks before receiving production traffic. Which ASG feature handles this?',opts:['Scaling cooldown','Instance warmup period','Health check grace period','Lifecycle hooks'],ans:3,exp:'Lifecycle hooks pause instance launch/termination transitions, allowing custom actions (run scripts, wait for app startup). Health check grace period prevents early termination during bootstrap.'},
+{id:31,domain:'resilient',sub:'Global',q:'A gaming app needs sub-10ms global latency with automatic cross-region failover and static IP addresses. Which service?',opts:['CloudFront','Route 53 with latency routing','AWS Global Accelerator','ALB in multiple regions'],ans:2,exp:'Global Accelerator provides static Anycast IPs, routes via AWS backbone, and automatically reroutes traffic to healthy endpoints — ideal for non-HTTP and latency-critical apps.'},
+{id:32,domain:'resilient',sub:'Database',q:'DynamoDB is experiencing hot partition issues. A single product ID is receiving 90% of reads. What\'s the best solution?',opts:['Increase read capacity units','Enable DynamoDB Streams','Add DAX caching layer','Change partition key to include a random suffix'],ans:2,exp:'DAX (DynamoDB Accelerator) is an in-memory cache that absorbs read spikes on hot items. Changing the partition key is a data migration. DAX requires no app code changes for read-through caching.'},
+{id:33,domain:'resilient',sub:'Load Balancing',q:'An application requires ultra-low latency and handles millions of TCP connections per second. Which load balancer is optimal?',opts:['ALB','NLB','CLB','GLB'],ans:1,exp:'NLB operates at Layer 4 (TCP/UDP/TLS), handles millions of requests/second, preserves source IP, and supports static IPs/Elastic IPs — designed for extreme performance.'},
+{id:34,domain:'resilient',sub:'Messaging',q:'An e-commerce app must process each order exactly once. Messages must not be processed by multiple consumers simultaneously. Which SQS queue type?',opts:['Standard Queue','FIFO Queue','Dead Letter Queue','Delay Queue'],ans:1,exp:'SQS FIFO guarantees exactly-once processing and ordering. Standard queues have at-least-once delivery and may deliver duplicates. FIFO has 3,000 msg/s with batching.'},
+{id:35,domain:'resilient',sub:'Networking',q:'A company\'s primary on-premises connection is Direct Connect. They need a backup for when it fails. What is the most cost-effective backup?',opts:['Second Direct Connect connection','Site-to-Site VPN as backup','CloudFront private connectivity','AWS PrivateLink'],ans:1,exp:'A Site-to-Site VPN over the internet is the cost-effective backup. It automatically activates when Direct Connect fails. A second DX circuit is more reliable but expensive.'},
+{id:36,domain:'resilient',sub:'Containers',q:'An ECS task needs to maintain exactly 3 running containers at all times, replacing any that fail. Which ECS launch configuration achieves this?',opts:['ECS Cluster with manual task placement','ECS Service with desired count=3','Scheduled ECS task','ECS task with restart policy'],ans:1,exp:'An ECS Service maintains the desired count of tasks, automatically replacing failed tasks and distributing across AZs when properly configured.'},
+{id:37,domain:'resilient',sub:'Monitoring',q:'An application in us-east-1 should automatically fail over to us-west-2 when error rate exceeds 5%. Which combination achieves this?',opts:['CloudWatch Alarm + Route 53 health check + Failover routing','CloudTrail + SNS + Lambda','AWS Config + EventBridge + Lambda','X-Ray + ALB weighted routing'],ans:0,exp:'CloudWatch monitors metrics, triggers alarms, which can report to Route 53 health checks. Route 53 Failover routing then switches DNS to the secondary region.'},
+
+// ── HIGH-PERFORMING (16) ──
+{id:38,domain:'performing',sub:'Caching',q:'An application has a read-heavy relational database. Which caching solution supports complex data structures, Lua scripting, and pub/sub?',opts:['ElastiCache Memcached','ElastiCache Redis','DynamoDB DAX','CloudFront'],ans:1,exp:'ElastiCache Redis supports sorted sets, lists, pub/sub, Lua scripting, persistence, and clustering. Memcached is simpler, multithreaded, for pure key-value caching.'},
+{id:39,domain:'performing',sub:'CDN',q:'A media company streams 4K video to global users. Origin is in us-east-1. How do you minimize latency and reduce origin load?',opts:['Deploy EC2 in every region','Use Route 53 latency routing to multiple ALBs','Use CloudFront with S3 origin and regional edge caches','Use Global Accelerator with S3'],ans:2,exp:'CloudFront caches content at 400+ edge locations globally. Regional Edge Caches sit between edges and origin, further reducing origin requests. Perfect for static/media content.'},
+{id:40,domain:'performing',sub:'Database',q:'A table in DynamoDB is accessed via email address but queries need to search by last name. What\'s the most efficient solution?',opts:['Scan the full table and filter','Create a Global Secondary Index on last_name','Duplicate data into a second table','Use DynamoDB Streams to maintain a sorted list'],ans:1,exp:'GSIs allow queries on non-primary-key attributes. They have their own provisioned throughput and are eventually consistent. Much more efficient than full table scans.'},
+{id:41,domain:'performing',sub:'Compute',q:'A batch job processes 100GB files nightly in 2 hours. It is cost-sensitive. Which compute option provides the best price/performance?',opts:['On-demand EC2 r5.4xlarge','Spot EC2 instances with checkpointing','Lambda with 10GB memory','Fargate Spot tasks'],ans:1,exp:'Spot instances offer up to 90% discount. With checkpointing (save state periodically), interruptions don\'t restart from zero. Ideal for fault-tolerant batch jobs.'},
+{id:42,domain:'performing',sub:'Storage',q:'An application needs high-throughput block storage (10GB/s) for a distributed database that requires shared access from multiple EC2 instances simultaneously.',opts:['EBS gp3','EBS io2 Block Express','Amazon EFS','Amazon FSx for Lustre'],ans:3,exp:'FSx for Lustre is a high-performance parallel file system (sub-millisecond latency, hundreds of GB/s). EFS handles shared access but at lower throughput. EBS is single-instance only.'},
+{id:43,domain:'performing',sub:'Networking',q:'Which EC2 feature allows instances to achieve network bandwidth up to 100 Gbps using SR-IOV?',opts:['Elastic Fabric Adapter','Enhanced Networking (ENA)','Placement Groups','Elastic Network Adapter'],ans:1,exp:'Enhanced Networking via ENA (Elastic Network Adapter) uses SR-IOV to provide high bandwidth, low latency, and lower CPU utilization. EFA is for HPC (MPI workloads).'},
+{id:44,domain:'performing',sub:'Serverless',q:'A Lambda function processes images and takes 45 seconds. API Gateway times out at 29 seconds. How do you fix this?',opts:['Increase API Gateway timeout','Use async Lambda invocation via SQS + polling','Use Step Functions Express Workflow','Deploy to ECS instead'],ans:1,exp:'API Gateway has a hard 29-second timeout. For long-running tasks: use async pattern — API returns 202, client polls an SQS/DynamoDB result store, or use WebSocket API.'},
+{id:45,domain:'performing',sub:'Analytics',q:'A company needs to query 5TB of log data in S3 using standard SQL without loading it into a database. Which service?',opts:['Amazon Redshift','Amazon RDS','Amazon Athena','Amazon EMR'],ans:2,exp:'Athena is serverless SQL-on-S3. Query directly using Presto/Trino. Pay per query ($5/TB scanned). Use Parquet + partitioning to reduce costs. No infrastructure to manage.'},
+{id:46,domain:'performing',sub:'Database',q:'An RDS instance handles 10,000 read queries/second. Single instance is at 100% CPU. Which solution provides horizontal read scaling?',opts:['Upgrade to larger instance class','Enable Multi-AZ','Add read replicas','Enable automated backups'],ans:2,exp:'RDS Read Replicas use async replication to create up to 5 readable copies. Applications point read traffic to replica endpoints. Multi-AZ standby is NOT readable.'},
+{id:47,domain:'performing',sub:'Streaming',q:'A real-time analytics pipeline needs to ingest 1 million events/second and replay data from the last 7 days. Which service?',opts:['SQS Standard','SQS FIFO','Amazon Kinesis Data Streams','Amazon MQ'],ans:2,exp:'Kinesis Data Streams supports real-time ingestion at massive scale with configurable retention (1-365 days) for replay. SQS doesn\'t support replay. Use enhanced fan-out for multiple consumers.'},
+{id:48,domain:'performing',sub:'Storage',q:'An EC2 instance needs the highest possible IOPS for a transactional database. What EBS volume type should you choose?',opts:['gp2','gp3','io2 Block Express','st1'],ans:2,exp:'io2 Block Express delivers up to 256,000 IOPS and 4,000 MB/s throughput — the highest performance EBS volume. Use for latency-sensitive databases like Oracle, SQL Server, SAP.'},
+{id:49,domain:'performing',sub:'Compute',q:'Which EC2 placement group type puts all instances on the same physical hardware for lowest possible network latency?',opts:['Spread placement group','Partition placement group','Cluster placement group','Availability Zone placement'],ans:2,exp:'Cluster placement groups pack instances on the same rack in a single AZ, enabling 10Gbps+ instance bandwidth and the lowest network latency. Risk: single rack failure.'},
+{id:50,domain:'performing',sub:'CDN',q:'CloudFront is serving stale content after a deployment. How do you immediately invalidate cached objects?',opts:['Increase TTL then decrease it','Create a CloudFront invalidation for the paths','Delete and recreate the distribution','Use origin failover to bust the cache'],ans:1,exp:'CloudFront invalidations remove specific files from edge caches before their TTL expires. Use /* for all objects. First 1,000 paths/month are free; $0.005 per path after.'},
+{id:51,domain:'performing',sub:'Database',q:'An Aurora cluster handles 50,000 writes/second. You need to add analytics queries without impacting write performance. Best approach?',opts:['Add Aurora read replicas','Enable Aurora Parallel Query','Create Aurora Global Database read region','Use Aurora Serverless v2'],ans:0,exp:'Aurora Read Replicas can handle analytics queries using the same shared storage. They add zero write overhead to the primary and can be independently scaled for query workloads.'},
+{id:52,domain:'performing',sub:'Serverless',q:'A Lambda function is cold-starting 5 seconds on every invocation during business hours. How do you eliminate cold starts without changing code?',opts:['Increase Lambda memory to 10GB','Enable Provisioned Concurrency','Deploy in a VPC with NAT Gateway','Use Lambda@Edge'],ans:1,exp:'Provisioned Concurrency pre-initializes Lambda execution environments, eliminating cold starts entirely. It runs 24/7 so it has cost. Use auto scaling to adjust based on schedule.'},
+{id:53,domain:'performing',sub:'Networking',q:'Users in Europe are experiencing 300ms latency to your us-east-1 ALB. Which service can reduce this to <50ms using the AWS backbone?',opts:['CloudFront','Route 53 latency routing','AWS Global Accelerator','VPC Peering'],ans:2,exp:'Global Accelerator routes user traffic to the nearest AWS edge location, then uses the AWS private backbone to reach the origin — significantly faster than public internet routing.'},
+
+// ── COST-OPTIMIZED (12) ──
+{id:54,domain:'cost',sub:'EC2 Pricing',q:'A production workload runs 24/7 for the next 3 years. Which purchasing option provides the maximum discount (~72%) vs on-demand?',opts:['Spot Instances','On-Demand Instances','3-year Reserved Instances (All Upfront)','Savings Plans (Compute, 3-year)'],ans:2,exp:'3-year All-Upfront Reserved Instances provide up to 72% discount. Savings Plans offer ~66% with more flexibility (switch instance family/region). Spot can be 90% off but isn\'t suitable for 24/7 prod.'},
+{id:55,domain:'cost',sub:'S3',q:'Objects in S3 are accessed frequently for 30 days, then rarely for 90 days, then never. What lifecycle policy minimizes cost?',opts:['S3 Standard only','S3 Standard → S3-IA at 30 days → Glacier at 120 days','S3 Intelligent-Tiering only','S3 Standard → Glacier at 30 days'],ans:1,exp:'Standard for frequent access, S3-IA (30-day min) for infrequent, then Glacier for archival. Intelligent-Tiering has per-object monitoring costs that outweigh savings for predictable patterns.'},
+{id:56,domain:'cost',sub:'Compute',q:'A development environment runs 8 hours/day, 5 days/week. Which EC2 option saves the most money vs on-demand?',opts:['Reserved Instances','Spot Instances','Scheduled Reserved Instances','On-Demand with auto stop/start'],ans:3,exp:'On-demand with Lambda/EventBridge scheduled stop/start means you pay only for ~1,680 hrs/year vs 8,760 for 24/7. Only pay for what runs. No RI commitment needed for variable schedules.'},
+{id:57,domain:'cost',sub:'Data Transfer',q:'Which data transfer pattern incurs NO additional AWS charges?',opts:['EC2 to internet (egress)','EC2 in AZ-A to EC2 in AZ-B same region','EC2 to S3 in same region','S3 to CloudFront'],ans:2,exp:'EC2 → S3 in the same region is free. EC2 inter-AZ traffic costs $0.01/GB each way. CloudFront → internet is charged. S3 → CloudFront origin fetch is free.'},
+{id:58,domain:'cost',sub:'Rightsizing',q:'An EC2 fleet consistently uses 15% CPU and 20% memory. What should you do?',opts:['Add more instances for headroom','Enable Auto Scaling to scale to zero','Use AWS Compute Optimizer to rightsizing recommendations','Switch to Reserved Instances immediately'],ans:2,exp:'Compute Optimizer uses ML to analyze CloudWatch metrics and recommends optimal instance types. Rightsizing before committing to RIs avoids locking into oversized instances.'},
+{id:59,domain:'cost',sub:'Serverless',q:'A microservice handles 100 requests/day with variable load. Which compute model is most cost-efficient?',opts:['Always-on t3.nano EC2','Lambda (pay per invocation)','ECS Fargate with min 1 task','Lightsail instance'],ans:1,exp:'Lambda charges per invocation and duration. At 100 requests/day, cost is negligible (well within free tier). Any always-on instance costs ~$3-5/month minimum regardless of traffic.'},
+{id:60,domain:'cost',sub:'S3',q:'A company stores 500TB of compliance data that must be retained 7 years but almost never accessed. What is the most cost-effective storage class?',opts:['S3 Standard','S3 Glacier Flexible Retrieval','S3 Glacier Deep Archive','S3 One Zone-IA'],ans:2,exp:'Glacier Deep Archive is $0.00099/GB/month (vs Standard $0.023/GB). For 500TB: ~$495/month vs ~$11,500/month. Retrieval within 12 hours. Minimum 180-day storage duration.'},
+{id:61,domain:'cost',sub:'Networking',q:'A VPC has a NAT Gateway processing 10TB/month for EC2 instances accessing S3. How can you eliminate this cost?',opts:['Use NAT Instance instead','Use a VPC Gateway Endpoint for S3','Move EC2 to public subnets','Use CloudFront as proxy'],ans:1,exp:'S3 and DynamoDB Gateway Endpoints route traffic over the AWS private network — free, no NAT Gateway needed. NAT Gateway charges $0.045/GB processed, so 10TB = $450/month saved.'},
+{id:62,domain:'cost',sub:'Database',q:'An RDS instance runs 2 hours/day for dev testing. It\'s provisioned 24/7. What change saves the most money?',opts:['Switch to smaller instance','Use RDS on Graviton processors','Automate stop/start on schedule','Convert to Aurora Serverless v2'],ans:2,exp:'RDS can be stopped for up to 7 days (restarts automatically after). Stop/start on schedule means paying only for storage when stopped vs full instance pricing. Aurora Serverless scales to zero but needs testing.'},
+{id:63,domain:'cost',sub:'Savings Plans',q:'A company wants flexibility to change instance families and regions while still getting ~66% discount. Which option?',opts:['EC2 Instance Savings Plans','Compute Savings Plans','Convertible Reserved Instances','Standard Reserved Instances'],ans:1,exp:'Compute Savings Plans apply to EC2, Lambda, and Fargate across all regions, instance families, and OS types. EC2 Instance Savings Plans are cheaper but locked to a region and instance family.'},
+{id:64,domain:'cost',sub:'Optimization',q:'Which AWS service provides automated cost optimization recommendations across compute, storage, and database services?',opts:['Cost Explorer','AWS Budgets','AWS Trusted Advisor','Compute Optimizer'],ans:2,exp:'Trusted Advisor checks across cost optimization, performance, security, fault tolerance, and service limits. It flags underutilized EC2, idle load balancers, unassociated EIPs, and more.'},
+{id:65,domain:'cost',sub:'Storage',q:'S3 Intelligent-Tiering is monitoring 10 million small objects (each <128KB). Is this cost-effective?',opts:['Yes — it always saves money','No — monitoring fee ($0.0025/1000 objects) exceeds savings for small objects','Yes — small objects are automatically excluded','No — Intelligent-Tiering doesn\'t support small objects'],ans:1,exp:'Objects <128KB are never moved to cheaper tiers by Intelligent-Tiering, but still incur the $0.0025/1000 objects monitoring fee. For small objects, use S3 Standard or manually apply lifecycle rules.'},
+];
+
+// ── Flashcards ────────────────────────────────────────────────────────────────
+const FLASHCARDS=[
+  {id:1,domain:'secure',front:'IAM Role vs IAM User',back:'Role: temporary creds via STS, no static keys, assumed by services/users. User: permanent identity with long-term access keys. Use roles for EC2, Lambda, cross-account.'},
+  {id:2,domain:'secure',front:'Security Group vs NACL',back:'SG: stateful, instance-level, allow only, evaluates all rules. NACL: stateless, subnet-level, allow+deny, rules evaluated in order (lowest # first).'},
+  {id:3,domain:'secure',front:'AWS KMS Key Types',back:'AWS managed: free, auto-rotated yearly, no policy control. Customer managed: $1/month, full policy control, custom rotation. AWS owned: free, invisible, AWS controls.'},
+  {id:4,domain:'secure',front:'Cognito: User Pools vs Identity Pools',back:'User Pools = AuthN (who are you?): sign-up, sign-in, tokens. Identity Pools = AuthZ (what can you do?): swap any token for AWS credentials.'},
+  {id:5,domain:'secure',front:'S3 Object Ownership & ACLs',back:'Bucket Owner Enforced: disables ACLs, owner owns all objects. ACLs: legacy, per-object. Best practice: disable ACLs, use bucket policies instead.'},
+  {id:6,domain:'secure',front:'AWS Shield Standard vs Advanced',back:'Standard: free, auto, L3/4 DDoS protection. Advanced: $3k/month+, L7 protection, DDoS cost protection, 24/7 DRT access, detailed metrics.'},
+  {id:7,domain:'secure',front:'VPC Endpoint Types',back:'Gateway Endpoint: S3 + DynamoDB only, free, route table entry. Interface Endpoint (PrivateLink): any service, ENI in VPC, hourly + data charges.'},
+  {id:8,domain:'secure',front:'SCP vs Permission Boundary vs Resource Policy',back:'SCP: org-level max perms for all principals in account. Boundary: IAM-level max perms for specific principal. Resource policy: attached to resource, controls who can access it.'},
+  {id:9,domain:'resilient',front:'RDS Multi-AZ vs Read Replicas',back:'Multi-AZ: synchronous standby, same region, auto failover, NOT readable. Read Replicas: async, up to 5, readable, cross-region possible, manual promotion.'},
+  {id:10,domain:'resilient',front:'Route 53 Routing Policies',back:'Simple: one record. Weighted: A/B traffic split. Latency: lowest latency region. Failover: primary/secondary. Geolocation: based on user location. Geoproximity: bias-adjusted. Multivalue: returns multiple IPs.'},
+  {id:11,domain:'resilient',front:'DR Strategies (cost low→high)',back:'Backup & Restore (hours RTO) → Pilot Light (core infra, scale up) → Warm Standby (scaled-down full copy) → Multi-site Active/Active (full scale, near-zero RTO).'},
+  {id:12,domain:'resilient',front:'SQS Standard vs FIFO',back:'Standard: at-least-once, best-effort order, unlimited TPS. FIFO: exactly-once, strict order, 3,000 msg/s (batching), .fifo suffix required.'},
+  {id:13,domain:'resilient',front:'Aurora vs RDS',back:'Aurora: AWS-built, 3 AZs×2 copies (6 total), auto-grows 10GB increments to 128TB, up to 15 read replicas, ~5× faster than MySQL. Shared storage = fast replication.'},
+  {id:14,domain:'resilient',front:'ASG Scaling Policies',back:'Simple: single CloudWatch alarm→action. Step: multiple thresholds, different actions. Target Tracking: maintain metric at target (e.g. 50% CPU). Scheduled: time-based. Predictive: ML-based forecast.'},
+  {id:15,domain:'resilient',front:'ELB Types',back:'ALB: L7, HTTP/HTTPS/gRPC, path+host routing, WAF integration. NLB: L4, TCP/UDP/TLS, static IP, millions RPS, preserve source IP. GLB: L3, inline network appliances. CLB: legacy, avoid.'},
+  {id:16,domain:'resilient',front:'SNS vs SQS vs EventBridge',back:'SNS: push, fan-out, pub/sub, 10M subs/topic. SQS: pull, queue, decouple. EventBridge: event bus, 90+ sources, routing rules, schema registry, 3rd party.'},
+  {id:17,domain:'performing',front:'ElastiCache Redis vs Memcached',back:'Redis: persistence, replication, pub/sub, sorted sets, Lua, Multi-AZ, AUTH. Memcached: multithreaded, simple, no persistence, horizontal scaling via sharding. Choose Redis for almost everything.'},
+  {id:18,domain:'performing',front:'EBS Volume Types',back:'gp3: default, 3000 IOPS baseline, 125 MB/s, independent IOPS/throughput config. io2 Block Express: max 256k IOPS, for databases. st1: throughput HDD, big data. sc1: cold HDD, cheapest.'},
+  {id:19,domain:'performing',front:'CloudFront Caching',back:'TTL: set via Cache-Control/Expires headers or CloudFront behavior. Invalidations: $0.005/path (after 1000/month free). Origin Shield: regional cache layer reduces origin load. Cache key: URL + headers + cookies + query strings.'},
+  {id:20,domain:'performing',front:'Lambda Performance',back:'Memory: 128MB–10GB. Duration: max 15 min. Concurrency: 1000/region default (soft limit). Cold start: ~100ms–3s. Provisioned Concurrency eliminates cold starts. Layers: share code/deps up to 250MB.'},
+  {id:21,domain:'performing',front:'DynamoDB Keys & Indexes',back:'Primary key: partition key (hash) or composite (hash+sort). LSI: same partition key, different sort key, created at table creation. GSI: different partition+sort key, created anytime, eventually consistent.'},
+  {id:22,domain:'performing',front:'EC2 Placement Groups',back:'Cluster: same rack, lowest latency, 10Gbps+, risk: single rack failure. Spread: separate hardware, max 7 per AZ, for critical instances. Partition: group of racks, for distributed systems (Hadoop, Kafka).'},
+  {id:23,domain:'performing',front:'Kinesis Data Streams',back:'Shard: 1MB/s write, 2MB/s read. Records retained 1-365 days. Enhanced fan-out: 2MB/s per consumer per shard (push). Standard: shared 2MB/s (pull). Use KCL for consumer apps.'},
+  {id:24,domain:'cost',front:'EC2 Purchasing Options',back:'On-demand: no commitment, most expensive. Reserved (1-3yr): up to 72% off, Standard or Convertible. Spot: up to 90% off, interruptible. Savings Plans: hourly commitment, flexible. Dedicated: compliance, most expensive.'},
+  {id:25,domain:'cost',front:'S3 Storage Classes (cost high→low)',back:'Standard ($0.023) → Standard-IA ($0.0125, 30-day min) → One Zone-IA ($0.01) → Glacier Instant ($0.004) → Glacier Flexible ($0.0036) → Deep Archive ($0.00099). All per GB/month.'},
+  {id:26,domain:'cost',front:'AWS Trusted Advisor Categories',back:'Cost Optimization: idle/underutilized resources. Performance: service limits, config. Security: open ports, MFA, IAM. Fault Tolerance: backups, Multi-AZ. Service Limits: usage vs limits.'},
+  {id:27,domain:'cost',front:'Data Transfer Costs',back:'Free: inbound from internet, same-AZ same-service, S3→CloudFront, S3/DynamoDB via Gateway Endpoint. Charged: outbound to internet, inter-AZ ($0.01/GB), inter-region.'},
+  {id:28,domain:'cost',front:'Compute Optimizer vs Trusted Advisor',back:'Compute Optimizer: ML-based, EC2/Lambda/ECS/EBS rightsizing with detailed analysis. Trusted Advisor: broader scope (cost/security/perf/limits), less granular on compute recommendations.'},
+];
+
+// ── Daily Lessons ─────────────────────────────────────────────────────────────
+const LESSONS=[
+  {day:1,domain:'secure',title:'IAM Foundations',content:`**Core concepts:** Users, Groups, Roles, Policies.
+
+**Policy evaluation logic:**
+1. Default DENY everything
+2. Evaluate all applicable policies
+3. Any explicit DENY → final DENY
+4. If no explicit DENY and at least one ALLOW → ALLOW
+
+**Key facts:**
+- Roles use STS for temporary credentials (15min–36hr)
+- Maximum 10 managed policies per user/group/role
+- Permission boundary = max permissions ceiling
+- SCPs affect all principals including root (except management account)
+
+**Exam trap:** Multi-AZ standby is NOT an IAM concept — that's resilience. SCPs do NOT grant permissions, they only restrict.`},
+  {day:2,domain:'secure',title:'S3 Security & Encryption',content:`**Encryption at rest:**
+- SSE-S3: AWS manages keys (AES-256)
+- SSE-KMS: Customer managed keys, CloudTrail auditable
+- SSE-C: Customer provides key per request, AWS encrypts
+- Client-side: You encrypt before uploading
+
+**Access control hierarchy:**
+Bucket ACL (legacy) → Bucket Policy → IAM Policy → VPC Endpoint Policy
+
+**Key security features:**
+- Block Public Access: 4 settings, account OR bucket level
+- Object Lock: WORM compliance (Governance vs Compliance mode)
+- MFA Delete: requires MFA for version deletion
+- Presigned URLs: time-limited access without IAM`},
+  {day:3,domain:'resilient',title:'Auto Scaling Deep Dive',content:`**ASG components:**
+- Launch Template (preferred) vs Launch Configuration (legacy)
+- Min/Max/Desired capacity
+- Health check: EC2 (default) or ELB
+
+**Scaling policy types:**
+1. Target Tracking — simplest, maintain metric at value
+2. Step Scaling — tiered responses to alarm thresholds
+3. Simple Scaling — single alarm/action (cooldown applies)
+4. Predictive — ML forecast, provision in advance
+5. Scheduled — known traffic patterns
+
+**Lifecycle hooks:** pause at launch/terminate → run custom actions → continue/abandon
+
+**Instance refresh:** rolling update of ASG instances with configurable min healthy %.`},
+  {day:4,domain:'performing',title:'CloudFront Architecture',content:`**Distribution types:** Web (HTTP/HTTPS), RTMP (legacy streaming)
+
+**Origin types:** S3, ALB, EC2, HTTP endpoint, MediaStore, MediaPackage
+
+**Cache behavior hierarchy:**
+Default behavior → Path-based behaviors (evaluated in order)
+
+**Performance features:**
+- Origin Shield: reduces origin load (additional caching layer)
+- Transfer Acceleration: uses CloudFront edge for S3 uploads
+- Lambda@Edge / CloudFront Functions: run code at edge (Functions = faster/cheaper for simple ops)
+
+**Security:** OAC (Origin Access Control) replaces OAI for S3. Signed URLs (1 file) vs Signed Cookies (multiple files).`},
+  {day:5,domain:'cost',title:'Pricing Models & Cost Optimization',content:`**Reserved Instances:**
+- Standard RI: up to 72% off, can sell in Marketplace
+- Convertible RI: up to 66% off, can exchange for different attributes
+- Scheduled RI: deprecated, use Savings Plans instead
+
+**Savings Plans (more flexible):**
+- Compute Savings Plans: EC2 + Lambda + Fargate, all regions/families
+- EC2 Instance Savings Plans: specific region + family, higher discount
+
+**Cost optimization pillars:**
+1. Right-size before committing
+2. Increase elasticity (stop unused resources)
+3. Leverage correct pricing model
+4. Optimize storage (S3 lifecycle, EBS snapshots)
+5. Measure, monitor, improve (Cost Explorer, Budgets)`},
+  {day:6,domain:'secure',title:'VPC Security Architecture',content:`**Defense in depth layers:**
+1. NACLs (subnet-level, stateless)
+2. Security Groups (instance-level, stateful)
+3. AWS WAF (Layer 7, ALB/CloudFront/API GW)
+4. AWS Shield (DDoS, L3/4)
+5. GuardDuty (threat detection)
+
+**VPC Flow Logs:** capture IP traffic metadata (not packet contents). Source, destination, port, action (ACCEPT/REJECT). Store in S3 or CloudWatch Logs.
+
+**Private connectivity options:**
+- VPC Peering: 1:1, non-transitive
+- Transit Gateway: hub-and-spoke, transitive, inter-region
+- PrivateLink: expose services privately, no VPC peering needed`},
+  {day:7,domain:'resilient',title:'Database Resilience Patterns',content:`**RDS:**
+- Multi-AZ: sync replication, auto failover ~1-2 min, same region
+- Read Replicas: async, readable, cross-region, manual promotion
+- Backups: automated (1-35 days PITR), manual snapshots (indefinite)
+
+**Aurora:**
+- 6 copies across 3 AZs, self-healing
+- Up to 15 read replicas (shared storage = <10ms lag)
+- Aurora Global: primary + up to 5 secondary regions, <1s replication
+- Backtrack: rewind DB in place without restoring from snapshot
+
+**DynamoDB:**
+- Global Tables: multi-region, multi-active, last-writer-wins
+- PITR: continuous backups, restore to second
+- On-demand vs provisioned: on-demand for unpredictable, provisioned for predictable`},
+  {day:8,domain:'performing',title:'Compute Performance Optimization',content:`**EC2 Instance families:**
+- C: compute optimized (HPC, gaming, ML inference)
+- R/X: memory optimized (in-memory DBs, SAP)
+- I/D: storage optimized (NoSQL, data warehousing)
+- P/G/Inf: accelerated (ML training, GPU)
+- M/T: general purpose
+
+**Graviton (ARM):** up to 40% better price/performance for most workloads
+
+**Networking:**
+- Enhanced Networking (ENA): up to 100 Gbps, SR-IOV
+- EFA (Elastic Fabric Adapter): HPC, MPI workloads, bypasses OS network stack
+- Placement groups: cluster (latency), spread (isolation), partition (distributed systems)
+
+**Storage performance:**
+- EBS: per-volume IOPS limits. io2 Block Express = 256k IOPS max
+- Instance store: ephemeral, highest IOPS, data lost on stop/terminate`},
+];
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const today=()=>new Date().toISOString().slice(0,10);
+const dayOfYear=()=>{const n=new Date();return Math.floor((n-new Date(n.getFullYear(),0,0))/86400000)};
+const shuffle=arr=>[...arr].sort(()=>Math.random()-.5);
+const pct=(a,b)=>b===0?0:Math.round(a/b*100);
+
+// ── Components ────────────────────────────────────────────────────────────────
+
+function Tag({domain,small}){
+  const d=DOMAINS[domain];
+  return <span className={`${d.color} ${small?'text-xs':'text-xs'} border ${d.border} px-1.5 py-0.5 rounded`}>{d.label}</span>;
+}
+
+function ProgressBar({value,max,domain,className=''}){
+  const d=DOMAINS[domain]||{color:'text-gray-400'};
+  const w=max?Math.min(100,Math.round(value/max*100)):value;
+  const colors={secure:'bg-green-400',resilient:'bg-cyan-400',performing:'bg-orange-400',cost:'bg-pink-400'};
+  const bg=colors[domain]||'bg-gray-400';
+  return(
+    <div className={`w-full bg-gray-800 rounded-full h-1.5 ${className}`}>
+      <div className={`${bg} h-1.5 rounded-full transition-all`} style={{width:`${w}%`}}/>
+    </div>
+  );
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+const NAV=[
+  {id:'dashboard',icon:'⬡',label:'Dashboard'},
+  {id:'lesson',icon:'◈',label:'Daily Lesson'},
+  {id:'quiz',icon:'◉',label:'Quiz'},
+  {id:'flashcards',icon:'⬜',label:'Flashcards'},
+  {id:'exam',icon:'◎',label:'Practice Exam'},
+  {id:'analytics',icon:'◈',label:'Analytics'},
+  {id:'notes',icon:'▤',label:'Notes'},
+  {id:'leaderboard',icon:'◆',label:'Leaderboard'},
+  {id:'settings',icon:'⚙',label:'Settings'},
+];
+
+function Sidebar({active,setActive,streak}){
+  return(
+    <div className="w-52 bg-gray-950 border-r border-gray-800 flex flex-col h-screen sticky top-0">
+      <div className="p-4 border-b border-gray-800">
+        <div className="text-green-400 font-semibold text-sm">AWS SAA-C03</div>
+        <div className="text-gray-500 text-xs mt-0.5">Study Terminal</div>
+      </div>
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        {NAV.map(n=>(
+          <button key={n.id} onClick={()=>setActive(n.id)}
+            className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 transition-colors ${active===n.id?'bg-gray-800 text-white':'text-gray-400 hover:text-gray-200 hover:bg-gray-900'}`}>
+            <span className="text-xs opacity-70">{n.icon}</span>{n.label}
+          </button>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-gray-800">
+        <div className="text-xs text-gray-500">Streak</div>
+        <div className="text-green-400 text-lg font-semibold">{streak} days</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
+  const domainScores=useMemo(()=>{
+    const scores={};
+    Object.keys(DOMAINS).forEach(d=>{
+      const qs=quizHistory.filter(h=>h.domain===d);
+      scores[d]={correct:qs.filter(h=>h.correct).length,total:qs.length};
+    });
+    return scores;
+  },[quizHistory]);
+
+  const weak=Object.entries(domainScores).filter(([,v])=>v.total>0).sort(([,a],[,b])=>pct(a.correct,a.total)-pct(b.correct,b.total));
+  const totalCards=FLASHCARDS.length;
+  const known=flashConf.filter(f=>f.conf==='know').length;
+  const lastExam=examHistory[examHistory.length-1];
+
+  return(
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-green-400 text-xl font-semibold">Dashboard</h1>
+        <p className="text-gray-500 text-xs mt-1">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          {label:'Quiz Questions',val:quizHistory.length,sub:`${quizHistory.filter(h=>h.correct).length} correct`,color:'text-green-400'},
+          {label:'Flashcard Mastery',val:`${pct(known,totalCards)}%`,sub:`${known}/${totalCards} known`,color:'text-cyan-400'},
+          {label:'Last Exam Score',val:lastExam?`${lastExam.score}%`:'—',sub:lastExam?`${lastExam.correct}/${lastExam.total} correct`:'No attempts',color:'text-orange-400'},
+          {label:'Day Streak',val:streak,sub:'consecutive days',color:'text-pink-400'},
+        ].map(c=>(
+          <div key={c.label} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-500 text-xs mb-1">{c.label}</div>
+            <div className={`${c.color} text-2xl font-semibold`}>{c.val}</div>
+            <div className="text-gray-600 text-xs mt-1">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="text-gray-300 text-sm font-medium mb-3">Domain Performance</div>
+          <div className="space-y-3">
+            {Object.entries(DOMAINS).map(([key,d])=>{
+              const s=domainScores[key]||{correct:0,total:0};
+              return(
+                <div key={key}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className={d.color}>{d.label} ({d.pct}%)</span>
+                    <span className="text-gray-400">{s.total?`${pct(s.correct,s.total)}%`:'No data'}</span>
+                  </div>
+                  <ProgressBar value={s.total?pct(s.correct,s.total):0} max={100} domain={key}/>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="text-gray-300 text-sm font-medium mb-3">Quick Actions</div>
+          <div className="space-y-2">
+            {[
+              {label:'→ Today\'s Lesson',id:'lesson',color:'text-green-400'},
+              {label:'→ Practice Quiz',id:'quiz',color:'text-cyan-400'},
+              {label:'→ Review Flashcards',id:'flashcards',color:'text-orange-400'},
+              {label:'→ Take Practice Exam',id:'exam',color:'text-pink-400'},
+            ].map(a=>(
+              <button key={a.id} onClick={()=>setActive(a.id)}
+                className={`w-full text-left ${a.color} text-sm py-1.5 hover:opacity-80 transition-opacity`}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+          {weak.length>0&&(
+            <div className="mt-4 pt-3 border-t border-gray-800">
+              <div className="text-gray-500 text-xs mb-2">Weakest Domain</div>
+              <div className={`${DOMAINS[weak[0][0]].color} text-sm`}>
+                {DOMAINS[weak[0][0]].label} — {pct(weak[0][1].correct,weak[0][1].total)}% accuracy
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Daily Lesson ──────────────────────────────────────────────────────────────
+function Lesson(){
+  const lessonIdx=dayOfYear()%LESSONS.length;
+  const lesson=LESSONS[lessonIdx];
+  const d=DOMAINS[lesson.domain];
+  const[read,setRead]=useStore('lesson_read',[]);
+  const isRead=read.includes(lessonIdx);
+
+  const renderMd=(text)=>text.split('\n').map((line,i)=>{
+    if(line.startsWith('**')&&line.endsWith('**'))return<div key={i} className="text-gray-200 font-semibold mt-3 mb-1">{line.slice(2,-2)}</div>;
+    if(line.startsWith('- '))return<div key={i} className="text-gray-400 text-sm ml-2">• {line.slice(2)}</div>;
+    if(line.match(/^\d+\./))return<div key={i} className="text-gray-400 text-sm ml-2">{line}</div>;
+    if(line==='')return<div key={i} className="h-1"/>;
+    return<div key={i} className="text-gray-300 text-sm">{line}</div>;
+  });
+
+  return(
+    <div className="p-6 max-w-3xl">
+      <div className="flex items-center gap-3 mb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-gray-100 text-xl font-semibold">{lesson.title}</h1>
+            <Tag domain={lesson.domain}/>
+          </div>
+          <div className="text-gray-500 text-xs mt-1">Day {lessonIdx+1} of {LESSONS.length} · {d.label} Architecture</div>
+        </div>
+      </div>
+      <div className={`bg-gray-900 border ${d.border} rounded-lg p-5 space-y-1`}>
+        {renderMd(lesson.content)}
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button onClick={()=>setRead(r=>isRead?r.filter(x=>x!==lessonIdx):[...r,lessonIdx])}
+          className={`text-sm px-4 py-2 rounded border transition-colors ${isRead?'border-green-400 text-green-400 bg-green-400/10':'border-gray-700 text-gray-400 hover:border-gray-500'}`}>
+          {isRead?'✓ Marked as Read':'Mark as Read'}
+        </button>
+        <span className="text-gray-600 text-xs">{read.length}/{LESSONS.length} lessons read</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Quiz ──────────────────────────────────────────────────────────────────────
+function Quiz({onAnswer}){
+  const[domain,setDomain]=useState('all');
+  const[session,setSession]=useState(null);
+  const[idx,setIdx]=useState(0);
+  const[selected,setSelected]=useState(null);
+  const[showExp,setShowExp]=useState(false);
+  const[sessionResults,setSessionResults]=useState([]);
+
+  const startQuiz=()=>{
+    const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
+    setSession(shuffle(pool).slice(0,10));
+    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);
+  };
+
+  const handleSelect=(i)=>{
+    if(selected!==null)return;
+    setSelected(i);setShowExp(true);
+    const q=session[idx];
+    const correct=i===q.ans;
+    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now()});
+    setSessionResults(r=>[...r,{correct,domain:q.domain}]);
+  };
+
+  const next=()=>{
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);}
+    else setSession('done');
+  };
+
+  if(!session){
+    return(
+      <div className="p-6 max-w-2xl">
+        <h1 className="text-gray-100 text-xl font-semibold mb-6">Adaptive Quiz</h1>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+          <div className="text-gray-400 text-sm mb-4">Select domain focus:</div>
+          <div className="grid grid-cols-2 gap-2 mb-6 sm:grid-cols-3">
+            {[{id:'all',label:'All Domains',color:'text-gray-300'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label,color:v.color}))].map(d=>(
+              <button key={d.id} onClick={()=>setDomain(d.id)}
+                className={`text-sm py-2 px-3 rounded border transition-colors ${domain===d.id?'border-green-400 text-green-400 bg-green-400/10':'border-gray-700 text-gray-500 hover:border-gray-500'}`}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={startQuiz} className="bg-green-400 text-gray-950 text-sm font-semibold px-6 py-2.5 rounded hover:bg-green-300 transition-colors">
+            Start 10-Question Quiz →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if(session==='done'){
+    const correct=sessionResults.filter(r=>r.correct).length;
+    return(
+      <div className="p-6 max-w-2xl">
+        <h1 className="text-gray-100 text-xl font-semibold mb-6">Quiz Complete</h1>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+          <div className={`text-4xl font-semibold mb-2 ${correct>=7?'text-green-400':correct>=5?'text-orange-400':'text-red-400'}`}>
+            {correct}/10
+          </div>
+          <div className="text-gray-400 text-sm mb-4">{pct(correct,10)}% accuracy this session</div>
+          <div className="space-y-2 mb-5">
+            {Object.keys(DOMAINS).map(d=>{
+              const dr=sessionResults.filter(r=>r.domain===d);
+              if(!dr.length)return null;
+              return<div key={d} className="flex items-center gap-2 text-xs">
+                <span className={DOMAINS[d].color}>{DOMAINS[d].label}:</span>
+                <span className="text-gray-400">{dr.filter(r=>r.correct).length}/{dr.length}</span>
+              </div>;
+            })}
+          </div>
+          <button onClick={()=>{setSession(null);setDomain('all');}} className="border border-gray-700 text-gray-300 text-sm px-4 py-2 rounded hover:border-gray-500 transition-colors">
+            New Quiz
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const q=session[idx];
+  const d=DOMAINS[q.domain];
+
+  return(
+    <div className="p-6 max-w-2xl">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-gray-100 text-xl font-semibold">Quiz</h1>
+        <div className="text-gray-500 text-sm">{idx+1} / {session.length}</div>
+      </div>
+      <ProgressBar value={idx+1} max={session.length} domain={q.domain} className="mb-5"/>
+      <div className={`bg-gray-900 border ${d.border} rounded-lg p-5 mb-4`}>
+        <div className="flex items-center gap-2 mb-3">
+          <Tag domain={q.domain}/><span className="text-gray-600 text-xs">{q.sub}</span>
+        </div>
+        <p className="text-gray-200 text-sm leading-relaxed">{q.q}</p>
+      </div>
+      <div className="space-y-2 mb-4">
+        {q.opts.map((opt,i)=>{
+          let cls='border-gray-700 text-gray-300 hover:border-gray-500';
+          if(selected!==null){
+            if(i===q.ans)cls=`border-green-400 text-green-400 bg-green-400/10`;
+            else if(i===selected&&i!==q.ans)cls=`border-red-400 text-red-400 bg-red-400/10`;
+            else cls='border-gray-800 text-gray-600';
+          }
+          return(
+            <button key={i} onClick={()=>handleSelect(i)}
+              className={`w-full text-left text-sm px-4 py-3 rounded border transition-colors ${cls}`}>
+              <span className="text-gray-500 mr-2">{String.fromCharCode(65+i)}.</span>{opt}
+            </button>
+          );
+        })}
+      </div>
+      {showExp&&(
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4">
+          <div className="text-xs text-gray-500 mb-1">Explanation</div>
+          <p className="text-gray-300 text-sm">{q.exp}</p>
+        </div>
+      )}
+      {selected!==null&&(
+        <button onClick={next} className="bg-gray-800 text-gray-200 text-sm px-5 py-2.5 rounded hover:bg-gray-700 transition-colors">
+          {idx<session.length-1?'Next Question →':'View Results'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Flashcards ────────────────────────────────────────────────────────────────
+function Flashcards(){
+  const[conf,setConf]=useStore('flash_conf',[]);
+  const[domain,setDomain]=useState('all');
+  const[idx,setIdx]=useState(0);
+  const[flipped,setFlipped]=useState(false);
+  const[showAll,setShowAll]=useState(false);
+
+  const cards=useMemo(()=>domain==='all'?FLASHCARDS:FLASHCARDS.filter(c=>c.domain===domain),[domain]);
+  const card=cards[Math.min(idx,cards.length-1)];
+  const cardConf=conf.find(c=>c.id===card?.id);
+
+  const setCardConf=(level)=>{
+    setConf(c=>{const filtered=c.filter(x=>x.id!==card.id);return[...filtered,{id:card.id,conf:level}]});
+  };
+
+  const go=(dir)=>{setIdx(i=>(i+dir+cards.length)%cards.length);setFlipped(false)};
+
+  const stats=useMemo(()=>({
+    know:conf.filter(c=>c.conf==='know').length,
+    sorta:conf.filter(c=>c.conf==='sorta').length,
+    nope:conf.filter(c=>c.conf==='nope').length,
+  }),[conf]);
+
+  if(showAll){
+    return(
+      <div className="p-6 max-w-4xl">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={()=>setShowAll(false)} className="text-gray-500 hover:text-gray-300 text-sm">← Back</button>
+          <h1 className="text-gray-100 text-xl font-semibold">All Flashcards</h1>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {FLASHCARDS.map((c,i)=>{
+            const cv=conf.find(x=>x.id===c.id);
+            return(
+              <div key={c.id} className="bg-gray-900 border border-gray-800 rounded-lg p-3 cursor-pointer hover:border-gray-700"
+                onClick={()=>{setDomain(c.domain);setIdx(cards.findIndex(x=>x.id===c.id)||0);setShowAll(false);setFlipped(false)}}>
+                <div className="flex items-center justify-between mb-1">
+                  <Tag domain={c.domain} small/>
+                  {cv&&<span className={`text-xs ${cv.conf==='know'?'text-green-400':cv.conf==='sorta'?'text-orange-400':'text-red-400'}`}>
+                    {cv.conf==='know'?'✓ know':cv.conf==='sorta'?'~ sorta':'✗ nope'}
+                  </span>}
+                </div>
+                <div className="text-gray-300 text-sm">{c.front}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="p-6 max-w-2xl">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-gray-100 text-xl font-semibold">Flashcards</h1>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-green-400">✓ {stats.know}</span>
+          <span className="text-orange-400">~ {stats.sorta}</span>
+          <span className="text-red-400">✗ {stats.nope}</span>
+          <button onClick={()=>setShowAll(true)} className="text-gray-500 hover:text-gray-300 border border-gray-700 px-2 py-1 rounded ml-2">All</button>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
+          <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
+            className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-green-400 text-green-400':'border-gray-700 text-gray-500 hover:border-gray-500'}`}>
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="text-gray-500 text-xs mb-3 text-center">{idx+1} / {cards.length} · Click card to flip</div>
+
+      <div className="flip-card mb-4 cursor-pointer" onClick={()=>setFlipped(f=>!f)}>
+        <div className={`flip-inner ${flipped?'flipped':''}`}>
+          <div className={`flip-face bg-gray-900 border ${card?DOMAINS[card.domain].border:'border-gray-700'} text-center`}>
+            <div className="text-gray-500 text-xs mb-3">CONCEPT</div>
+            <div className="text-gray-100 text-lg font-medium">{card?.front}</div>
+            {card&&<Tag domain={card.domain} small/>}
+          </div>
+          <div className="flip-face flip-back bg-gray-800 border border-gray-700">
+            <div className="text-gray-500 text-xs mb-3">EXPLANATION</div>
+            <div className="text-gray-200 text-sm text-center leading-relaxed">{card?.back}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={()=>go(-1)} className="text-gray-500 hover:text-gray-300 text-sm px-3 py-1.5 border border-gray-700 rounded hover:border-gray-500">← Prev</button>
+        <div className="flex gap-2">
+          {[{k:'nope',label:'✗ Nope',cls:'border-red-400/50 text-red-400 hover:bg-red-400/10'},
+            {k:'sorta',label:'~ Sorta',cls:'border-orange-400/50 text-orange-400 hover:bg-orange-400/10'},
+            {k:'know',label:'✓ Know',cls:'border-green-400/50 text-green-400 hover:bg-green-400/10'}
+          ].map(b=>(
+            <button key={b.k} onClick={()=>setCardConf(b.k)}
+              className={`text-xs px-3 py-1.5 rounded border transition-colors ${b.cls} ${cardConf?.conf===b.k?'opacity-100 font-semibold':'opacity-60'}`}>
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={()=>go(1)} className="text-gray-500 hover:text-gray-300 text-sm px-3 py-1.5 border border-gray-700 rounded hover:border-gray-500">Next →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Practice Exam ─────────────────────────────────────────────────────────────
+function PracticeExam({onExamComplete}){
+  const[phase,setPhase]=useState('setup');
+  const[questions,setQuestions]=useState([]);
+  const[answers,setAnswers]=useState({});
+  const[timeLeft,setTimeLeft]=useState(7800);
+  const[flagged,setFlagged]=useState(new Set());
+  const[qIdx,setQIdx]=useState(0);
+  const timerRef=useRef(null);
+
+  const start=()=>{
+    const pool=[];
+    Object.entries(DOMAINS).forEach(([d,meta])=>{
+      const dq=shuffle(QUESTIONS.filter(q=>q.domain===d));
+      const n=Math.round(65*meta.pct/100);
+      pool.push(...dq.slice(0,n));
+    });
+    const final=shuffle(pool).slice(0,65);
+    setQuestions(final);setAnswers({});setTimeLeft(7800);setFlagged(new Set());setQIdx(0);
+    setPhase('exam');
+    timerRef.current=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);setPhase('result');return 0;}return t-1;}),1000);
+  };
+
+  const submit=()=>{clearInterval(timerRef.current);setPhase('result');};
+
+  useEffect(()=>()=>clearInterval(timerRef.current),[]);
+
+  useEffect(()=>{
+    if(phase==='result'&&questions.length>0){
+      const correct=questions.filter((q,i)=>answers[i]===q.ans).length;
+      const score=Math.round(correct/questions.length*100);
+      const byDomain={};
+      Object.keys(DOMAINS).forEach(d=>{
+        const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
+        byDomain[d]={correct:dqs.filter(q=>answers[q.i]===q.ans).length,total:dqs.length};
+      });
+      onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today()});
+    }
+  },[phase]);
+
+  const fmt=(s)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+  const answered=Object.keys(answers).length;
+  const progress=pct(answered,65);
+
+  if(phase==='setup'){
+    return(
+      <div className="p-6 max-w-2xl">
+        <h1 className="text-gray-100 text-xl font-semibold mb-6">Practice Exam</h1>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+          <div className="text-gray-300 text-sm font-medium">SAA-C03 Simulation</div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="text-gray-500">Questions: <span className="text-gray-200">65</span></div>
+            <div className="text-gray-500">Time: <span className="text-gray-200">130 minutes</span></div>
+            <div className="text-gray-500">Pass score: <span className="text-green-400">72% (720/1000)</span></div>
+            <div className="text-gray-500">Format: <span className="text-gray-200">Multiple choice</span></div>
+          </div>
+          <div className="border-t border-gray-800 pt-3 space-y-1.5 text-xs text-gray-500">
+            {Object.entries(DOMAINS).map(([k,d])=>(
+              <div key={k} className="flex justify-between">
+                <span className={d.color}>{d.label} Architectures</span>
+                <span>{d.pct}% (~{Math.round(65*d.pct/100)} questions)</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={start} className="bg-green-400 text-gray-950 text-sm font-semibold px-6 py-2.5 rounded hover:bg-green-300 transition-colors">
+            Begin Exam →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if(phase==='result'){
+    const correct=questions.filter((q,i)=>answers[i]===q.ans).length;
+    const score=Math.round(correct/questions.length*100);
+    const pass=score>=72;
+    const byDomain={};
+    Object.keys(DOMAINS).forEach(d=>{
+      const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
+      byDomain[d]={correct:dqs.filter(q=>answers[q.i]===q.ans).length,total:dqs.length};
+    });
+    return(
+      <div className="p-6 max-w-2xl">
+        <h1 className="text-gray-100 text-xl font-semibold mb-6">Exam Results</h1>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-5">
+          <div>
+            <div className={`text-5xl font-semibold mb-1 ${pass?'text-green-400':'text-red-400'}`}>{score}%</div>
+            <div className={`text-sm ${pass?'text-green-400':'text-red-400'}`}>{pass?'PASS — Above 72% threshold':'FAIL — Below 72% threshold'}</div>
+            <div className="text-gray-500 text-xs mt-1">{correct} / {questions.length} correct</div>
+          </div>
+          <div className="space-y-3">
+            {Object.entries(byDomain).map(([d,s])=>(
+              <div key={d}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className={DOMAINS[d].color}>{DOMAINS[d].label}</span>
+                  <span className="text-gray-400">{s.correct}/{s.total} ({pct(s.correct,s.total)}%)</span>
+                </div>
+                <ProgressBar value={s.correct} max={s.total} domain={d}/>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>setPhase('setup')} className="border border-gray-700 text-gray-300 text-sm px-4 py-2 rounded hover:border-gray-500 transition-colors">
+            Take Another Exam
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const q=questions[qIdx];
+  const d=q?DOMAINS[q.domain]:{color:'text-gray-400',border:'border-gray-700',bg:'bg-gray-900'};
+
+  return(
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-950 sticky top-0">
+        <div className="text-sm text-gray-400">Q {qIdx+1} / {questions.length}</div>
+        <div className={`text-lg font-semibold ${timeLeft<600?'text-red-400':timeLeft<1800?'text-orange-400':'text-green-400'}`}>
+          {fmt(timeLeft)}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">{answered}/65 answered</span>
+          <button onClick={submit} className="text-xs border border-red-400/50 text-red-400 px-3 py-1 rounded hover:bg-red-400/10">Submit</button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Question panel */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <ProgressBar value={answered} max={65} domain={q?.domain} className="mb-5"/>
+          {q&&(
+            <>
+              <div className={`bg-gray-900 border ${d.border} rounded-lg p-5 mb-4`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag domain={q.domain}/><span className="text-gray-600 text-xs">{q.sub}</span>
+                  <button onClick={()=>setFlagged(f=>{const n=new Set(f);n.has(qIdx)?n.delete(qIdx):n.add(qIdx);return n;})}
+                    className={`ml-auto text-xs ${flagged.has(qIdx)?'text-orange-400':'text-gray-600 hover:text-gray-400'}`}>
+                    {flagged.has(qIdx)?'⚑ flagged':'⚐ flag'}
+                  </button>
+                </div>
+                <p className="text-gray-200 text-sm leading-relaxed">{q.q}</p>
+              </div>
+              <div className="space-y-2">
+                {q.opts.map((opt,i)=>(
+                  <button key={i} onClick={()=>setAnswers(a=>({...a,[qIdx]:i}))}
+                    className={`w-full text-left text-sm px-4 py-3 rounded border transition-colors ${answers[qIdx]===i?'border-green-400 text-green-400 bg-green-400/10':'border-gray-700 text-gray-300 hover:border-gray-500'}`}>
+                    <span className="text-gray-500 mr-2">{String.fromCharCode(65+i)}.</span>{opt}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={()=>setQIdx(i=>Math.max(0,i-1))} disabled={qIdx===0}
+                  className="text-sm px-4 py-2 border border-gray-700 text-gray-400 rounded hover:border-gray-500 disabled:opacity-30">← Prev</button>
+                <button onClick={()=>setQIdx(i=>Math.min(questions.length-1,i+1))} disabled={qIdx===questions.length-1}
+                  className="text-sm px-4 py-2 border border-gray-700 text-gray-400 rounded hover:border-gray-500 disabled:opacity-30">Next →</button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Question grid */}
+        <div className="w-48 border-l border-gray-800 overflow-y-auto p-3">
+          <div className="text-xs text-gray-600 mb-2">Navigator</div>
+          <div className="grid grid-cols-5 gap-1">
+            {questions.map((_,i)=>(
+              <button key={i} onClick={()=>setQIdx(i)}
+                className={`text-xs w-full aspect-square rounded flex items-center justify-center transition-colors
+                  ${i===qIdx?'bg-green-400 text-gray-950':
+                    flagged.has(i)?'bg-orange-400/20 text-orange-400 border border-orange-400/40':
+                    answers[i]!==undefined?'bg-gray-700 text-gray-300':'bg-gray-900 text-gray-600 border border-gray-800'}`}>
+                {i+1}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 space-y-1 text-xs text-gray-600">
+            <div><span className="inline-block w-3 h-3 bg-green-400 rounded mr-1"/>Current</div>
+            <div><span className="inline-block w-3 h-3 bg-gray-700 rounded mr-1"/>Answered</div>
+            <div><span className="inline-block w-3 h-3 bg-orange-400/20 border border-orange-400/40 rounded mr-1"/>Flagged</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+function Analytics({quizHistory,examHistory,flashConf}){
+  const domainStats=useMemo(()=>{
+    return Object.entries(DOMAINS).map(([key,d])=>{
+      const qs=quizHistory.filter(h=>h.domain===key);
+      const correct=qs.filter(h=>h.correct).length;
+      const subMap={};
+      qs.forEach(h=>{
+        if(!subMap[h.sub])subMap[h.sub]={correct:0,total:0};
+        subMap[h.sub].total++;
+        if(h.correct)subMap[h.sub].correct++;
+      });
+      return{key,label:d.label,color:d.color,border:d.border,bg:d.bg,correct,total:qs.length,pct:d.pct,subs:subMap};
+    });
+  },[quizHistory]);
+
+  const flashStats=useMemo(()=>{
+    const know=flashConf.filter(f=>f.conf==='know').length;
+    const sorta=flashConf.filter(f=>f.conf==='sorta').length;
+    const nope=flashConf.filter(f=>f.conf==='nope').length;
+    return{know,sorta,nope,total:FLASHCARDS.length};
+  },[flashConf]);
+
+  const recentExams=examHistory.slice(-5).reverse();
+
+  return(
+    <div className="p-6 space-y-6 max-w-4xl">
+      <h1 className="text-gray-100 text-xl font-semibold">Analytics</h1>
+
+      {/* Domain breakdown */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {domainStats.map(d=>(
+          <div key={d.key} className={`bg-gray-900 border ${d.border} rounded-lg p-4`}>
+            <div className="flex justify-between items-center mb-3">
+              <span className={`${d.color} font-medium text-sm`}>{d.label} ({d.pct}%)</span>
+              <span className="text-gray-400 text-sm">{d.total?`${pct(d.correct,d.total)}%`:'No data'}</span>
+            </div>
+            <ProgressBar value={d.total?pct(d.correct,d.total):0} max={100} domain={d.key} className="mb-3"/>
+            <div className="text-gray-500 text-xs">{d.correct}/{d.total} questions correct</div>
+            {Object.entries(d.subs).length>0&&(
+              <div className="mt-3 pt-3 border-t border-gray-800 space-y-1.5">
+                {Object.entries(d.subs).sort(([,a],[,b])=>pct(a.correct,a.total)-pct(b.correct,b.total)).map(([sub,s])=>(
+                  <div key={sub} className="flex justify-between text-xs">
+                    <span className="text-gray-500">{sub}</span>
+                    <span className={pct(s.correct,s.total)>=70?'text-green-400':pct(s.correct,s.total)>=50?'text-orange-400':'text-red-400'}>
+                      {pct(s.correct,s.total)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Flashcard mastery */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <div className="text-gray-300 text-sm font-medium mb-3">Flashcard Mastery</div>
+        <div className="flex gap-6 mb-3">
+          <div><div className="text-green-400 text-xl font-semibold">{flashStats.know}</div><div className="text-gray-500 text-xs">Know it</div></div>
+          <div><div className="text-orange-400 text-xl font-semibold">{flashStats.sorta}</div><div className="text-gray-500 text-xs">Sorta</div></div>
+          <div><div className="text-red-400 text-xl font-semibold">{flashStats.nope}</div><div className="text-gray-500 text-xs">Nope</div></div>
+          <div><div className="text-gray-400 text-xl font-semibold">{flashStats.total-flashStats.know-flashStats.sorta-flashStats.nope}</div><div className="text-gray-500 text-xs">Unseen</div></div>
+        </div>
+        <ProgressBar value={flashStats.know} max={flashStats.total} domain="secure" className="mb-1"/>
+        <div className="text-gray-600 text-xs">{pct(flashStats.know,flashStats.total)}% mastered</div>
+      </div>
+
+      {/* Exam history */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <div className="text-gray-300 text-sm font-medium mb-3">Exam History</div>
+        {recentExams.length===0?(
+          <div className="text-gray-600 text-sm">No exam attempts yet.</div>
+        ):(
+          <div className="space-y-2">
+            {recentExams.map((e,i)=>(
+              <div key={i} className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
+                <div className="text-gray-500 text-xs">{e.date||new Date(e.ts).toLocaleDateString()}</div>
+                <div className="flex items-center gap-3">
+                  <div className={`text-sm font-semibold ${e.score>=72?'text-green-400':'text-red-400'}`}>{e.score}%</div>
+                  <div className={`text-xs px-2 py-0.5 rounded ${e.score>=72?'bg-green-400/10 text-green-400':'bg-red-400/10 text-red-400'}`}>
+                    {e.score>=72?'PASS':'FAIL'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+function Notes(){
+  const[notes,setNotes]=useStore('notes',{});
+  const[domain,setDomain]=useState('secure');
+  const[editing,setEditing]=useState(false);
+  const[draft,setDraft]=useState('');
+
+  const current=notes[domain]||'';
+
+  const startEdit=()=>{setDraft(current);setEditing(true)};
+  const save=()=>{setNotes(n=>({...n,[domain]:draft}));setEditing(false)};
+  const discard=()=>{setEditing(false);setDraft(current)};
+
+  return(
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-gray-100 text-xl font-semibold mb-6">Notes</h1>
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {Object.entries(DOMAINS).map(([k,d])=>(
+          <button key={k} onClick={()=>{setDomain(k);setEditing(false)}}
+            className={`text-xs px-3 py-1.5 rounded border transition-colors ${domain===k?`${d.border} ${d.color} ${d.bg}`:'border-gray-700 text-gray-500 hover:border-gray-500'}`}>
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <Tag domain={domain}/>
+            <span className="text-gray-400 text-sm">Notes</span>
+          </div>
+          {!editing?(
+            <button onClick={startEdit} className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 px-2 py-1 rounded hover:border-gray-500">Edit</button>
+          ):(
+            <div className="flex gap-2">
+              <button onClick={save} className="text-xs text-green-400 border border-green-400/40 px-2 py-1 rounded hover:bg-green-400/10">Save</button>
+              <button onClick={discard} className="text-xs text-gray-500 border border-gray-700 px-2 py-1 rounded hover:border-gray-500">Discard</button>
+            </div>
+          )}
+        </div>
+        {editing?(
+          <textarea value={draft} onChange={e=>setDraft(e.target.value)}
+            className="w-full bg-transparent text-gray-300 text-sm p-4 min-h-64 resize-none border-none"
+            placeholder={`Notes for ${DOMAINS[domain].label} Architecture...\n\nUse plain text or markdown-style formatting.\n- Bullet points work\n** Bold text **\n\nExam tips, gotchas, service comparisons...`}/>
+        ):(
+          <div className="p-4 min-h-64">
+            {current?(
+              <pre className="text-gray-300 text-sm whitespace-pre-wrap font-mono leading-relaxed">{current}</pre>
+            ):(
+              <div className="text-gray-700 text-sm">No notes yet for {DOMAINS[domain].label}. Click Edit to start.</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+function Leaderboard({quizHistory,examHistory,streak}){
+  const milestones=[
+    {label:'First Quiz',done:quizHistory.length>=1,icon:'◉'},
+    {label:'10 Questions',done:quizHistory.length>=10,icon:'◉'},
+    {label:'50 Questions',done:quizHistory.length>=50,icon:'◉'},
+    {label:'100 Questions',done:quizHistory.length>=100,icon:'◉'},
+    {label:'First Exam',done:examHistory.length>=1,icon:'◎'},
+    {label:'First PASS',done:examHistory.some(e=>e.score>=72),icon:'◎'},
+    {label:'3-Day Streak',done:streak>=3,icon:'◆'},
+    {label:'7-Day Streak',done:streak>=7,icon:'◆'},
+    {label:'80%+ Exam Score',done:examHistory.some(e=>e.score>=80),icon:'★'},
+    {label:'90%+ Exam Score',done:examHistory.some(e=>e.score>=90),icon:'★'},
+    {label:'Flashcard Master (20 known)',done:(S.get('flash_conf')||[]).filter(f=>f.conf==='know').length>=20,icon:'⬜'},
+  ];
+
+  const examBest=examHistory.length?Math.max(...examHistory.map(e=>e.score)):null;
+  const totalCorrect=quizHistory.filter(h=>h.correct).length;
+  const accuracy=quizHistory.length?pct(totalCorrect,quizHistory.length):0;
+
+  return(
+    <div className="p-6 max-w-2xl space-y-6">
+      <h1 className="text-gray-100 text-xl font-semibold">Personal Progress</h1>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          {label:'Questions',val:quizHistory.length,color:'text-green-400'},
+          {label:'Accuracy',val:`${accuracy}%`,color:'text-cyan-400'},
+          {label:'Best Exam',val:examBest!==null?`${examBest}%`:'—',color:'text-orange-400'},
+          {label:'Streak',val:`${streak}d`,color:'text-pink-400'},
+        ].map(s=>(
+          <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
+            <div className={`${s.color} text-2xl font-semibold`}>{s.val}</div>
+            <div className="text-gray-600 text-xs mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <div className="text-gray-300 text-sm font-medium mb-4">Milestones</div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {milestones.map((m,i)=>(
+            <div key={i} className={`flex items-center gap-2 text-sm py-1.5 border-b border-gray-800/50 last:border-0 ${m.done?'text-gray-200':'text-gray-600'}`}>
+              <span className={m.done?'text-green-400':'text-gray-700'}>{m.done?'✓':'○'}</span>
+              <span>{m.icon}</span>
+              {m.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {examHistory.length>0&&(
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="text-gray-300 text-sm font-medium mb-3">Exam Score History</div>
+          <div className="flex items-end gap-1 h-20">
+            {examHistory.slice(-10).map((e,i)=>(
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div className={`w-full rounded-sm ${e.score>=72?'bg-green-400':'bg-red-400'}`} style={{height:`${Math.max(4,e.score*0.7)}%`}}/>
+                <div className="text-xs text-gray-600" style={{fontSize:'9px'}}>{e.score}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between text-xs text-gray-600 mt-1">
+            <span>{examHistory.length} attempts</span>
+            <span>Pass line: 72%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function Settings({settings,setSettings,onReset}){
+  const[confirm,setConfirm]=useState(false);
+
+  const toggle=(k)=>setSettings(s=>({...s,[k]:!s[k]}));
+  const update=(k,v)=>setSettings(s=>({...s,[k]:v}));
+
+  return(
+    <div className="p-6 max-w-xl space-y-6">
+      <h1 className="text-gray-100 text-xl font-semibold">Settings</h1>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div>
+            <div className="text-gray-200 text-sm">Exam Target Date</div>
+            <div className="text-gray-500 text-xs">When are you sitting SAA-C03?</div>
+          </div>
+          <input type="date" value={settings.targetDate||''} onChange={e=>update('targetDate',e.target.value)}
+            className="bg-gray-800 border border-gray-700 text-gray-300 text-sm px-2 py-1 rounded"/>
+        </div>
+
+        {[
+          {k:'studyReminders',label:'Study Reminders',sub:'Daily browser notifications'},
+          {k:'showExplanations',label:'Show Explanations',sub:'Immediately after answering'},
+          {k:'adaptiveQuiz',label:'Adaptive Mode',sub:'Weight weak domains higher'},
+        ].map(s=>(
+          <div key={s.k} className="px-4 py-3 flex items-center justify-between">
+            <div>
+              <div className="text-gray-200 text-sm">{s.label}</div>
+              <div className="text-gray-500 text-xs">{s.sub}</div>
+            </div>
+            <button onClick={()=>toggle(s.k)}
+              className={`w-10 h-5 rounded-full transition-colors relative ${settings[s.k]?'bg-green-400':'bg-gray-700'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${settings[s.k]?'translate-x-5':'translate-x-0.5'}`}/>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {settings.targetDate&&(()=>{
+        const days=Math.ceil((new Date(settings.targetDate)-new Date())/86400000);
+        return days>0?(
+          <div className="bg-orange-400/10 border border-orange-400/30 rounded-lg px-4 py-3">
+            <div className="text-orange-400 text-sm font-medium">{days} days until exam</div>
+            <div className="text-orange-400/70 text-xs mt-0.5">Stay consistent. {Math.round(days/7)} weeks remaining.</div>
+          </div>
+        ):null;
+      })()}
+
+      <div className="bg-gray-900 border border-red-400/20 rounded-lg p-4">
+        <div className="text-red-400 text-sm font-medium mb-1">Danger Zone</div>
+        <div className="text-gray-500 text-xs mb-3">This will delete all quiz history, exam attempts, flashcard ratings, and notes.</div>
+        {!confirm?(
+          <button onClick={()=>setConfirm(true)} className="text-sm border border-red-400/40 text-red-400 px-4 py-2 rounded hover:bg-red-400/10 transition-colors">
+            Reset All Progress
+          </button>
+        ):(
+          <div className="flex gap-2">
+            <button onClick={()=>{onReset();setConfirm(false)}} className="text-sm bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors">
+              Confirm Reset
+            </button>
+            <button onClick={()=>setConfirm(false)} className="text-sm border border-gray-700 text-gray-400 px-4 py-2 rounded hover:border-gray-500">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="text-gray-700 text-xs">
+        Data stored in {window.storage?'Claude artifact storage':'localStorage'}. All progress is local to this browser.
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App(){
+  const[active,setActive]=useState('dashboard');
+  const[quizHistory,setQuizHistory]=useStore('quiz_history',[]);
+  const[examHistory,setExamHistory]=useStore('exam_history',[]);
+  const[flashConf]=useStore('flash_conf',[]);
+  const[settings,setSettings]=useStore('settings',{targetDate:'',studyReminders:false,showExplanations:true,adaptiveQuiz:true});
+  const[streak,setStreak]=useStore('streak',0);
+  const[lastStudy,setLastStudy]=useStore('last_study','');
+
+  // Streak logic
+  useEffect(()=>{
+    const td=today();
+    if(lastStudy===td)return;
+    const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+    const ystr=yesterday.toISOString().slice(0,10);
+    setStreak(lastStudy===ystr?s=>s+1:1);
+    setLastStudy(td);
+  },[]);
+
+  const handleReset=()=>{
+    ['quiz_history','exam_history','flash_conf','notes','lesson_read'].forEach(k=>{
+      window.storage?window.storage.setItem(k,'null'):localStorage.setItem(k,'null');
+    });
+    setQuizHistory([]);setExamHistory([]);setStreak(0);
+  };
+
+  const renderPage=()=>{
+    switch(active){
+      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive}/>;
+      case'lesson':return<Lesson/>;
+      case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
+      case'flashcards':return<Flashcards/>;
+      case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
+      case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
+      case'notes':return<Notes/>;
+      case'leaderboard':return<Leaderboard quizHistory={quizHistory} examHistory={examHistory} streak={streak}/>;
+      case'settings':return<Settings settings={settings} setSettings={setSettings} onReset={handleReset}/>;
+      default:return null;
+    }
+  };
+
+  return(
+    <div className="flex min-h-screen bg-gray-950 font-mono">
+      <Sidebar active={active} setActive={setActive} streak={streak}/>
+      <main className="flex-1 overflow-y-auto">
+        {renderPage()}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
