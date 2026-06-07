@@ -1741,13 +1741,23 @@ function Flashcards(){
   const[idx,setIdx]=useState(0);
   const[flipped,setFlipped]=useState(false);
   const[showAll,setShowAll]=useState(false);
+  const[shuffleOn,setShuffleOn]=useState(false);
+  const[shuffleSeed,setShuffleSeed]=useState(0);
 
   const cards=useMemo(()=>{
     let c=ALL_FLASH;
     if(source!=='all')c=c.filter(x=>x.source===source);
     if(domain!=='all')c=c.filter(x=>x.domain===domain);
+    if(shuffleOn)c=shuffle(c);
     return c;
-  },[domain,source]);
+  },[domain,source,shuffleOn,shuffleSeed]);
+
+  const toggleShuffle=()=>{
+    setShuffleOn(s=>!s);
+    setShuffleSeed(s=>s+1);
+    setIdx(0);setFlipped(false);
+  };
+  const reshuffle=()=>{setShuffleSeed(s=>s+1);setIdx(0);setFlipped(false)};
 
   const card=cards[Math.min(idx,cards.length-1)];
   const cardConf=conf.find(c=>c.id===card?.id);
@@ -1809,7 +1819,12 @@ function Flashcards(){
           <span className="text-emerald-600">✓ {stats.know}</span>
           <span className="text-amber-600">~ {stats.sorta}</span>
           <span className="text-red-400">✗ {stats.nope}</span>
-          <button onClick={()=>setShowAll(true)} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded ml-2">All</button>
+          <button onClick={shuffleOn?reshuffle:toggleShuffle} title={shuffleOn?'Click to re-shuffle':'Shuffle card order'}
+            className={`border px-2 py-1 rounded ml-2 transition-colors ${shuffleOn?'border-indigo-400 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+            🔀 {shuffleOn?'Shuffled':'Shuffle'}
+          </button>
+          {shuffleOn&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
+          <button onClick={()=>setShowAll(true)} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">All</button>
         </div>
       </div>
 
