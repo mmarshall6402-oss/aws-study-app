@@ -686,6 +686,7 @@ const NAV=[
   {id:'quiz',icon:'◉',label:'Quiz'},
   {id:'flashcards',icon:'⬜',label:'Flashcards'},
   {id:'exam',icon:'◎',label:'Practice Exam'},
+  {id:'history',icon:'◷',label:'History'},
   {id:'analytics',icon:'◈',label:'Analytics'},
   {id:'notes',icon:'▤',label:'Notes'},
   {id:'leaderboard',icon:'◆',label:'Leaderboard'},
@@ -993,7 +994,10 @@ function Quiz({onAnswer}){
   const[showExp,setShowExp]=useState(false);
   const[sessionResults,setSessionResults]=useState([]);
 
+  const sessionIdRef=useRef(null);
+
   const startQuiz=()=>{
+    sessionIdRef.current='q_'+Date.now();
     const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
     setSession(shuffle(pool).slice(0,10));
     setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);
@@ -1007,7 +1011,7 @@ function Quiz({onAnswer}){
     setSelected(i);setShowExp(true);
     const q=session[idx];
     const correct=isCorrectOpt(q,i);
-    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now()});
+    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:i});
     setSessionResults(r=>[...r,{correct,dontKnow:false,domain:q.domain,sub:q.sub,qtext:q.q,ans:correctLabel(q)}]);
   };
 
@@ -1015,7 +1019,7 @@ function Quiz({onAnswer}){
     if(selected!==null)return;
     setSelected('dk');setShowExp(true);
     const q=session[idx];
-    onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now()});
+    onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:'dk'});
     setSessionResults(r=>[...r,{correct:false,dontKnow:true,domain:q.domain,sub:q.sub,qtext:q.q,ans:correctLabel(q)}]);
   };
 
@@ -1346,7 +1350,7 @@ function PracticeExam({onExamComplete}){
         const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
         byDomain[d]={correct:dqs.filter(q=>examAnswerCorrect(answers[q.i],q.ans)).length,total:dqs.length};
       });
-      const items=questions.map((q,i)=>({qid:q.id,domain:q.domain,sub:q.sub,correct:examAnswerCorrect(answers[i],q.ans)}));
+      const items=questions.map((q,i)=>({qid:q.id,domain:q.domain,sub:q.sub,correct:examAnswerCorrect(answers[i],q.ans),userAns:answers[i]}));
       onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today(),items});
     }
   },[phase]);
@@ -1896,6 +1900,148 @@ function Settings({settings,setSettings,onReset}){
   );
 }
 
+// ── History ───────────────────────────────────────────────────────────────────
+function History({quizHistory,examHistory}){
+  const[expandedQuiz,setExpandedQuiz]=useState(null);
+  const[expandedExam,setExpandedExam]=useState(null);
+
+  const qMap=useMemo(()=>{const m={};QUESTIONS.forEach(q=>m[q.id]=q);return m;},[]);
+
+  const quizSessions=useMemo(()=>{
+    const grouped={};
+    quizHistory.forEach(h=>{
+      const sid=h.sessionId||('day_'+new Date(h.ts).toISOString().slice(0,10));
+      if(!grouped[sid])grouped[sid]={sid,ts:h.ts,items:[]};
+      grouped[sid].items.push(h);
+      if(h.ts>grouped[sid].ts)grouped[sid].ts=h.ts;
+    });
+    return Object.values(grouped).sort((a,b)=>b.ts-a.ts);
+  },[quizHistory]);
+
+  const examSessions=[...examHistory].reverse();
+
+  const QuestionRow=({item,qMap})=>{
+    const[showExp,setShowExp]=useState(false);
+    const q=qMap[item.qid];
+    const userOptText=item.userAns==='dk'?"I don't know"
+      :Array.isArray(item.userAns)?item.userAns.map(a=>q?.opts?.[a]).filter(Boolean).join(' + ')
+      :(item.userAns!==undefined&&q)?q.opts[item.userAns]:'—';
+    const correctOptText=q?(Array.isArray(q.ans)?q.ans.map(a=>q.opts[a]).join(' / '):q.opts[q.ans]):'—';
+    return(
+      <div className={`px-4 py-3 text-xs border-b border-slate-50 last:border-0 ${item.correct?'':'bg-red-50/40'}`}>
+        <div className="flex items-start gap-2 mb-2">
+          <span className={`font-bold mt-0.5 shrink-0 text-sm ${item.correct?'text-emerald-500':'text-red-400'}`}>{item.correct?'✓':'✗'}</span>
+          <span className="text-slate-700 leading-snug font-medium flex-1">{q?q.q:`Question #${item.qid}`}</span>
+          <Tag domain={item.domain}/>
+        </div>
+        <div className="ml-5 space-y-1">
+          <div className="text-slate-500">You answered: <span className={`font-semibold ${item.correct?'text-emerald-600':'text-red-400'}`}>{userOptText}</span></div>
+          {!item.correct&&<div className="text-slate-500">Correct answer: <span className="font-semibold text-emerald-600">{correctOptText}</span></div>}
+          {q?.exp&&(
+            <button onClick={()=>setShowExp(s=>!s)} className="text-indigo-400 hover:text-indigo-600 underline-offset-2 hover:underline mt-1">
+              {showExp?'Hide':'Show'} explanation
+            </button>
+          )}
+          {showExp&&q?.exp&&<div className="text-slate-400 leading-relaxed italic border-l-2 border-indigo-200 pl-2 mt-1">{q.exp}</div>}
+        </div>
+      </div>
+    );
+  };
+
+  return(
+    <div className="p-4 md:p-6 max-w-3xl space-y-6">
+      <h1 className="text-slate-800 text-xl font-semibold">Attempt History</h1>
+
+      {/* Quiz sessions */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <div className="text-slate-700 text-sm font-semibold">Quiz Sessions</div>
+            <div className="text-slate-400 text-xs mt-0.5">{quizSessions.length} session{quizSessions.length!==1?'s':''} · {quizHistory.length} questions answered</div>
+          </div>
+          <span className="text-slate-300 text-xs">◉</span>
+        </div>
+        {quizSessions.length===0?(
+          <div className="p-8 text-center text-slate-400 text-sm">No quiz sessions yet — start a quiz to build your history.</div>
+        ):(
+          <div className="divide-y divide-slate-100">
+            {quizSessions.map((sess,i)=>{
+              const expanded=expandedQuiz===i;
+              const correct=sess.items.filter(q=>q.correct).length;
+              const score=Math.round(correct/sess.items.length*100);
+              const domains=[...new Set(sess.items.map(q=>q.domain))];
+              return(
+                <div key={sess.sid}>
+                  <button onClick={()=>setExpandedQuiz(expanded?null:i)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-left">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`text-sm font-bold tabular-nums ${score>=80?'text-emerald-600':score>=60?'text-amber-500':'text-red-400'}`}>{score}%</span>
+                      <span className="text-slate-400 text-xs">{correct}/{sess.items.length} correct</span>
+                      <div className="flex gap-1">{domains.map(d=><Tag key={d} domain={d}/>)}</div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-slate-400 text-xs">{new Date(sess.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                      <span className="text-slate-300 text-xs">{expanded?'▲':'▼'}</span>
+                    </div>
+                  </button>
+                  {expanded&&(
+                    <div className="border-t border-slate-100 max-h-[500px] overflow-y-auto">
+                      {sess.items.map((item,j)=><QuestionRow key={j} item={item} qMap={qMap}/>)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Exam attempts */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <div className="text-slate-700 text-sm font-semibold">Practice Exam Attempts</div>
+            <div className="text-slate-400 text-xs mt-0.5">{examHistory.length} attempt{examHistory.length!==1?'s':''}</div>
+          </div>
+          <span className="text-slate-300 text-xs">◎</span>
+        </div>
+        {examSessions.length===0?(
+          <div className="p-8 text-center text-slate-400 text-sm">No practice exams yet.</div>
+        ):(
+          <div className="divide-y divide-slate-100">
+            {examSessions.map((e,i)=>{
+              const expanded=expandedExam===i;
+              return(
+                <div key={i}>
+                  <button onClick={()=>setExpandedExam(expanded?null:i)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-bold tabular-nums ${e.score>=72?'text-emerald-600':'text-red-400'}`}>{e.score}%</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${e.score>=72?'bg-emerald-100 text-emerald-700':'bg-red-50 text-red-500'}`}>{e.score>=72?'PASS':'FAIL'}</span>
+                      <span className="text-slate-400 text-xs">{e.correct}/{e.total} correct</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-slate-400 text-xs">{e.date||new Date(e.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                      <span className="text-slate-300 text-xs">{expanded?'▲':'▼'}</span>
+                    </div>
+                  </button>
+                  {expanded&&(e.items?.length>0?(
+                    <div className="border-t border-slate-100 max-h-[500px] overflow-y-auto">
+                      {e.items.map((item,j)=><QuestionRow key={j} item={item} qMap={qMap}/>)}
+                    </div>
+                  ):(
+                    <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-400">Per-question detail only available for exams taken after the latest update.</div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const[active,setActive]=useState('dashboard');
@@ -1930,6 +2076,7 @@ function App(){
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
       case'flashcards':return<Flashcards/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
+      case'history':return<History quizHistory={quizHistory} examHistory={examHistory}/>;
       case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
       case'notes':return<Notes/>;
       case'leaderboard':return<Leaderboard quizHistory={quizHistory} examHistory={examHistory} streak={streak}/>;
