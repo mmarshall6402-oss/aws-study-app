@@ -791,6 +791,16 @@ function Tag({domain,small}){
   return <span className={`tag ${d.color} ${d.bg} ${d.border}`}>{d.label}</span>;
 }
 
+function renderLessonMd(text,d){
+  return text.split('\n').map((line,i)=>{
+    if(line.startsWith('**')&&line.endsWith('**'))return<div key={i} className={`${d.color} font-bold text-sm mt-5 mb-2 uppercase tracking-wide`}>{line.slice(2,-2)}</div>;
+    if(line.startsWith('- '))return<div key={i} className="text-slate-600 text-sm ml-3 flex gap-2 py-0.5"><span className={`${d.color} mt-0.5 flex-shrink-0`}>•</span><span>{line.slice(2)}</span></div>;
+    if(line.match(/^\d+\./))return<div key={i} className="text-slate-600 text-sm ml-3 py-0.5">{line}</div>;
+    if(line==='')return<div key={i} className="h-2"/>;
+    return<div key={i} className="text-slate-700 text-sm leading-relaxed">{line}</div>;
+  });
+}
+
 function ProgressBar({value,max,domain,className=''}){
   const d=DOMAINS[domain]||{color:'text-slate-500'};
   const w=max?Math.min(100,Math.round(value/max*100)):value;
@@ -806,6 +816,7 @@ function ProgressBar({value,max,domain,className=''}){
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 const NAV=[
   {id:'dashboard',icon:'⬡',label:'Dashboard'},
+  {id:'learn',icon:'▦',label:'Learn'},
   {id:'lesson',icon:'◈',label:'Daily Lesson'},
   {id:'quiz',icon:'◉',label:'Quiz'},
   {id:'flashcards',icon:'⬜',label:'Flashcards'},
@@ -980,6 +991,7 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}){
   const r=useMemo(()=>calcReadiness(quizHistory,examHistory,flashConf),[quizHistory,examHistory,flashConf]);
+  const[lessonsRead]=useStore('lesson_read',[]);
   const domainScores=useMemo(()=>{
     const scores={};
     Object.keys(DOMAINS).forEach(d=>{
@@ -988,11 +1000,6 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
     });
     return scores;
   },[quizHistory]);
-
-  const weak=Object.entries(domainScores).filter(([,v])=>v.total>0).sort(([,a],[,b])=>pct(a.correct,a.total)-pct(b.correct,b.total));
-  const totalCards=ALL_FLASH.length;
-  const known=flashConf.filter(f=>f.conf==='know').length;
-  const lastExam=examHistory[examHistory.length-1];
 
   return(
     <div className="p-4 md:p-6 space-y-6">
@@ -1007,8 +1014,8 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           {label:'Quiz Answers',val:quizHistory.length,sub:`${quizHistory.filter(h=>h.correct).length} correct`,color:'text-emerald-600',bg:'bg-emerald-50',icon:'◉'},
-          {label:'Cards Mastered',val:`${pct(known,totalCards)}%`,sub:`${known} of ${totalCards} known`,color:'text-sky-600',bg:'bg-sky-50',icon:'⬜'},
-          {label:'Last Exam',val:lastExam?`${lastExam.score}%`:'—',sub:lastExam?`${lastExam.correct}/${lastExam.total} correct`:'Not attempted',color:'text-amber-600',bg:'bg-amber-50',icon:'◎'},
+          {label:'Lessons Done',val:`${lessonsRead.length}/${LESSONS.length}`,sub:'study guides completed',color:'text-sky-600',bg:'bg-sky-50',icon:'▦'},
+          {label:'Questions Tried',val:`${r.tried}/${QUESTIONS.length}`,sub:'unique questions seen',color:'text-amber-600',bg:'bg-amber-50',icon:'◷'},
           {label:'Day Streak',val:`${streak}🔥`,sub:'days in a row',color:'text-violet-600',bg:'bg-violet-50',icon:'◆'},
         ].map(c=>(
           <div key={c.label} className={`${c.bg} rounded-xl p-4 lift cursor-default`}>
@@ -1043,7 +1050,7 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
           <div className="text-slate-700 text-sm font-semibold mb-4">Jump Into</div>
           <div className="space-y-2">
             {[
-              {label:"Today's Lesson",id:'lesson',color:'text-emerald-700',bg:'bg-emerald-50 hover:bg-emerald-100',icon:'◈'},
+              {label:'Learn',id:'learn',color:'text-emerald-700',bg:'bg-emerald-50 hover:bg-emerald-100',icon:'▦'},
               {label:'Practice Quiz',id:'quiz',color:'text-sky-700',bg:'bg-sky-50 hover:bg-sky-100',icon:'◉'},
               {label:'Flashcards',id:'flashcards',color:'text-amber-700',bg:'bg-amber-50 hover:bg-amber-100',icon:'⬜'},
               {label:'Practice Exam',id:'exam',color:'text-violet-700',bg:'bg-violet-50 hover:bg-violet-100',icon:'◎'},
@@ -1054,16 +1061,117 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
               </button>
             ))}
           </div>
-          {weak.length>0&&(
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <div className="text-slate-400 text-xs mb-1">Focus area</div>
-              <div className={`${DOMAINS[weak[0][0]].color} text-sm font-medium`}>
-                {DOMAINS[weak[0][0]].label} — {pct(weak[0][1].correct,weak[0][1].total)}% accuracy
-              </div>
-            </div>
-          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Learn (full curriculum) ───────────────────────────────────────────────────
+const domainHex={secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'};
+
+function Learn(){
+  const[read,setRead]=useStore('lesson_read',[]);
+  const[activeIdx,setActiveIdx]=useState(null);
+  const[domainFilter,setDomainFilter]=useState('all');
+
+  const grouped=useMemo(()=>{
+    const g={};
+    Object.keys(DOMAINS).forEach(k=>g[k]=[]);
+    LESSONS.forEach((l,i)=>g[l.domain].push({...l,idx:i}));
+    return g;
+  },[]);
+
+  if(activeIdx!==null){
+    const lesson=LESSONS[activeIdx];
+    const d=DOMAINS[lesson.domain];
+    const isRead=read.includes(activeIdx);
+    const domainLessons=grouped[lesson.domain];
+    const pos=domainLessons.findIndex(l=>l.idx===activeIdx);
+    return(
+      <div className="p-4 md:p-6 max-w-3xl">
+        <button onClick={()=>setActiveIdx(null)} className="text-slate-400 hover:text-slate-600 text-sm mb-4">← Back to curriculum</button>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-1 self-stretch rounded-full" style={{background:domainHex[lesson.domain]}}/>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-slate-900 text-xl font-bold">{lesson.title}</h1>
+              <Tag domain={lesson.domain}/>
+            </div>
+            <div className="text-slate-400 text-xs mt-1">{d.label} · Topic {pos+1} of {domainLessons.length}</div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border-l-4 border border-slate-200 p-5 space-y-0.5 shadow-sm" style={{borderLeftColor:domainHex[lesson.domain]}}>
+          {renderLessonMd(lesson.content,d)}
+        </div>
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          <button onClick={()=>setRead(r=>isRead?r.filter(x=>x!==activeIdx):[...r,activeIdx])}
+            className={`text-sm px-4 py-2 rounded-lg border-2 font-medium transition-colors ${isRead?'border-emerald-400 text-emerald-700 bg-emerald-50':'border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+            {isRead?'✓ Completed':'Mark Complete'}
+          </button>
+          <button disabled={pos===0} onClick={()=>setActiveIdx(domainLessons[pos-1].idx)}
+            className="text-sm px-3 py-2 border border-slate-200 text-slate-500 rounded-lg hover:border-slate-400 disabled:opacity-30 transition-colors">← Prev topic</button>
+          <button disabled={pos===domainLessons.length-1} onClick={()=>setActiveIdx(domainLessons[pos+1].idx)}
+            className="text-sm px-3 py-2 border border-slate-200 text-slate-500 rounded-lg hover:border-slate-400 disabled:opacity-30 transition-colors">Next topic →</button>
+        </div>
+      </div>
+    );
+  }
+
+  const domainsToShow=domainFilter==='all'?Object.keys(DOMAINS):[domainFilter];
+
+  return(
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-5 flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Learn</h1>
+          <p className="text-slate-500 text-sm">{LESSONS.length} study guides covering everything you need for the SAA-C03 — browse by domain and work through them at your own pace.</p>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-2xl font-bold text-slate-900">{read.length}<span className="text-slate-300 text-base">/{LESSONS.length}</span></div>
+          <div className="text-xs text-slate-400">topics completed</div>
+        </div>
+      </div>
+      <ProgressBar value={read.length} max={LESSONS.length} className="mb-6"/>
+
+      <div className="flex gap-2 flex-wrap mb-6">
+        {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
+          <button key={d.id} onClick={()=>setDomainFilter(d.id)}
+            style={domainFilter===d.id&&d.id!=='all'?{background:domainHex[d.id],borderColor:domainHex[d.id],color:'#fff'}:{}}
+            className={`text-xs px-3 py-1 rounded-full border font-semibold transition-all ${domainFilter===d.id?(d.id==='all'?'bg-slate-800 border-slate-800 text-white':'border-transparent'):'bg-white border-slate-200 text-slate-600 hover:border-slate-400'}`}>
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {domainsToShow.map(dk=>{
+        const d=DOMAINS[dk];
+        const lessons=grouped[dk];
+        const completed=lessons.filter(l=>read.includes(l.idx)).length;
+        return(
+          <div key={dk} className="mb-7">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span style={{width:10,height:10,borderRadius:'50%',background:domainHex[dk]}}/>
+                <h2 className={`font-bold text-sm uppercase tracking-wide ${d.color}`}>{d.label} <span className="text-slate-400 font-medium normal-case">· {d.pct}% of exam</span></h2>
+              </div>
+              <span className="text-xs text-slate-400">{completed}/{lessons.length} done</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {lessons.map(l=>{
+                const isRead=read.includes(l.idx);
+                return(
+                  <div key={l.idx} onClick={()=>setActiveIdx(l.idx)}
+                    className="bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-slate-300 transition-all flex items-center justify-between gap-3">
+                    <span className="text-slate-700 text-sm font-medium leading-snug">{l.title}</span>
+                    {isRead?<span className="text-emerald-500 text-lg shrink-0">✓</span>:<span className="text-slate-200 text-lg shrink-0">○</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1075,14 +1183,6 @@ function Lesson(){
   const d=DOMAINS[lesson.domain];
   const[read,setRead]=useStore('lesson_read',[]);
   const isRead=read.includes(lessonIdx);
-
-  const renderMd=(text)=>text.split('\n').map((line,i)=>{
-    if(line.startsWith('**')&&line.endsWith('**'))return<div key={i} className={`${d.color} font-bold text-sm mt-5 mb-2 uppercase tracking-wide`}>{line.slice(2,-2)}</div>;
-    if(line.startsWith('- '))return<div key={i} className="text-slate-600 text-sm ml-3 flex gap-2 py-0.5"><span className={`${d.color} mt-0.5 flex-shrink-0`}>•</span><span>{line.slice(2)}</span></div>;
-    if(line.match(/^\d+\./))return<div key={i} className="text-slate-600 text-sm ml-3 py-0.5">{line}</div>;
-    if(line==='')return<div key={i} className="h-2"/>;
-    return<div key={i} className="text-slate-700 text-sm leading-relaxed">{line}</div>;
-  });
 
   return(
     <div className="p-4 md:p-6 max-w-3xl">
@@ -1097,7 +1197,7 @@ function Lesson(){
         </div>
       </div>
       <div className="bg-white rounded-xl border-l-4 border border-slate-200 p-5 space-y-0.5 shadow-sm" style={{borderLeftColor:{secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'}[lesson.domain]}}>
-        {renderMd(lesson.content)}
+        {renderLessonMd(lesson.content,d)}
       </div>
       <div className="mt-4 flex items-center gap-3">
         <button onClick={()=>setRead(r=>isRead?r.filter(x=>x!==lessonIdx):[...r,lessonIdx])}
@@ -2339,6 +2439,7 @@ function App(){
   const renderPage=()=>{
     switch(active){
       case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
+      case'learn':return<Learn/>;
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
       case'flashcards':return<Flashcards/>;
