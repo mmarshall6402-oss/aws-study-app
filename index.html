@@ -760,8 +760,106 @@ function BottomNav({active,setActive}){
   );
 }
 
+// ── Readiness ─────────────────────────────────────────────────────────────────
+function calcReadiness(quizHistory,examHistory,flashConf){
+  const dWeights={secure:0.30,resilient:0.26,performing:0.24,cost:0.20};
+  const byDomain={};
+  let quizSum=0,wSum=0;
+  Object.entries(dWeights).forEach(([d,w])=>{
+    const qs=quizHistory.filter(h=>h.domain===d);
+    const c=qs.filter(h=>h.correct).length;
+    byDomain[d]={correct:c,total:qs.length,pct:qs.length>0?Math.round(c/qs.length*100):null};
+    if(qs.length>=5){quizSum+=(c/qs.length)*w;wSum+=w;}
+  });
+  const quizPct=wSum>0?Math.round((quizSum/wSum)*100):0;
+  const hasExam=examHistory.length>0;
+  const recent=examHistory.slice(-5);
+  const avgExam=hasExam?Math.round(recent.reduce((s,e)=>s+e.score,0)/recent.length):0;
+  const examPct=hasExam?Math.round(Math.min(100,(avgExam/85)*100)):0;
+  const known=(flashConf||[]).filter(f=>f.conf==='know').length;
+  const flashPct=Math.round((known/FLASHCARDS.length)*100);
+  const tried=new Set(quizHistory.map(h=>h.qid)).size;
+  const covPct=Math.round(Math.min(100,(tried/(QUESTIONS.length*0.5))*100));
+  const w=hasExam?{exam:0.45,quiz:0.30,flash:0.15,cov:0.10}:{exam:0,quiz:0.55,flash:0.25,cov:0.20};
+  const total=Math.round(Math.min(100,examPct*w.exam+quizPct*w.quiz+flashPct*w.flash+covPct*w.cov));
+  return{total,examPct,quizPct,flashPct,covPct,byDomain,hasExam,avgExam,known,tried};
+}
+
+function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
+  const col=r.total>=80?'#10b981':r.total>=65?'#6366f1':r.total>=40?'#f59e0b':'#94a3b8';
+  const msg=r.total>=80?'Ready to book!':r.total>=65?'Almost there':r.total>=40?'Keep going':'Just getting started';
+  let days=null;
+  if(targetDate){const d=Math.ceil((new Date(targetDate)-new Date())/86400000);if(d>0)days=d;}
+  const weakest=Object.entries(r.byDomain).filter(([,v])=>v.total>=5).sort(([,a],[,b])=>(a.pct??100)-(b.pct??100))[0];
+  const tiles=[
+    {lbl:'Practice Exams',val:r.hasExam?`${r.examPct}%`:'—',sub:r.hasExam?`avg ${r.avgExam}% · last ${Math.min(5,examHistory.length)} exam${Math.min(5,examHistory.length)>1?'s':''}`:'Take one to unlock score',id:'exam',good:r.examPct>=75},
+    {lbl:'Quiz Accuracy',val:quizHistory.length>=5?`${r.quizPct}%`:'—',sub:quizHistory.length>=5?`${r.tried} unique questions tried`:'Need 5+ answers',id:'quiz',good:r.quizPct>=72},
+    {lbl:'Flashcards',val:`${r.flashPct}%`,sub:`${r.known} of ${FLASHCARDS.length} mastered`,id:'flashcards',good:r.flashPct>=70},
+  ];
+  return(
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Exam Readiness</span>
+        {r.total>=80
+          ?<span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">✓ Ready to Book</span>
+          :days?<span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">{days} days left</span>:null}
+      </div>
+      <div className="flex items-end gap-1.5 mb-3">
+        <span className="text-6xl font-bold leading-none tabular-nums" style={{color:col}}>{r.total}</span>
+        <div className="mb-1.5">
+          <span className="text-xl font-bold text-slate-300">%</span>
+          <div className="text-xs text-slate-500 font-medium mt-0.5">{msg}</div>
+        </div>
+      </div>
+      <div className="mb-5">
+        <div className="w-full bg-slate-100 rounded-full h-2.5 mb-1">
+          <div className="h-2.5 rounded-full transition-all duration-700" style={{width:`${r.total}%`,background:col}}/>
+        </div>
+        <div className="relative h-4">
+          {[{v:40,l:'Building'},{v:65,l:'Almost'},{v:80,l:'Book it!'}].map(m=>(
+            <div key={m.v} className="absolute flex flex-col items-center -translate-x-1/2" style={{left:`${m.v}%`}}>
+              <div className={`w-px h-1 ${r.total>=m.v?'bg-emerald-400':'bg-slate-300'}`}/>
+              <span className={`text-[9px] font-semibold whitespace-nowrap ${r.total>=m.v?'text-emerald-500':'text-slate-400'}`}>{m.l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {tiles.map(c=>(
+          <button key={c.id} onClick={()=>setActive(c.id)}
+            className="rounded-xl p-3 text-left border transition-all hover:shadow-sm"
+            style={{
+              borderColor:c.val!=='—'?(c.good?'#bbf7d0':'#fde68a'):'#e2e8f0',
+              background:c.val!=='—'?(c.good?'#f0fdf4':'#fffbeb'):'#f8fafc'
+            }}>
+            <div className="text-[10px] text-slate-400 font-medium mb-1.5 leading-tight">{c.lbl}</div>
+            <div className="text-lg font-bold leading-none mb-1 text-slate-800">{c.val}</div>
+            <div className="text-[10px] text-slate-400 leading-tight">{c.sub}</div>
+          </button>
+        ))}
+      </div>
+      {weakest&&(
+        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs">
+          <span className="text-amber-400">▲</span>
+          <span className="text-amber-700 font-semibold">Focus:</span>
+          <span className="text-amber-600">{DOMAINS[weakest[0]].label} — {weakest[1].pct}% accuracy</span>
+          <button onClick={()=>setActive('quiz')} className="ml-auto text-amber-700 font-bold hover:underline shrink-0">Practice →</button>
+        </div>
+      )}
+      {!r.hasExam&&quizHistory.length>=20&&(
+        <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs mt-2">
+          <span className="text-indigo-500">◎</span>
+          <span className="text-indigo-600">Take a full practice exam to unlock an accurate readiness score</span>
+          <button onClick={()=>setActive('exam')} className="ml-auto text-indigo-700 font-bold hover:underline shrink-0">Go →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
+function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}){
+  const r=useMemo(()=>calcReadiness(quizHistory,examHistory,flashConf),[quizHistory,examHistory,flashConf]);
   const domainScores=useMemo(()=>{
     const scores={};
     Object.keys(DOMAINS).forEach(d=>{
@@ -783,6 +881,8 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
         <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'22ch'}}>AWS SAA-C03 Hub</h1>
         <p className="text-slate-500 text-sm mt-1">Keep the streak going. You've got this.</p>
       </div>
+
+      <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate}/>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -1229,7 +1329,8 @@ function PracticeExam({onExamComplete}){
         const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
         byDomain[d]={correct:dqs.filter(q=>examAnswerCorrect(answers[q.i],q.ans)).length,total:dqs.length};
       });
-      onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today()});
+      const items=questions.map((q,i)=>({qid:q.id,domain:q.domain,sub:q.sub,correct:examAnswerCorrect(answers[i],q.ans)}));
+      onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today(),items});
     }
   },[phase]);
 
@@ -1380,6 +1481,11 @@ function PracticeExam({onExamComplete}){
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 function Analytics({quizHistory,examHistory,flashConf}){
+  const[tab,setTab]=useState('summary');
+  const[expandedExam,setExpandedExam]=useState(null);
+
+  const qMap=useMemo(()=>{const m={};QUESTIONS.forEach(q=>m[q.id]=q);return m;},[]);
+
   const domainStats=useMemo(()=>{
     return Object.entries(DOMAINS).map(([key,d])=>{
       const qs=quizHistory.filter(h=>h.domain===key);
@@ -1403,10 +1509,106 @@ function Analytics({quizHistory,examHistory,flashConf}){
 
   const recentExams=examHistory.slice(-5).reverse();
 
-  return(
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-      <h1 className="text-slate-800 text-xl font-semibold">Analytics</h1>
+  const recentQuiz=[...quizHistory].reverse().slice(0,100);
+  const recentExams=[...examHistory].reverse();
 
+  return(
+    <div className="p-4 md:p-6 space-y-5 max-w-4xl">
+      <div className="flex items-center justify-between">
+        <h1 className="text-slate-800 text-xl font-semibold">Analytics</h1>
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+          {[{id:'summary',label:'Summary'},{id:'log',label:'Question Log'}].map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-all ${tab===t.id?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab==='log'&&(
+        <div className="space-y-5">
+          {/* Quiz question log */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="text-slate-700 text-sm font-semibold mb-1">Quiz History</div>
+            <div className="text-slate-400 text-xs mb-4">{quizHistory.length} total attempts · showing last {recentQuiz.length}</div>
+            {recentQuiz.length===0?(
+              <div className="text-slate-400 text-sm py-4 text-center">No quiz attempts yet — start a quiz to build your history.</div>
+            ):(
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {recentQuiz.map((h,i)=>{
+                  const q=qMap[h.qid];
+                  return(
+                    <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border text-xs ${h.correct?'border-emerald-200 bg-emerald-50/40':'border-red-200 bg-red-50/40'}`}>
+                      <span className={`shrink-0 font-bold mt-0.5 ${h.correct?'text-emerald-600':'text-red-400'}`}>{h.correct?'✓':'✗'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-slate-700 font-medium leading-snug mb-1">{q?q.q:`Question #${h.qid}`}</div>
+                        {q&&!h.correct&&<div className="text-slate-400 leading-snug">Correct: <span className="text-emerald-700 font-medium">{Array.isArray(q.ans)?q.ans.map(a=>q.opts[a]).join(' / '):q.opts[q.ans]}</span></div>}
+                      </div>
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        <Tag domain={h.domain}/>
+                        <span className="text-slate-300">{new Date(h.ts).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Exam attempts with per-question breakdown */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="text-slate-700 text-sm font-semibold mb-1">Practice Exam Attempts</div>
+            <div className="text-slate-400 text-xs mb-4">{examHistory.length} total exam{examHistory.length!==1?'s':''} · click to see questions</div>
+            {recentExams.length===0?(
+              <div className="text-slate-400 text-sm py-4 text-center">No practice exams yet.</div>
+            ):(
+              <div className="space-y-2">
+                {recentExams.map((e,i)=>{
+                  const expanded=expandedExam===i;
+                  return(
+                    <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <button onClick={()=>setExpandedExam(expanded?null:i)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-bold ${e.score>=72?'text-emerald-600':'text-red-400'}`}>{e.score}%</span>
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${e.score>=72?'bg-emerald-100 text-emerald-700':'bg-red-50 text-red-500'}`}>{e.score>=72?'PASS':'FAIL'}</span>
+                          <span className="text-slate-400 text-xs">{e.correct}/{e.total} correct</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-400 text-xs">{e.date||new Date(e.ts).toLocaleDateString()}</span>
+                          <span className="text-slate-300 text-xs">{expanded?'▲':'▼'}</span>
+                        </div>
+                      </button>
+                      {expanded&&(e.items?.length>0?(
+                        <div className="border-t border-slate-100 max-h-96 overflow-y-auto">
+                          {e.items.map((item,j)=>{
+                            const q=qMap[item.qid];
+                            return(
+                              <div key={j} className={`flex items-start gap-3 px-4 py-2.5 text-xs border-b border-slate-50 last:border-0 ${item.correct?'bg-white':'bg-red-50/30'}`}>
+                                <span className={`shrink-0 font-bold mt-0.5 ${item.correct?'text-emerald-500':'text-red-400'}`}>{item.correct?'✓':'✗'}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-slate-700 leading-snug mb-0.5">{q?q.q:`Question #${item.qid}`}</div>
+                                  {q&&!item.correct&&<div className="text-slate-400">Correct: <span className="text-emerald-700 font-medium">{Array.isArray(q.ans)?q.ans.map(a=>q.opts[a]).join(' / '):q.opts[q.ans]}</span></div>}
+                                </div>
+                                <Tag domain={item.domain}/>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ):(
+                        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-400">Per-question breakdown only available for exams taken after this update.</div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab==='summary'&&<>
       {/* Domain breakdown */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {domainStats.map(d=>(
@@ -1467,6 +1669,7 @@ function Analytics({quizHistory,examHistory,flashConf}){
           </div>
         )}
       </div>
+      </>}
     </div>
   );
 }
@@ -1705,7 +1908,7 @@ function App(){
 
   const renderPage=()=>{
     switch(active){
-      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive}/>;
+      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
       case'flashcards':return<Flashcards/>;
