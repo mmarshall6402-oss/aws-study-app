@@ -654,6 +654,130 @@ Default behavior → Path-based behaviors (evaluated in order)
 **Exam tip:** For multi-account compliance enforcement → Organizations + SCPs + Config Aggregator + Security Hub. Each layer adds a different control plane.`},
 ];
 
+// ── Vocab / Glossary Data ─────────────────────────────────────────────────────
+const VOCAB=[
+  // Compute
+  {term:'EC2',cat:'Compute',def:'Elastic Compute Cloud. Resizable virtual servers in the cloud. Choose instance type (CPU/RAM/GPU), OS, and storage. Billed per second (Linux) or per hour (Windows).'},
+  {term:'EC2 Auto Scaling',cat:'Compute',def:'Automatically adds or removes EC2 instances based on demand or a schedule. Uses launch templates and scaling policies (target tracking, step, scheduled).'},
+  {term:'Lambda',cat:'Compute',def:'Serverless compute that runs code in response to events (API calls, S3 uploads, DynamoDB streams). You pay per 1-ms execution and don\'t manage servers. Max 15-min runtime.'},
+  {term:'ECS',cat:'Compute',def:'Elastic Container Service. Managed container orchestration for Docker containers. Runs on EC2 (you manage hosts) or Fargate (serverless). Integrates with ALB, IAM, and CloudWatch.'},
+  {term:'EKS',cat:'Compute',def:'Elastic Kubernetes Service. Managed Kubernetes control plane on AWS. You run worker nodes on EC2 or Fargate. Best for teams already using Kubernetes.'},
+  {term:'Fargate',cat:'Compute',def:'Serverless compute engine for containers. Works with ECS and EKS. No EC2 instances to manage; you specify CPU/memory per task and pay per second of use.'},
+  {term:'Elastic Beanstalk',cat:'Compute',def:'PaaS that handles deployment, capacity provisioning, load balancing, and monitoring for web apps. You upload code; AWS manages the infrastructure. Good for developers who want speed over control.'},
+  {term:'Lightsail',cat:'Compute',def:'Simplified virtual private servers with predictable pricing. Bundles compute, storage, and networking. Aimed at developers who need a simple VPS without full AWS complexity.'},
+  {term:'Batch',cat:'Compute',def:'Fully managed batch processing. Dynamically provisions EC2 or Spot instances to run hundreds of thousands of batch jobs. Define jobs as Docker containers.'},
+  {term:'Outposts',cat:'Compute',def:'AWS-managed rack of hardware delivered to your data center. Runs AWS services on-premises with the same APIs, tools, and hardware as AWS regions.'},
+
+  // Storage
+  {term:'S3',cat:'Storage',def:'Simple Storage Service. Object storage with 11 9s durability. Stores objects in buckets, each up to 5 TB. Storage classes include Standard, IA, Glacier, and Intelligent-Tiering.'},
+  {term:'S3 Glacier',cat:'Storage',def:'Low-cost archival storage within S3. Three retrieval tiers: Instant (ms), Flexible (minutes–hours), Deep Archive (up to 12 hrs). Minimum storage duration 90–180 days.'},
+  {term:'EBS',cat:'Storage',def:'Elastic Block Store. Network-attached block storage volumes for EC2. Types: gp3 (general SSD), io2 (provisioned IOPS), st1 (throughput HDD), sc1 (cold HDD). Single-AZ, snapshots are cross-region.'},
+  {term:'EFS',cat:'Storage',def:'Elastic File System. Managed NFS file system that scales automatically and can be mounted by thousands of EC2 instances across multiple AZs. Two modes: Regional (default) or One Zone.'},
+  {term:'FSx for Windows',cat:'Storage',def:'Managed Windows File Server using SMB protocol. Supports Active Directory, DFS namespaces, and Windows ACLs. Best for Windows workloads that need shared file storage.'},
+  {term:'FSx for Lustre',cat:'Storage',def:'Managed high-performance parallel file system for HPC and ML workloads. Can link to S3 as a data repository. Delivers hundreds of GB/s throughput with sub-ms latency.'},
+  {term:'Storage Gateway',cat:'Storage',def:'Hybrid cloud storage service. Bridges on-premises environments to S3. Three types: File Gateway (NFS/SMB → S3), Volume Gateway (iSCSI block), Tape Gateway (virtual tape to Glacier).'},
+  {term:'AWS Backup',cat:'Storage',def:'Centralized backup service that automates and manages backups across EC2, EBS, RDS, DynamoDB, EFS, and more. Supports cross-account and cross-region backup copies.'},
+  {term:'DataSync',cat:'Storage',def:'Automated data transfer service that moves data between on-premises storage and AWS (S3, EFS, FSx) at up to 10x faster than open-source tools. Handles scheduling, encryption, and verification.'},
+  {term:'Snow Family',cat:'Storage',def:'Physical devices for large-scale data migration or edge compute: Snowcone (8 TB, portable), Snowball Edge (80 TB, compute capable), Snowmobile (100 PB truck). Used when bandwidth is limited.'},
+
+  // Database
+  {term:'RDS',cat:'Database',def:'Relational Database Service. Managed relational databases (MySQL, PostgreSQL, MariaDB, Oracle, SQL Server, Aurora). Handles backups, patching, and Multi-AZ failover automatically.'},
+  {term:'Aurora',cat:'Database',def:'AWS-built relational database compatible with MySQL and PostgreSQL. 5x faster than MySQL, 3x faster than PostgreSQL. Storage auto-scales to 128 TB. Aurora Serverless v2 scales compute instantly.'},
+  {term:'DynamoDB',cat:'Database',def:'Managed NoSQL key-value and document database. Single-digit ms at any scale. Supports on-demand or provisioned capacity. Features: DAX caching, global tables, point-in-time recovery, streams.'},
+  {term:'ElastiCache',cat:'Database',def:'Managed in-memory cache service. Two engines: Redis (persistence, pub/sub, sorted sets, Cluster Mode for sharding) and Memcached (simple, multithreaded). Used to reduce database read load.'},
+  {term:'Redshift',cat:'Database',def:'Managed columnar data warehouse for analytics (OLAP). Petabyte-scale. Uses MPP architecture. Redshift Spectrum queries S3 data in place. Integrates with QuickSight, Glue, and Athena.'},
+  {term:'DocumentDB',cat:'Database',def:'Managed document database compatible with MongoDB APIs. Stores JSON-like documents. Decouples storage and compute; storage scales automatically up to 64 TB.'},
+  {term:'Neptune',cat:'Database',def:'Managed graph database. Supports property graph (Gremlin) and RDF (SPARQL). Used for social networks, fraud detection, knowledge graphs. Multi-AZ, up to 15 read replicas.'},
+  {term:'QLDB',cat:'Database',def:'Quantum Ledger Database. Immutable, cryptographically verifiable ledger. Maintains a complete journal of all changes. Used for banking, supply chain, medical records where audit trail is required.'},
+  {term:'Timestream',cat:'Database',def:'Serverless time-series database. Automatically scales to handle trillions of events per day. Built-in time-series analytics functions. Used for IoT, operational metrics, clickstream data.'},
+  {term:'Keyspaces',cat:'Database',def:'Managed Apache Cassandra-compatible database service. Serverless; no clusters to manage. Automatically replicates 3 ways across AZs. Good for migrating Cassandra workloads to AWS.'},
+
+  // Networking
+  {term:'VPC',cat:'Networking',def:'Virtual Private Cloud. Logically isolated network in AWS. You define IP ranges (CIDR), subnets (public/private), route tables, internet gateways, and security groups. Foundation of AWS networking.'},
+  {term:'Subnet',cat:'Networking',def:'A range of IP addresses within a VPC. Public subnets route to an Internet Gateway. Private subnets route to a NAT Gateway or VPN. Each subnet lives in exactly one Availability Zone.'},
+  {term:'Internet Gateway',cat:'Networking',def:'Horizontally scaled, redundant VPC component that allows communication between instances in a VPC and the internet. Attached to a VPC; referenced in route tables of public subnets.'},
+  {term:'NAT Gateway',cat:'Networking',def:'Managed Network Address Translation. Allows instances in private subnets to reach the internet while preventing inbound connections. Deployed in a public subnet; highly available within an AZ.'},
+  {term:'Security Group',cat:'Networking',def:'Stateful virtual firewall for EC2 instances. Controls inbound and outbound traffic at the instance level. Rules are allow-only; return traffic is automatically allowed (stateful).'},
+  {term:'NACL',cat:'Networking',def:'Network Access Control List. Stateless subnet-level firewall. Rules are numbered and evaluated in order. Must explicitly allow both inbound AND outbound traffic (stateless). Default NACL allows all traffic.'},
+  {term:'Route 53',cat:'Networking',def:'Managed DNS service. Supports A, AAAA, CNAME, MX, TXT, and alias records. Routing policies: Simple, Weighted, Latency, Failover, Geolocation, Geoproximity, Multi-value. Also does health checks.'},
+  {term:'CloudFront',cat:'Networking',def:'Content Delivery Network (CDN) with 400+ edge locations. Caches static and dynamic content close to users. Integrates with S3, ALB, Lambda@Edge, WAF, and ACM for HTTPS.'},
+  {term:'ALB',cat:'Networking',def:'Application Load Balancer. Layer 7 (HTTP/HTTPS/WebSocket). Routes based on path, hostname, headers, query strings. Supports target groups (EC2, Lambda, IPs, containers). Ideal for microservices.'},
+  {term:'NLB',cat:'Networking',def:'Network Load Balancer. Layer 4 (TCP/UDP/TLS). Handles millions of requests per second with ultra-low latency. Preserves source IP. Supports static IPs/Elastic IPs. Best for high-performance or non-HTTP traffic.'},
+  {term:'GLB',cat:'Networking',def:'Gateway Load Balancer. Layer 3 (IP packets). Used to deploy, scale, and manage third-party virtual appliances (firewalls, IDS/IPS). Uses GENEVE protocol. Traffic is inspected then forwarded.'},
+  {term:'VPC Peering',cat:'Networking',def:'Direct network connection between two VPCs using private IPs. Non-transitive (A↔B and B↔C does not mean A↔C). No overlapping CIDR blocks allowed. Works across accounts and regions.'},
+  {term:'Transit Gateway',cat:'Networking',def:'Regional network hub that connects VPCs and on-premises networks. Transitive routing — connect many VPCs without peering mesh. Supports multicast and inter-region peering.'},
+  {term:'Direct Connect',cat:'Networking',def:'Dedicated private network connection from your data center to AWS. Consistent latency and bandwidth. Takes weeks to provision. Use Direct Connect Gateway for multi-region access from a single connection.'},
+  {term:'VPN',cat:'Networking',def:'Site-to-Site VPN creates an IPsec tunnel between your on-premises network and a VPC via an internet connection. Quick to set up but subject to internet variability. Client VPN allows individual user connections.'},
+  {term:'PrivateLink',cat:'Networking',def:'Expose services to other VPCs without internet gateway, NAT, or VPC peering. Uses VPC Endpoints (Interface type). Traffic stays on the AWS network. Secure way to share internal services between accounts.'},
+  {term:'VPC Endpoint',cat:'Networking',def:'Enables private connections from VPC to AWS services without internet. Two types: Interface (ENI with private IP, powered by PrivateLink) and Gateway (S3 and DynamoDB only, uses route table entry).'},
+
+  // Security
+  {term:'IAM',cat:'Security',def:'Identity and Access Management. Controls who can do what in AWS. Components: Users, Groups, Roles, Policies (JSON). Best practices: least privilege, MFA, no root access, use roles for services.'},
+  {term:'IAM Role',cat:'Security',def:'An IAM identity with specific permissions that can be assumed by AWS services, users, or accounts. Unlike users, roles have no long-term credentials — they issue temporary credentials via STS.'},
+  {term:'STS',cat:'Security',def:'Security Token Service. Issues temporary, limited-privilege credentials (access key ID, secret key, session token). Used by roles, federation (SAML/OIDC), and cross-account access.'},
+  {term:'KMS',cat:'Security',def:'Key Management Service. Create and control encryption keys used to encrypt data across AWS services. Customer-managed keys (CMKs) vs. AWS-managed keys. Supports key rotation, auditing via CloudTrail.'},
+  {term:'Secrets Manager',cat:'Security',def:'Stores, rotates, and retrieves secrets (DB passwords, API keys). Automatic rotation using Lambda. Fine-grained access via IAM. Charges per secret per month + per 10,000 API calls.'},
+  {term:'Parameter Store',cat:'Security',def:'AWS Systems Manager feature. Stores configuration data and secrets as parameters. Standard tier is free; Advanced tier supports larger values and higher throughput. Use SecureString for encrypted values.'},
+  {term:'Cognito',cat:'Security',def:'User identity and access management for web/mobile apps. User Pools: authentication (sign-up/sign-in, MFA, OAuth). Identity Pools: authorization (exchange tokens for temporary AWS credentials).'},
+  {term:'WAF',cat:'Security',def:'Web Application Firewall. Protects against common web exploits (SQLi, XSS). Works with CloudFront, ALB, API Gateway, AppSync. Uses Web ACLs with rules and rule groups. Can block by IP, geo, rate limit.'},
+  {term:'Shield',cat:'Security',def:'DDoS protection. Shield Standard is free for all AWS customers (L3/L4 attacks). Shield Advanced ($3k/month) adds protection for L7, real-time attack visibility, AWS DDoS Response Team access.'},
+  {term:'GuardDuty',cat:'Security',def:'Managed threat detection. Analyzes CloudTrail logs, VPC Flow Logs, and DNS logs using ML. Detects unusual API calls, compromised instances, reconnaissance. Findings go to EventBridge or Security Hub.'},
+  {term:'Inspector',cat:'Security',def:'Automated vulnerability management. Scans EC2 instances, Lambda functions, and ECR container images for software vulnerabilities (CVEs) and network reachability issues. Generates risk-scored findings.'},
+  {term:'Macie',cat:'Security',def:'ML-powered service that discovers and protects sensitive data in S3. Automatically identifies PII, financial data, and credentials. Sends findings to EventBridge and Security Hub.'},
+  {term:'Security Hub',cat:'Security',def:'Centralized security findings aggregator. Collects findings from GuardDuty, Inspector, Macie, IAM Access Analyzer, Firewall Manager, and third-party tools. Checks against CIS and AWS best practices.'},
+  {term:'ACM',cat:'Security',def:'AWS Certificate Manager. Provision, manage, and deploy SSL/TLS certificates for free. Works with CloudFront, ALB, API Gateway. Certificates auto-renew. Private CA option for internal PKI.'},
+  {term:'Organizations',cat:'Security',def:'Manage multiple AWS accounts centrally. Group accounts in OUs. Apply Service Control Policies (SCPs) to restrict what member accounts can do. Centralized billing and consolidated cost management.'},
+  {term:'SCP',cat:'Security',def:'Service Control Policy. IAM-like policy applied at the AWS Organization level. SCPs set the maximum permissions for accounts in an OU. They do NOT grant permissions — they only restrict.'},
+  {term:'RAM',cat:'Security',def:'Resource Access Manager. Share AWS resources across accounts or within an Organization without needing VPC peering or resource copies. Shareable resources include subnets, Transit Gateways, Route 53 Resolver rules.'},
+
+  // Monitoring
+  {term:'CloudWatch',cat:'Monitoring',def:'Monitoring and observability service. Collects metrics, logs, and events. Features: Metrics (default + custom), Logs (log groups/streams), Alarms (SNS/Auto Scaling triggers), Dashboards, Contributor Insights.'},
+  {term:'CloudWatch Logs Insights',cat:'Monitoring',def:'Interactive log analytics. Query CloudWatch log groups using a SQL-like syntax. Run ad-hoc queries to debug, find error patterns, or aggregate log data. Supports multi-region and cross-account queries.'},
+  {term:'CloudTrail',cat:'Monitoring',def:'Records API calls made to AWS services. Captures who, what, where, and when. Logs stored in S3. Used for compliance, security analysis, and change tracking. Management events logged by default.'},
+  {term:'Config',cat:'Monitoring',def:'Tracks configuration changes to AWS resources over time. Evaluates compliance against Config Rules. Supports conformance packs (groups of rules). Can trigger SSM Automation for auto-remediation.'},
+  {term:'X-Ray',cat:'Monitoring',def:'Distributed tracing for applications. Visualizes request flow across services (Lambda, EC2, ECS, API Gateway). Identifies bottlenecks and errors. Uses sampling to control volume of traced requests.'},
+  {term:'EventBridge',cat:'Monitoring',def:'Serverless event bus. Routes events from AWS services, SaaS apps, and custom apps to targets (Lambda, SQS, SNS, Step Functions). Supports scheduled rules (cron/rate), event patterns, and event archives.'},
+  {term:'Health Dashboard',cat:'Monitoring',def:'Provides personalized view of AWS service health for your account. Proactive notifications about events affecting your resources. AWS Service Health Dashboard shows global service status.'},
+
+  // Messaging
+  {term:'SQS',cat:'Messaging',def:'Simple Queue Service. Managed message queue. Standard queue (at-least-once, best-effort ordering) and FIFO queue (exactly-once, strict ordering). Max message size 256 KB. Messages retained up to 14 days.'},
+  {term:'SNS',cat:'Messaging',def:'Simple Notification Service. Managed pub/sub messaging. Publishers send to topics; subscribers (Lambda, SQS, HTTP, email, SMS, mobile push) receive fan-out notifications. No message persistence after delivery.'},
+  {term:'SES',cat:'Messaging',def:'Simple Email Service. Managed email sending and receiving. Used for transactional emails, marketing, and bulk sending. Supports SMTP and API. Integrates with S3, Lambda, and SNS for inbound processing.'},
+  {term:'Kinesis Data Streams',cat:'Messaging',def:'Real-time streaming data service. Producers write to shards; consumers read within 24 hrs to 365 days. Each shard: 1 MB/s in, 2 MB/s out. Enhanced fan-out delivers 2 MB/s per shard per consumer.'},
+  {term:'Kinesis Firehose',cat:'Messaging',def:'Fully managed delivery stream. Loads streaming data into S3, Redshift, OpenSearch, or Splunk. Can transform data with Lambda. Buffer size and interval configurable. Near-real-time (60-second minimum buffer).'},
+  {term:'MSK',cat:'Messaging',def:'Managed Streaming for Apache Kafka. Fully managed Kafka clusters. Compatible with existing Kafka clients. Used for high-throughput event streaming. MSK Serverless auto-scales capacity.'},
+  {term:'AppSync',cat:'Messaging',def:'Managed GraphQL and Pub/Sub API service. Connects to DynamoDB, Lambda, RDS, HTTP APIs. Real-time subscriptions via WebSockets. Good for mobile/web apps that need flexible data fetching.'},
+  {term:'Step Functions',cat:'Messaging',def:'Visual workflow orchestration. Coordinates Lambda, ECS, DynamoDB, and other services using state machines. Standard workflows (up to 1 year, exactly-once) vs. Express (up to 5 min, high-volume).'},
+
+  // Analytics
+  {term:'Athena',cat:'Analytics',def:'Serverless interactive query service. Query data directly in S3 using standard SQL (Presto). Pay per TB scanned. Best with columnar formats (Parquet, ORC) and partitioned data to reduce cost.'},
+  {term:'Glue',cat:'Analytics',def:'Managed ETL service. Discovers data schemas (Crawlers), stores metadata (Data Catalog), and transforms data (Spark jobs). Glue Studio provides visual ETL. Used to prepare data for Athena and Redshift.'},
+  {term:'EMR',cat:'Analytics',def:'Elastic MapReduce. Managed big data platform. Runs open-source frameworks (Spark, Hadoop, Hive, Presto). Spot-friendly; use Spot for task nodes. Supports EC2 or EKS as compute.'},
+  {term:'OpenSearch Service',cat:'Analytics',def:'Managed OpenSearch (formerly Elasticsearch). Full-text search, log analytics, and real-time application monitoring. Integrates with Kinesis Firehose and CloudWatch Logs. Supports Kibana/OpenSearch Dashboards.'},
+  {term:'QuickSight',cat:'Analytics',def:'Serverless BI and visualization tool. Connects to S3, Athena, Redshift, RDS, and third-party sources. Uses SPICE (Super-fast Parallel In-memory Calculation Engine) for fast queries. Pay per session.'},
+  {term:'Data Exchange',cat:'Analytics',def:'Find, subscribe to, and use third-party data in the cloud. Data providers publish datasets; subscribers access via S3, Redshift, or API Gateway. Used for financial data, weather feeds, genomics datasets.'},
+  {term:'Lake Formation',cat:'Analytics',def:'Simplifies building data lakes on S3. Manages permissions (column/row-level security), catalogs data via Glue, and coordinates with Athena and Redshift Spectrum. Provides centralized data governance.'},
+
+  // Management
+  {term:'CloudFormation',cat:'Management',def:'Infrastructure as Code (IaC) service. Define AWS resources in JSON or YAML templates. CloudFormation creates, updates, and deletes resources as stacks. Drift detection identifies manual changes.'},
+  {term:'CDK',cat:'Management',def:'Cloud Development Kit. Define infrastructure using familiar programming languages (TypeScript, Python, Java, Go). CDK synthesizes CloudFormation templates. Constructs are reusable infrastructure components.'},
+  {term:'Systems Manager',cat:'Management',def:'Operations hub for AWS infrastructure. Key features: Session Manager (browser-based SSH/RDP), Patch Manager, Parameter Store, Run Command (remote script execution), Inventory, OpsCenter.'},
+  {term:'Trusted Advisor',cat:'Management',def:'Analyzes your AWS environment and recommends improvements in 5 categories: Cost Optimization, Performance, Security, Fault Tolerance, Service Limits. Full checks require Business or Enterprise support plan.'},
+  {term:'Control Tower',cat:'Management',def:'Automated landing zone setup for multi-account AWS environments. Sets up guardrails (preventive via SCPs, detective via Config rules), Account Factory (automated account vending), and dashboards.'},
+  {term:'Service Catalog',cat:'Management',def:'Create and manage approved IT service portfolios. Admins define products (CloudFormation templates); end users deploy self-service. Enforces standards and policies for provisioning.'},
+  {term:'OpsWorks',cat:'Management',def:'Configuration management using Chef or Puppet. Automates server configuration, deployment, and management. AWS OpsWorks Stacks is the managed version. Generally being replaced by Systems Manager.'},
+  {term:'Well-Architected Tool',cat:'Management',def:'Review workloads against AWS best practices using the 6 pillars: Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability. Generates improvement plans.'},
+  {term:'Compute Optimizer',cat:'Management',def:'Analyzes EC2, Lambda, EBS, and ECS utilization using ML and recommends right-sized configurations. Can reduce cost and improve performance by identifying over-provisioned resources.'},
+
+  // Migration
+  {term:'Migration Hub',cat:'Migration',def:'Single place to track application migration progress across multiple AWS and partner migration tools. Provides visibility into server and application migration status.'},
+  {term:'DMS',cat:'Migration',def:'Database Migration Service. Migrates databases to AWS with minimal downtime. Supports homogeneous (MySQL→MySQL) and heterogeneous (Oracle→Aurora) migrations. Continuous replication for CDC.'},
+  {term:'SMS',cat:'Migration',def:'Server Migration Service. Automates migration of on-premises VMware, Hyper-V, and Azure VMs to AWS. Incrementally replicates server volumes to AMIs. Replaced largely by MGN.'},
+  {term:'MGN',cat:'Migration',def:'Application Migration Service (MGN). Lift-and-shift migration. Continuously replicates source servers to AWS for cutover. Minimal performance impact. Replaces SMS as the recommended migration tool.'},
+  {term:'Schema Conversion Tool',cat:'Migration',def:'SCT converts database schema and code from one engine to another (e.g., Oracle → Aurora PostgreSQL). Part of the AWS DMS workflow. Highlights conversion issues that need manual attention.'},
+  {term:'Transfer Family',cat:'Migration',def:'Managed file transfer service supporting SFTP, FTPS, and FTP protocols. Transfers files directly to/from S3 or EFS without changing client workflows. Integrates with IAM for access control.'},
+];
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const today=()=>new Date().toISOString().slice(0,10);
 const dayOfYear=()=>{const n=new Date();return Math.floor((n-new Date(n.getFullYear(),0,0))/86400000)};
@@ -685,6 +809,7 @@ const NAV=[
   {id:'lesson',icon:'◈',label:'Daily Lesson'},
   {id:'quiz',icon:'◉',label:'Quiz'},
   {id:'flashcards',icon:'⬜',label:'Flashcards'},
+  {id:'vocab',icon:'◧',label:'Glossary'},
   {id:'exam',icon:'◎',label:'Practice Exam'},
   {id:'history',icon:'◷',label:'History'},
   {id:'analytics',icon:'◈',label:'Analytics'},
@@ -772,7 +897,7 @@ function calcReadiness(quizHistory,examHistory,flashConf){
   const avgExam=hasExam?Math.round(recent.reduce((s,e)=>s+e.score,0)/recent.length):0;
   const examPct=hasExam?Math.round(Math.min(100,(avgExam/85)*100)):0;
   const known=(flashConf||[]).filter(f=>f.conf==='know').length;
-  const flashPct=Math.round((known/FLASHCARDS.length)*100);
+  const flashPct=Math.round((known/ALL_FLASH.length)*100);
   const tried=new Set(quizHistory.map(h=>h.qid)).size;
   const covPct=Math.round(Math.min(100,(tried/(QUESTIONS.length*0.5))*100));
   const w=hasExam?{exam:0.45,quiz:0.30,flash:0.15,cov:0.10}:{exam:0,quiz:0.55,flash:0.25,cov:0.20};
@@ -789,7 +914,7 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
   const tiles=[
     {lbl:'Practice Exams',val:r.hasExam?`${r.examPct}%`:'—',sub:r.hasExam?`avg ${r.avgExam}% · last ${Math.min(5,examHistory.length)} exam${Math.min(5,examHistory.length)>1?'s':''}`:'Take one to unlock score',id:'exam',good:r.examPct>=75},
     {lbl:'Quiz Accuracy',val:quizHistory.length>=5?`${r.quizPct}%`:'—',sub:quizHistory.length>=5?`${r.tried} unique questions tried`:'Need 5+ answers',id:'quiz',good:r.quizPct>=72},
-    {lbl:'Flashcards',val:`${r.flashPct}%`,sub:`${r.known} of ${FLASHCARDS.length} mastered`,id:'flashcards',good:r.flashPct>=70},
+    {lbl:'Flashcards',val:`${r.flashPct}%`,sub:`${r.known} of ${ALL_FLASH.length} mastered`,id:'flashcards',good:r.flashPct>=70},
   ];
   return(
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
@@ -865,7 +990,7 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
   },[quizHistory]);
 
   const weak=Object.entries(domainScores).filter(([,v])=>v.total>0).sort(([,a],[,b])=>pct(a.correct,a.total)-pct(b.correct,b.total));
-  const totalCards=FLASHCARDS.length;
+  const totalCards=ALL_FLASH.length;
   const known=flashConf.filter(f=>f.conf==='know').length;
   const lastExam=examHistory[examHistory.length-1];
 
@@ -1173,14 +1298,47 @@ function Quiz({onAnswer}){
 }
 
 // ── Flashcards ────────────────────────────────────────────────────────────────
+const VOCAB_CAT_DOMAIN={Compute:'performing',Storage:'performing',Database:'performing',Networking:'resilient',Security:'secure',Monitoring:'cost',Messaging:'resilient',Analytics:'performing',Management:'cost',Migration:'resilient'};
+
+const VOCAB_CARDS=VOCAB.map(v=>({
+  id:'v_'+v.term.replace(/\s+/g,'_'),
+  domain:VOCAB_CAT_DOMAIN[v.cat]||'performing',
+  source:'vocab',
+  front:v.term,
+  back:v.def,
+  badge:v.cat,
+}));
+
+const QUESTION_CARDS=QUESTIONS.map(q=>{
+  const correctIdxs=Array.isArray(q.ans)?q.ans:[q.ans];
+  const correctAnswers=correctIdxs.map(i=>q.opts[i]).join(' / ');
+  return{
+    id:'q_fc_'+q.id,
+    domain:q.domain,
+    source:'question',
+    front:q.q,
+    back:`✓ ${correctAnswers}\n\n${q.exp}`,
+    badge:q.sub,
+  };
+});
+
+const ALL_FLASH=[...FLASHCARDS.map(c=>({...c,source:'concept'})),...VOCAB_CARDS,...QUESTION_CARDS];
+
 function Flashcards(){
   const[conf,setConf]=useStore('flash_conf',[]);
   const[domain,setDomain]=useState('all');
+  const[source,setSource]=useState('all');
   const[idx,setIdx]=useState(0);
   const[flipped,setFlipped]=useState(false);
   const[showAll,setShowAll]=useState(false);
 
-  const cards=useMemo(()=>domain==='all'?FLASHCARDS:FLASHCARDS.filter(c=>c.domain===domain),[domain]);
+  const cards=useMemo(()=>{
+    let c=ALL_FLASH;
+    if(source!=='all')c=c.filter(x=>x.source===source);
+    if(domain!=='all')c=c.filter(x=>x.domain===domain);
+    return c;
+  },[domain,source]);
+
   const card=cards[Math.min(idx,cards.length-1)];
   const cardConf=conf.find(c=>c.id===card?.id);
 
@@ -1196,26 +1354,33 @@ function Flashcards(){
     nope:conf.filter(c=>c.conf==='nope').length,
   }),[conf]);
 
+  const domainColors={secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'};
+  const domainBg={secure:'#f0fdf4',resilient:'#f0f9ff',performing:'#fffbeb',cost:'#faf5ff'};
+  const domainBorder={secure:'#bbf7d0',resilient:'#bae6fd',performing:'#fde68a',cost:'#e9d5ff'};
+
   if(showAll){
     return(
       <div className="p-4 md:p-6 max-w-4xl">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <button onClick={()=>setShowAll(false)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
-          <h1 className="text-slate-800 text-xl font-semibold">All Flashcards</h1>
+          <h1 className="text-slate-800 text-xl font-semibold">All Cards ({cards.length})</h1>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {FLASHCARDS.map((c,i)=>{
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((c,i)=>{
             const cv=conf.find(x=>x.id===c.id);
             return(
-              <div key={c.id} className="bg-white border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-slate-200"
-                onClick={()=>{setDomain(c.domain);setIdx(cards.findIndex(x=>x.id===c.id)||0);setShowAll(false);setFlipped(false)}}>
-                <div className="flex items-center justify-between mb-1">
-                  <Tag domain={c.domain} small/>
+              <div key={c.id} className="bg-white border border-slate-200 rounded-lg p-3 cursor-pointer hover:shadow-sm transition-shadow"
+                onClick={()=>{setIdx(i);setShowAll(false);setFlipped(false)}}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span style={{width:8,height:8,borderRadius:'50%',background:domainColors[c.domain],display:'inline-block'}}/>
+                    <span className="text-xs text-slate-400">{c.badge||DOMAINS[c.domain]?.label}</span>
+                  </div>
                   {cv&&<span className={`text-xs ${cv.conf==='know'?'text-emerald-600':cv.conf==='sorta'?'text-amber-600':'text-red-400'}`}>
-                    {cv.conf==='know'?'✓ know':cv.conf==='sorta'?'~ sorta':'✗ nope'}
+                    {cv.conf==='know'?'✓':cv.conf==='sorta'?'~':'✗'}
                   </span>}
                 </div>
-                <div className="text-slate-600 text-sm">{c.front}</div>
+                <div className="text-slate-700 text-xs leading-snug line-clamp-2">{c.front}</div>
               </div>
             );
           })}
@@ -1224,9 +1389,11 @@ function Flashcards(){
     );
   }
 
+  const frontLabel=card?.source==='question'?'QUESTION':card?.source==='vocab'?'TERM':'CONCEPT';
+
   return(
     <div className="p-4 md:p-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-slate-800 text-xl font-semibold">Flashcards</h1>
         <div className="flex items-center gap-3 text-xs">
           <span className="text-emerald-600">✓ {stats.know}</span>
@@ -1236,8 +1403,19 @@ function Flashcards(){
         </div>
       </div>
 
-      <div className="flex gap-2 mb-5 flex-wrap">
-        {[{id:'all',label:'All (' + FLASHCARDS.length + ')'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
+      {/* Source tabs */}
+      <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
+        {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
+          <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
+            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Domain filter */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
           <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
             className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
             {d.label}
@@ -1245,62 +1423,73 @@ function Flashcards(){
         ))}
       </div>
 
-      <div className="text-slate-400 text-xs mb-3 text-center">{idx+1} / {cards.length} · Click card to flip</div>
+      {cards.length===0?(
+        <div className="text-center py-16 text-slate-400">
+          <div className="text-3xl mb-3">📭</div>
+          <p>No cards match this filter</p>
+        </div>
+      ):(
+        <>
+          <div className="text-slate-400 text-xs mb-3 text-center">{idx+1} / {cards.length} · tap to flip</div>
 
-      <div className="relative mb-4 cursor-pointer select-none" style={{height:290}} onClick={()=>setFlipped(f=>!f)}>
-        {/* Front face */}
-        <div style={{
-          position:'absolute',inset:0,borderRadius:16,background:'#fff',
-          border:'2px solid #e2e8f0',
-          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-          padding:'28px',textAlign:'center',
-          boxShadow:'0 4px 24px rgba(0,0,0,.07)',
-          transition:'opacity .22s ease,transform .22s ease',
-          opacity:flipped?0:1,
-          transform:flipped?'scale(.97)':'scale(1)',
-          pointerEvents:flipped?'none':'auto',
-        }}>
-          {card&&<div style={{position:'absolute',top:0,left:0,right:0,height:5,borderRadius:'14px 14px 0 0',background:{secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'}[card.domain]}}/>}
-          <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">CONCEPT</div>
-          <div className="text-slate-900 text-lg font-semibold leading-snug mb-3">{card?.front}</div>
-          {card&&<Tag domain={card.domain}/>}
-          <div className="text-slate-300 text-xs mt-4">tap to reveal →</div>
-        </div>
-        {/* Back face */}
-        <div style={{
-          position:'absolute',inset:0,borderRadius:16,
-          background:{secure:'#f0fdf4',resilient:'#f0f9ff',performing:'#fffbeb',cost:'#faf5ff'}[card?.domain]||'#f8fafc',
-          border:'2px solid',
-          borderColor:{secure:'#bbf7d0',resilient:'#bae6fd',performing:'#fde68a',cost:'#e9d5ff'}[card?.domain]||'#e2e8f0',
-          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-          padding:'28px',textAlign:'center',
-          boxShadow:'0 4px 24px rgba(0,0,0,.07)',
-          transition:'opacity .22s ease,transform .22s ease',
-          opacity:flipped?1:0,
-          transform:flipped?'scale(1)':'scale(1.03)',
-          pointerEvents:flipped?'auto':'none',
-          overflowY:'auto',
-        }}>
-          <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">ANSWER</div>
-          <div className="text-slate-800 text-sm leading-relaxed font-medium">{card?.back}</div>
-        </div>
-      </div>
+          <div className="relative mb-4 cursor-pointer select-none" style={{height:card?.source==='question'?340:290}} onClick={()=>setFlipped(f=>!f)}>
+            {/* Front */}
+            <div style={{
+              position:'absolute',inset:0,borderRadius:16,background:'#fff',
+              border:'2px solid #e2e8f0',
+              display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+              padding:'24px',textAlign:'center',
+              boxShadow:'0 4px 24px rgba(0,0,0,.07)',
+              transition:'opacity .22s ease,transform .22s ease',
+              opacity:flipped?0:1,
+              transform:flipped?'scale(.97)':'scale(1)',
+              pointerEvents:flipped?'none':'auto',
+              overflowY:'auto',
+            }}>
+              {card&&<div style={{position:'absolute',top:0,left:0,right:0,height:5,borderRadius:'14px 14px 0 0',background:domainColors[card.domain]}}/>}
+              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">{frontLabel}</div>
+              {card?.badge&&<div style={{marginBottom:8,fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:999,background:domainColors[card.domain]+'22',color:domainColors[card.domain]}}>{card.badge}</div>}
+              <div className={`text-slate-900 font-semibold leading-snug mb-3 ${card?.source==='question'?'text-sm':'text-lg'}`}>{card?.front}</div>
+              {card&&<Tag domain={card.domain}/>}
+              <div className="text-slate-300 text-xs mt-4">tap to reveal →</div>
+            </div>
+            {/* Back */}
+            <div style={{
+              position:'absolute',inset:0,borderRadius:16,
+              background:domainBg[card?.domain]||'#f8fafc',
+              border:'2px solid',
+              borderColor:domainBorder[card?.domain]||'#e2e8f0',
+              display:'flex',flexDirection:'column',alignItems:'flex-start',justifyContent:'center',
+              padding:'24px',textAlign:'left',
+              boxShadow:'0 4px 24px rgba(0,0,0,.07)',
+              transition:'opacity .22s ease,transform .22s ease',
+              opacity:flipped?1:0,
+              transform:flipped?'scale(1)':'scale(1.03)',
+              pointerEvents:flipped?'auto':'none',
+              overflowY:'auto',
+            }}>
+              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3 w-full text-center">ANSWER</div>
+              <div className="text-slate-800 text-sm leading-relaxed font-medium w-full" style={{whiteSpace:'pre-wrap'}}>{card?.back}</div>
+            </div>
+          </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={()=>go(-1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">← Prev</button>
-        <div className="flex gap-2">
-          {[{k:'nope',label:'✗ Nope',cls:'border-red-400 text-red-600 hover:bg-red-50 bg-white'},
-            {k:'sorta',label:'~ Sorta',cls:'border-amber-400 text-amber-700 hover:bg-amber-50 bg-white'},
-            {k:'know',label:'✓ Know',cls:'border-emerald-400 text-emerald-700 hover:bg-emerald-50 bg-white'}
-          ].map(b=>(
-            <button key={b.k} onClick={()=>setCardConf(b.k)}
-              className={`text-xs px-3 py-1.5 rounded border transition-colors ${b.cls} ${cardConf?.conf===b.k?'opacity-100 font-semibold':'opacity-60'}`}>
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
-      </div>
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={()=>go(-1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">← Prev</button>
+            <div className="flex gap-2">
+              {[{k:'nope',label:'✗ Nope',cls:'border-red-400 text-red-600 hover:bg-red-50 bg-white'},
+                {k:'sorta',label:'~ Sorta',cls:'border-amber-400 text-amber-700 hover:bg-amber-50 bg-white'},
+                {k:'know',label:'✓ Know',cls:'border-emerald-400 text-emerald-700 hover:bg-emerald-50 bg-white'}
+              ].map(b=>(
+                <button key={b.k} onClick={()=>setCardConf(b.k)}
+                  className={`text-xs px-3 py-1.5 rounded border transition-colors ${b.cls} ${cardConf?.conf===b.k?'opacity-100 font-semibold':'opacity-60'}`}>
+                  {b.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1525,10 +1714,10 @@ function Analytics({quizHistory,examHistory,flashConf}){
     const know=flashConf.filter(f=>f.conf==='know').length;
     const sorta=flashConf.filter(f=>f.conf==='sorta').length;
     const nope=flashConf.filter(f=>f.conf==='nope').length;
-    return{know,sorta,nope,total:FLASHCARDS.length};
+    return{know,sorta,nope,total:ALL_FLASH.length};
   },[flashConf]);
 
-  const recentExams=examHistory.slice(-5).reverse();
+  const recentExamsSummary=examHistory.slice(-5).reverse();
 
   const recentQuiz=[...quizHistory].reverse().slice(0,100);
   const recentExams=[...examHistory].reverse();
@@ -1672,11 +1861,11 @@ function Analytics({quizHistory,examHistory,flashConf}){
       {/* Exam history */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <div className="text-slate-600 text-sm font-medium mb-3">Exam History</div>
-        {recentExams.length===0?(
+        {recentExamsSummary.length===0?(
           <div className="text-slate-400 text-sm">No exam attempts yet.</div>
         ):(
           <div className="space-y-2">
-            {recentExams.map((e,i)=>(
+            {recentExamsSummary.map((e,i)=>(
               <div key={i} className="flex items-center justify-between py-2 border-b border-slate-200 last:border-0">
                 <div className="text-slate-400 text-xs">{e.date||new Date(e.ts).toLocaleDateString()}</div>
                 <div className="flex items-center gap-3">
@@ -1900,6 +2089,84 @@ function Settings({settings,setSettings,onReset}){
   );
 }
 
+// ── Vocab / Glossary ─────────────────────────────────────────────────────────
+const VOCAB_CATS=['All','Compute','Storage','Database','Networking','Security','Monitoring','Messaging','Analytics','Management','Migration'];
+const catColor={
+  Compute:'#f97316',Storage:'#0ea5e9',Database:'#8b5cf6',Networking:'#06b6d4',
+  Security:'#10b981',Monitoring:'#f59e0b',Messaging:'#ec4899',Analytics:'#6366f1',
+  Management:'#64748b',Migration:'#84cc16',
+};
+function Vocab(){
+  const[search,setSearch]=useState('');
+  const[cat,setCat]=useState('All');
+  const filtered=useMemo(()=>{
+    const q=search.toLowerCase().trim();
+    return VOCAB.filter(v=>{
+      const matchCat=cat==='All'||v.cat===cat;
+      const matchQ=!q||v.term.toLowerCase().includes(q)||v.def.toLowerCase().includes(q);
+      return matchCat&&matchQ;
+    }).sort((a,b)=>a.term.localeCompare(b.term));
+  },[search,cat]);
+  return(
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">AWS Glossary</h1>
+        <p className="text-slate-500 text-sm">{VOCAB.length} terms across {VOCAB_CATS.length-1} categories</p>
+      </div>
+      {/* Search */}
+      <div className="relative mb-4">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <input
+          className="w-full pl-8 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:border-slate-400 transition-colors"
+          placeholder="Search terms or definitions…"
+          value={search}
+          onChange={e=>setSearch(e.target.value)}
+        />
+      </div>
+      {/* Category filter */}
+      <div className="flex gap-2 flex-wrap mb-6">
+        {VOCAB_CATS.map(c=>(
+          <button
+            key={c}
+            onClick={()=>setCat(c)}
+            style={cat===c&&c!=='All'?{background:catColor[c],borderColor:catColor[c],color:'#fff'}:{}}
+            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+              cat===c
+                ? c==='All'?'bg-slate-800 border-slate-800 text-white':'border-transparent'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+            }`}
+          >{c}</button>
+        ))}
+      </div>
+      {/* Results count */}
+      {search&&<p className="text-xs text-slate-400 mb-4">{filtered.length} result{filtered.length!==1?'s':''}</p>}
+      {/* Term cards */}
+      {filtered.length===0?(
+        <div className="text-center py-16 text-slate-400">
+          <div className="text-4xl mb-3">📭</div>
+          <p className="font-medium">No terms found</p>
+          <p className="text-xs mt-1">Try a different search or category</p>
+        </div>
+      ):(
+        <div className="grid gap-3 md:grid-cols-2">
+          {filtered.map(v=>(
+            <div key={v.term} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <span className="font-bold text-slate-900 text-sm leading-tight">{v.term}</span>
+                <span
+                  className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style={{background:catColor[v.cat]+'22',color:catColor[v.cat]}}
+                >{v.cat}</span>
+              </div>
+              <p className="text-slate-600 text-xs leading-relaxed">{v.def}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── History ───────────────────────────────────────────────────────────────────
 function History({quizHistory,examHistory}){
   const[expandedQuiz,setExpandedQuiz]=useState(null);
@@ -2075,6 +2342,7 @@ function App(){
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
       case'flashcards':return<Flashcards/>;
+      case'vocab':return<Vocab/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
       case'history':return<History quizHistory={quizHistory} examHistory={examHistory}/>;
       case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
