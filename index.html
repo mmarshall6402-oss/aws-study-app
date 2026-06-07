@@ -14,12 +14,6 @@
 code,kbd,pre,.mono{font-family:'IBM Plex Mono','Fira Code',Consolas,monospace!important}
 body{background:#f1f5f9}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#94a3b8}
-/* Flip card */
-.flip-card{perspective:1000px;height:280px}
-.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s cubic-bezier(.4,0,.2,1);transform-style:preserve-3d}
-.flip-inner.flipped{transform:rotateY(180deg)}
-.flip-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.07),0 1px 4px rgba(0,0,0,.04)}
-.flip-back{transform:rotateY(180deg)}
 textarea:focus{outline:none}
 input:focus{outline:none}
 /* Typewriter effect */
@@ -30,7 +24,7 @@ input:focus{outline:none}
 .lift{transition:box-shadow .15s,transform .15s}
 .lift:hover{box-shadow:0 8px 28px rgba(0,0,0,.10);transform:translateY(-2px)}
 /* Domain tag pill */
-.tag{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border-width:1px}
+.tag{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border-width:1px;border-style:solid}
 /* Answer letter badge */
 .opt-letter{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f1f5f9;font-size:.7rem;font-weight:700;flex-shrink:0;margin-right:10px}
 </style>
@@ -154,6 +148,79 @@ const QUESTIONS=[
 {id:83,domain:'cost',sub:'Storage',q:'A media company needs up to 400 GB of temporary storage discarded after graphic rendering, with ~40,000 random IOPS required. What is the MOST cost-effective storage option?',opts:['Storage optimized EC2 instance with instance store storage.','Storage optimized EC2 instance with Provisioned IOPS SSD (io1/io2) EBS.','Burstable EC2 instance with Throughput Optimized HDD (st1) EBS.','Burstable EC2 instance with Amazon S3 over a VPC endpoint.'],ans:0,exp:'Instance store on storage-optimized instances (like i3/i3en) delivers hundreds of thousands of IOPS at no additional cost beyond the instance hourly rate. Since data is discarded after rendering, the ephemeral nature of instance store is not a drawback. io1/io2 adds per-GB cost on top.'},
 {id:84,domain:'secure',sub:'Cognito',q:'A company is building a mobile app requiring authorization, authentication, and user management from one central source for both internal and external users. Which solution meets these requirements?',opts:['IAM roles','IAM users and groups','Amazon Cognito user pools','AWS Security Token Service (STS)'],ans:2,exp:'Cognito User Pools provide a complete user directory for web/mobile apps: sign-up/sign-in, MFA, social federation (Google/Facebook), and JWT tokens. IAM is for AWS resource access control, not end-user application authentication. STS issues temporary credentials but doesn\'t manage user identities.'},
 {id:85,domain:'cost',sub:'Data Transfer',q:'A company stores satellite images in S3 and must replicate 60 TB to on-premises monthly for compliance. What is the MOST cost-effective transfer method?',opts:['Export from S3 to an AWS Snowball Edge Storage Optimized device monthly. Ship to on-premises. Return within a week.','Copy to a new S3 Standard-IA bucket. Use Storage Gateway File Gateway to transfer to on-premises. Delete after transfer.','Copy to a new S3 Standard-IA bucket. Use S3 to transfer directly to on-premises. Delete after transfer.','Create a CloudFront distribution. Download from CloudFront to on-premises monthly.'],ans:0,exp:'60 TB internet egress costs ~$5,400/month ($0.09/GB). Snowball Edge base price + shipping + $0.03/GB data-out-of-AWS = ~$2,100. Snowball is ~2.5× cheaper for bulk transfers. Copying to another S3 bucket adds unnecessary replication cost. CloudFront egress pricing is similar to direct S3 egress.'},
+{id:86,domain:'performing',sub:'Networking',q:'A media streaming service aims to boost the performance and availability of its global platform, which relies on UDP for data transmission. The company needs a solution that allows for swift regional failover in the event of a regional outage, while still using their proprietary DNS system. Which AWS service should they implement?',opts:['AWS Global Accelerator','AWS Elastic Load Balancing (ELB)','Amazon CloudFront'],ans:0,exp:'Global Accelerator is tailored for enhancing performance and availability of applications by leveraging the AWS global network. It is ideal for UDP-based applications such as media streaming, as it offers rapid regional failover and improves performance by minimizing latency and jitter. CloudFront is HTTP/HTTPS only. ELB operates within a single region and does not provide global failover. Since the company retains its own DNS, Global Accelerator\'s Anycast IPs integrate cleanly without requiring Route 53.'},
+{id:87,domain:'performing',sub:'S3',q:'A company needs to transfer a 2 GB compressed data file daily to Amazon S3 from a remote location. What is the most efficient method to achieve this?',opts:['Perform a single upload operation.','Utilize only multipart upload without acceleration.','Use multipart upload with Amazon S3 Transfer Acceleration.'],ans:2,exp:'To efficiently upload large files to Amazon S3, the combination of multipart upload and S3 Transfer Acceleration is recommended. Transfer Acceleration leverages Amazon CloudFront\'s global edge network to optimize the transfer path, reducing latency and increasing speed. Multipart upload allows the file to be divided into smaller parts that can be uploaded concurrently, enhancing speed and reliability. Using either technique alone provides less benefit than combining both.'},
+{id:88,domain:'performing',sub:'Caching',q:'A logistics company needs to optimize its application to handle a surge in real-time tracking data as its fleet size doubles. Which solution ensures high performance with low latency for frequent data updates and retrievals?',opts:['Configure Multi-AZ for the main RDS instance to improve write durability and distribute reads via read replicas during high demand periods.','Transition the tracking data to Amazon OpenSearch Service, leveraging its geospatial capabilities for real-time data indexing and visualization.','Deploy an Amazon ElastiCache for Redis cluster to cache tracking data, using a TTL-based eviction policy to manage data freshness and reduce database load.'],ans:2,exp:'Implementing Amazon ElastiCache for Redis offers a scalable and low-latency solution for managing frequent data updates and retrievals. Redis, being an in-memory data store, provides sub-millisecond response times, which is crucial for real-time tracking applications. By caching tracking data in Redis with a TTL eviction policy, the system can offload the primary database, ensuring quick access to the most recent data.'},
+{id:89,domain:'cost',sub:'Database',q:'A company is planning to set up read replicas for their Amazon RDS database to improve read performance. What should they consider regarding data transfer costs?',opts:['Data transfer costs apply when replicating data to read replicas in different AWS Regions.','Data transfer costs apply when replicating data to read replicas within the same AWS Region.','Data transfer costs apply when replicating data to read replicas within the same Availability Zone.'],ans:0,exp:'Data transfer between Amazon RDS instances within the same AWS Region does not incur charges. However, if read replicas are set up in different AWS Regions, data transfer costs will apply. Cross-AZ replication within the same region is also free for RDS read replicas.'},
+{id:90,domain:'performing',sub:'Database',q:'A logistics company is revamping its package tracking system to handle real-time data updates. The IT department needs a NoSQL database that provides low-latency access, can scale out easily, and operates without server management. Which database solution should they choose?',opts:['Amazon DynamoDB','Amazon RDS','Amazon Redshift'],ans:0,exp:'Amazon DynamoDB is a fully managed NoSQL database service that delivers single-digit millisecond response times and supports horizontal scaling. It is serverless, making it suitable for applications that require fast and consistent performance. Amazon RDS is a relational database and requires server management decisions. Amazon Redshift is a data warehouse optimized for OLAP analytics, not low-latency key-value or document operations.'},
+{id:91,domain:'resilient',sub:'Hybrid',q:'A financial institution wants to modernize its application infrastructure while ensuring that all sensitive customer data remains within its own data centers. Which AWS service should the institution implement to achieve this goal?',opts:['Implement AWS Snowball Edge for on-site data processing and periodically transfer data to Amazon S3 for analysis.','Deploy an AWS Outposts rack in the data center and use Amazon EKS Anywhere to manage Kubernetes clusters locally, integrating with AWS services.','Set up Amazon ECS with Fargate in an AWS Local Zone and connect it to the data center via a secure VPN.'],ans:1,exp:'The best solution is to deploy an AWS Outposts rack within the financial institution\'s data center and utilize Amazon EKS Anywhere on Outposts. This allows the institution to run Kubernetes clusters on-premises, leveraging AWS APIs and services while ensuring all data stays within the local data center, meeting data residency and compliance requirements. Snowball Edge is a data-transfer device, not a persistent application platform. Local Zone still routes data through AWS infrastructure.'},
+{id:92,domain:'resilient',sub:'Compute',q:'A company has duplicated an Amazon Machine Image (AMI) from Region A to Region B. What resources are now present in Region B?',opts:['One AMI and one snapshot are present in Region B.','One EC2 instance and one AMI are present in Region B.','One EC2 instance, one AMI, and one snapshot are present in Region B.'],ans:0,exp:'Copying an AMI to another region creates a new AMI and an associated EBS snapshot in the target region. It does not create an EC2 instance automatically — the copied AMI can be used to launch new instances in Region B as needed. This is a common exam trap: copying an AMI moves the image definition and its backing snapshot, nothing more.'},
+{id:93,domain:'secure',sub:'Governance',q:'A tech startup aims to separate its development, staging, and production environments using distinct AWS accounts. They need centralized management of network resources and automatic application of security policies when new accounts are established. Which approach best fulfills these requirements while keeping operational complexity low?',opts:['Leverage AWS Organizations to create accounts and a shared networking account with a centralized VPC. Share VPC subnets using AWS RAM and manually enforce policies with SCPs.','Utilize AWS Service Catalog to establish approved VPC templates. Deploy a separate account from the catalog and apply networking policies using AWS Config conformance packs.','Implement AWS Control Tower to manage account creation and governance. Set up a centralized VPC in a shared networking account and distribute its subnets to other accounts using AWS Resource Access Manager (AWS RAM).'],ans:2,exp:'AWS Control Tower is tailored for managing multi-account AWS setups, offering automated account creation with integrated security and compliance features like Service Control Policies (SCPs) and AWS Config rules. By setting up a centralized VPC in a shared networking account, you can efficiently manage and distribute network resources across accounts using AWS RAM. This strategy reduces redundancy, cuts costs, and ensures uniform security practices with minimal operational burden. Option A requires manual SCP enforcement — higher complexity.'},
+{id:94,domain:'performing',sub:'Storage',q:'A graphic design company is seeking a managed file storage solution on AWS for their collaborative editing software that requires support for the SMB protocol with minimal setup and maintenance. Which AWS service should they choose?',opts:['Set up an Amazon EC2 instance with Windows Server and configure a file share for SMB access.','Utilize Amazon S3 with Transfer Acceleration for file storage and access via HTTPS.','Deploy an Amazon FSx for Windows File Server and connect it to the design software using the SMB protocol.'],ans:2,exp:'Amazon FSx for Windows File Server is the ideal choice because it offers a fully managed file storage service that natively supports the SMB protocol. This service reduces the need for manual configuration and ongoing maintenance, as it automatically handles tasks such as patching, backups, and scaling — making it a low-overhead solution compared to self-managed alternatives. Amazon S3 does not support SMB. An EC2-based Windows file server requires manual patching and administration.'},
+// ── Secure ────────────────────────────────────────────────────────────────────
+{id:95,domain:'secure',sub:'IAM',q:'A solutions architect must grant an EC2 instance permission to write to a specific S3 bucket. Which is the MOST secure method?',opts:['Create an IAM user, generate access keys, and store them in the EC2 instance environment variables.','Create an IAM role with an S3 write policy and attach it to the EC2 instance as an instance profile.','Embed access keys directly in the application source code.','Store IAM access keys in AWS Secrets Manager and retrieve them on startup.'],ans:1,exp:'IAM instance profiles attach a role to an EC2 instance. The EC2 instance retrieves short-lived credentials automatically via the Instance Metadata Service (IMDS) — no long-term keys are needed anywhere. This is the AWS security best practice. Environment variables, source code, and Secrets Manager-fetched keys all still rely on long-term static credentials, which can be leaked or rotated improperly.'},
+{id:96,domain:'secure',sub:'Secrets Manager',q:'An application on ECS retrieves an RDS database password from an environment variable set at deployment time. A security review requires eliminating static credentials. What is the RECOMMENDED solution with automatic rotation?',opts:['Store the password in S3 with server-side encryption and read it at startup.','Store the password in AWS Secrets Manager, reference it in the ECS task definition, and enable automatic rotation.','Store the password in SSM Parameter Store as a SecureString with manual rotation.','Embed the password in a Docker image layer that is stored in a private ECR repository.'],ans:1,exp:'AWS Secrets Manager is purpose-built for credential management: it encrypts secrets at rest using KMS, provides a versioned API for retrieval, and supports native automatic rotation for RDS, Redshift, and DocumentDB without application changes. ECS task definitions can reference Secrets Manager ARNs directly — the container receives the secret value at launch. SSM Parameter Store SecureString works but requires custom rotation scripts. S3 and Docker layers are not credential management solutions and lack rotation.'},
+{id:97,domain:'secure',sub:'GuardDuty',q:'AWS GuardDuty generates a finding that EC2 instances in a production VPC are communicating with known cryptocurrency mining pools. What is the MOST effective IMMEDIATE containment action?',opts:['Terminate the EC2 instances immediately to stop the activity.','Update the security group of affected instances to deny all inbound and outbound traffic.','Disable GuardDuty to suppress the finding while investigating.','Enable VPC Flow Logs and wait for more data before acting.'],ans:1,exp:'Modifying the security group to block all traffic (effectively quarantining the instance) stops active exfiltration and mining while preserving the instance for forensic analysis. Termination destroys forensic evidence needed to understand the breach. Disabling GuardDuty removes threat detection. VPC Flow Logs support investigation but do not stop the active threat — containment must come first.'},
+{id:98,domain:'secure',sub:'S3 Security',q:'A compliance requirement states that no S3 object in the company\'s AWS account may ever be publicly accessible, regardless of future bucket policies or object ACLs. Which is the SIMPLEST control that enforces this unconditionally?',opts:['Apply a bucket policy denying s3:PutObjectAcl on every bucket.','Enable S3 Block Public Access at the account level.','Enable S3 Object Ownership with Bucket Owner Enforced on every bucket.','Apply an SCP denying s3:PutBucketPolicy in every account.'],ans:1,exp:'S3 Block Public Access (BPA) at the account level is an override applied before evaluating any bucket policy or object ACL — it cannot be bypassed by any IAM policy within the account. It requires a single setting change and retroactively applies to all current and future buckets. Object Ownership prevents ACL-based public access but doesn\'t block bucket policies that grant public access. Per-bucket policies and SCPs require per-bucket or per-policy maintenance.'},
+{id:99,domain:'secure',sub:'Encryption',q:'A company wants all new EBS volumes and snapshots to be encrypted by default without requiring developers to specify encryption on each resource. What is the SIMPLEST solution?',opts:['Create an SCP denying creation of unencrypted EBS volumes.','Enable EBS encryption by default in each AWS Region for the account.','Deploy a Lambda function triggered by CloudWatch Events to encrypt new EBS volumes.','Require all EBS volumes to be created via CloudFormation templates that enforce encryption.'],ans:1,exp:'EBS encryption by default is a per-Region account setting that automatically encrypts all new EBS volumes, snapshots copied from unencrypted snapshots, and snapshots created from unencrypted volumes — using the default KMS key. Zero developer action required per volume. SCPs can deny unencrypted volume creation but require complex condition logic. Lambda remediation introduces a window of exposure. CloudFormation requires all teams to use templates, which doesn\'t prevent console or CLI creation.'},
+{id:100,domain:'secure',sub:'VPC',q:'A company wants EC2 instances in a private subnet to access Amazon S3 without traffic leaving the AWS network and without requiring a NAT gateway or internet gateway. Which solution is correct?',opts:['VPC Peering to a public VPC that has internet access.','VPC Gateway Endpoint for S3.','AWS Direct Connect with a public VIF.','Interface Endpoint (PrivateLink) for S3.'],ans:1,exp:'A VPC Gateway Endpoint for S3 creates a route table entry directing S3-bound traffic from the VPC through the endpoint — entirely within the AWS network. No internet gateway, NAT gateway, or VPN is required. It is free. Interface Endpoints (PrivateLink) also keep traffic private but use ENIs with hourly charges and are better for services not supported by gateway endpoints. VPC Peering doesn\'t add S3 connectivity. Direct Connect is for on-premises to AWS.'},
+{id:101,domain:'secure',sub:'CloudTrail',q:'A company must log all AWS API calls across all Regions and ensure log files cannot be deleted or tampered with. What combination achieves this?',opts:['Enable CloudTrail per-Region with log file validation. Apply a bucket policy denying s3:DeleteObject.','Create a multi-Region trail. Enable log file validation. Apply an S3 bucket policy denying s3:DeleteObject.','Create a multi-Region trail. Send logs to CloudWatch Logs. Enable CloudWatch Logs encryption.','Enable CloudTrail in the primary Region only. Enable S3 Versioning on the log bucket.'],ans:1,exp:'A multi-Region trail captures API activity from every Region in a single configuration. Log file validation creates SHA-256 digest files that detect any tampering or deletion. An S3 bucket policy denying s3:DeleteObject prevents anyone (including account admins) from deleting log files. MFA Delete and S3 Object Lock provide additional protection but the bucket policy is the most direct control. A single-Region trail misses API calls in other Regions.'},
+{id:102,domain:'secure',sub:'Cognito',q:'A mobile app allows users to sign in with Google accounts and then call AWS APIs on their behalf. Which Cognito components are required?',opts:['User Pool handles both Google sign-in and AWS credential vending.','User Pool for Google authentication; Identity Pool to exchange the token for temporary AWS credentials.','Identity Pool for Google authentication; User Pool for AWS credentials.','IAM Identity Center with Google as an external IdP.'],ans:1,exp:'Cognito User Pool federates external identity providers including Google (OAuth 2.0) and issues JWT tokens after authentication. The app then passes the JWT to a Cognito Identity Pool, which calls STS AssumeRoleWithWebIdentity to issue short-lived AWS credentials scoped to an IAM role. User Pools alone cannot issue AWS credentials. Identity Pools handle AuthZ (AWS access), not direct IdP sign-in. IAM Identity Center is designed for workforce users accessing AWS accounts, not consumer mobile app authentication.'},
+{id:103,domain:'secure',sub:'WAF',q:'A web application behind CloudFront is being hit by an HTTP flood from a small number of IP addresses sending thousands of requests per minute. AWS WAF is deployed on the CloudFront distribution. Which WAF feature directly mitigates this?',opts:['AWS Managed Rules — Core Rule Set (CRS)','Rate-based rule with a per-IP request threshold','Geographic match condition to block the source country','IP set manually listing the attacking IPs'],ans:1,exp:'Rate-based rules count requests from each source IP over a 5-minute rolling window and automatically block any IP exceeding the threshold — ideal for HTTP flood mitigation. The block is automatic and adapts to new attacking IPs. Managed Rules block known exploit patterns (SQLi, XSS) but don\'t rate-limit floods. Geographic blocks affect all users from a country including legitimate ones. IP sets require manual maintenance and can\'t react in real-time to previously unknown IPs.'},
+{id:104,domain:'secure',sub:'SSM',q:'A company wants to eliminate bastion hosts and allow developers to run shell commands on EC2 instances in private subnets without opening any inbound ports. Session activity must be logged. Which solution achieves this?',opts:['EC2 Instance Connect with security group allowing port 22 from developer IPs.','AWS Systems Manager Session Manager.','AWS Client VPN with a custom authorization rule.','AWS Direct Connect with a private VIF to the developer office.'],ans:1,exp:'SSM Session Manager provides browser and CLI shell access to EC2 (and on-premises servers with SSM Agent) with zero inbound ports required. All session activity is logged to CloudTrail, S3, and/or CloudWatch Logs. No SSH keys to manage. EC2 Instance Connect still requires port 22 open. Client VPN provides network access but doesn\'t address bastion host replacement or session logging. Direct Connect is a network connectivity solution, not an access management tool.'},
+{id:105,domain:'secure',sub:'Macie',q:'A company stores millions of customer records in S3 and suspects some buckets may contain undetected PII (SSNs, credit card numbers). Which AWS service automatically identifies and reports on this sensitive data?',opts:['Amazon Inspector','Amazon GuardDuty','Amazon Macie','AWS Config with a custom rule'],ans:2,exp:'Amazon Macie uses ML to automatically discover, classify, and protect sensitive data stored in S3, including PII patterns such as Social Security numbers, passport numbers, and credit card numbers. It provides findings with object-level detail. Inspector assesses EC2 and Lambda for software vulnerabilities and network exposure, not data content. GuardDuty detects threat patterns in CloudTrail/DNS/VPC Flow Logs, not data classification. Config evaluates resource configuration compliance, not file content.'},
+{id:106,domain:'secure',sub:'KMS',q:'A company imports key material from its on-premises HSM into a KMS CMK. A regulatory event requires the ability to immediately make encrypted data unreadable without the 7-30 day waiting period for key deletion. What is the correct approach?',opts:['Schedule the CMK for deletion with the minimum waiting period (7 days).','Delete just the imported key material from the CMK, leaving the CMK in place.','Disable the CMK — data becomes unreadable immediately.','Rotate the CMK to use new key material.'],ans:1,exp:'When key material is imported into a CMK, you can delete just the key material independently of the CMK. This immediately renders all data encrypted under that key unreadable (since decryption requires the key material) without the minimum 7-day deletion waiting period. The CMK itself remains, and key material can be re-imported to restore access if needed. Disabling a CMK also stops decryption but doesn\'t "destroy" the key material. Rotation keeps the old key material available for decryption of previously encrypted data.'},
+{id:107,domain:'secure',sub:'Network',q:'A company needs to inspect all VPC traffic — including traffic between VPCs and from VPCs to the internet — using a third-party firewall appliance. Which AWS service enables transparent traffic steering through the appliance?',opts:['Application Load Balancer in front of the firewall appliance in each VPC.','Gateway Load Balancer (GWLB) with the appliance as a target and GWLB Endpoints for traffic steering.','Deploy the firewall as a proxy on EC2 with an Elastic IP.','Configure the firewall as a NAT instance replacing the NAT Gateway.'],ans:1,exp:'Gateway Load Balancer operates at Layer 3, uses GENEVE encapsulation to forward all packets (including non-HTTP) transparently to firewall appliances for inspection, then returns them to their original path. GWLB Endpoints steer traffic from source VPCs through the appliance VPC. ALB operates at L7 HTTP/HTTPS only and cannot transparently forward all traffic types. NAT instance replacement is a single point of failure and complex to scale.'},
+{id:108,domain:'secure',sub:'Config',q:'A company must ensure all EC2 security groups never permit SSH (port 22) from 0.0.0.0/0, and any violation must be automatically remediated without human intervention. Which solution achieves this?',opts:['AWS Inspector with automated findings and patch manager.','AWS Config managed rule "restricted-ssh" with an automatic remediation action using an SSM Automation document.','AWS GuardDuty with an EventBridge rule triggering a Lambda function that fixes the security group.','AWS Trusted Advisor with a script that runs nightly.'],ans:1,exp:'AWS Config\'s managed rule "restricted-ssh" continuously evaluates security groups and flags non-compliant ones. Config auto-remediation can trigger an SSM Automation document (e.g., AWS-DisablePublicAccessForSecurityGroup) immediately upon detection. This is fully automated with no human in the loop. GuardDuty detects active threats, not configuration compliance. Inspector checks OS/app vulnerabilities. Trusted Advisor runs periodic checks and cannot trigger instant auto-remediation.'},
+{id:109,domain:'secure',sub:'Organizations',q:'A company uses AWS Organizations and wants to prevent any account — including account administrators — from disabling CloudTrail. Which mechanism enforces this?',opts:['Apply an IAM permissions boundary to every IAM role in every account.','Create an SCP at the Organization root denying cloudtrail:StopLogging and cloudtrail:DeleteTrail.','Enable AWS Config in every account to detect and alert on CloudTrail disablement.','Use CloudWatch Alarms in each account to alert when CloudTrail stops.'],ans:1,exp:'Service Control Policies (SCPs) set the maximum effective permissions for all principals in every account in the OU/organization — overriding even account-level administrator permissions. An SCP deny at the root OU prevents any IAM user or role from calling StopLogging or DeleteTrail regardless of their IAM policies. Permission boundaries only limit individual IAM entities, not account administrators with full IAM control. Config and CloudWatch detect violations but cannot prevent them.'},
+{id:110,domain:'secure',sub:'S3',q:'A financial services company must store S3 objects so they cannot be deleted or overwritten for 7 years to comply with SEC Rule 17a-4. Which S3 feature enforces this in WORM (Write-Once-Read-Many) mode?',opts:['S3 Versioning with MFA Delete enabled.','S3 Object Lock in Compliance mode with a 7-year retention period.','S3 Replication to a separate account with object immutability.','S3 Lifecycle policy that prevents transitions for 7 years.'],ans:1,exp:'S3 Object Lock Compliance mode prevents any user — including the root account — from deleting or overwriting objects until the retention period expires. This satisfies SEC Rule 17a-4 and similar WORM requirements. Versioning with MFA Delete adds extra friction for deletion but a user with the MFA device can still delete objects. Replication doesn\'t prevent deletion at the source. Lifecycle policies manage transitions/expirations but can\'t prevent manual deletion.'},
+{id:111,domain:'secure',sub:'IAM',q:'A developer accidentally committed AWS access keys to a public GitHub repository. What is the CORRECT order of immediate remediation steps?',opts:['1) Rotate the keys 2) Deactivate the old keys 3) Review CloudTrail for unauthorized activity 4) Remove keys from GitHub','1) Deactivate/delete the exposed keys immediately 2) Review CloudTrail for unauthorized API calls 3) Rotate keys or create new ones 4) Remove keys from the repository history','1) Remove keys from GitHub 2) Rotate the keys 3) Review CloudTrail 4) Enable MFA','1) Enable MFA 2) Rotate the keys 3) Delete the old keys 4) Review CloudTrail'],ans:1,exp:'Speed is critical — keys are scraped from public repos within seconds. The correct priority: (1) Immediately deactivate/delete the exposed keys to stop any ongoing abuse; (2) Review CloudTrail to identify any unauthorized activity that already occurred; (3) Issue new credentials; (4) Clean the git history (git-filter-branch or BFG Repo Cleaner). Removing from GitHub first delays the most impactful action: revoking access. Keys in public repos are often already compromised before the developer notices.'},
+{id:112,domain:'secure',sub:'Network',q:'A company\'s VPC has public and private subnets. EC2 instances in private subnets need outbound internet access for software updates but must not be reachable from the internet. Which component provides this?',opts:['Internet Gateway attached to the private subnet route table.','NAT Gateway in a public subnet with a route from the private subnet.','Virtual Private Gateway with an internet route.','Egress-Only Internet Gateway for IPv4 traffic.'],ans:1,exp:'A NAT Gateway (placed in a public subnet with an Elastic IP) allows instances in private subnets to initiate outbound connections to the internet while blocking any inbound connections initiated from the internet. The private subnet route table has a default route (0.0.0.0/0) pointing to the NAT Gateway. An Internet Gateway enables bidirectional internet access — not appropriate for private subnets. Egress-Only Internet Gateway is for IPv6 only. Virtual Private Gateways handle VPN connectivity, not general internet access.'},
+// ── Resilient ─────────────────────────────────────────────────────────────────
+{id:113,domain:'resilient',sub:'Route 53',q:'A company has a primary web application in us-east-1 and a standby in us-west-2. The standby should only receive traffic if the primary is unhealthy, with DNS-based failover happening automatically within minutes. Which Route 53 configuration is correct?',opts:['Weighted routing with 90/10 weight split between primary and standby.','Failover routing — primary record with a health check; secondary record as failover target.','Latency-based routing — Route 53 automatically routes to the fastest Region.','Geolocation routing with us-east-1 as the default and us-west-2 for non-US users.'],ans:1,exp:'Route 53 Failover routing monitors the primary endpoint via health checks and automatically updates DNS responses to the secondary record when the primary is unhealthy. With a low TTL (e.g., 60 seconds), failover completes within 1-2 minutes. Weighted routing doesn\'t fail over automatically — you must change weights manually. Latency routing picks the lowest-latency endpoint regardless of health. Geolocation routing isn\'t a failover mechanism.'},
+{id:114,domain:'resilient',sub:'Route 53',q:'A global SaaS application serves users in North America, Europe, and Asia. The company wants to route each user to the AWS Region with the LOWEST measured network latency, not based on geographic location. Which routing policy achieves this?',opts:['Geolocation routing','Geoproximity routing with no bias','Latency-based routing','Multivalue answer routing'],ans:2,exp:'Latency-based routing uses real-time measurements of round-trip time between Route 53 and each configured region endpoint, directing each user to the region delivering the lowest latency. This is based on actual network conditions — a user in Southeast Asia may get better latency from us-west-2 than ap-southeast-1 depending on ISP routing. Geolocation routing uses the geographic origin of the DNS query (IP-to-location mapping), which doesn\'t reflect actual network performance. Geoproximity uses physical distance with optional bias adjustments.'},
+{id:115,domain:'resilient',sub:'ELB',q:'An IoT platform requires a load balancer that supports the MQTT protocol (TCP port 1883), can handle millions of simultaneous connections, and must provide a static IP address per Availability Zone for firewall whitelisting. Which load balancer is correct?',opts:['Application Load Balancer (ALB)','Classic Load Balancer (CLB)','Network Load Balancer (NLB)','Gateway Load Balancer (GWLB)'],ans:2,exp:'Network Load Balancer operates at Layer 4 (TCP/UDP/TLS) — supporting any TCP-based protocol including MQTT. NLB provides one static Elastic IP per AZ (or uses an Elastic IP you bring), making firewall whitelisting straightforward. NLB handles millions of connections per second with ultra-low latency. ALB is Layer 7 HTTP/HTTPS only. CLB is legacy, doesn\'t scale to millions of connections, and has dynamic IPs. GWLB is for transparent traffic inspection, not application load balancing.'},
+{id:116,domain:'resilient',sub:'RDS',q:'An RDS MySQL Multi-AZ instance experiences an AZ failure. Which statement CORRECTLY describes the failover?',opts:['A new DB instance is restored from the most recent automated snapshot; takes 20-30 minutes.','The read replica in another AZ is promoted to primary automatically within seconds.','The CNAME DNS endpoint is flipped to the synchronous standby; typically completes in 1-2 minutes.','The application must be restarted pointing to the standby instance\'s separate endpoint.'],ans:2,exp:'RDS Multi-AZ maintains a synchronous standby replica in a different AZ. On primary failure, AWS automatically promotes the standby and updates the DB instance CNAME DNS record to point to the new primary. Applications reconnecting to the same endpoint DNS name automatically reach the new primary — no connection string changes needed. Failover typically takes 60-120 seconds. Read replicas are asynchronous and are NOT part of Multi-AZ automatic failover. Snapshot restore would take many minutes and requires manual action.'},
+{id:117,domain:'resilient',sub:'Aurora',q:'A read-heavy OLTP application needs a relational database that can survive losing an entire Availability Zone without data loss, automatically fail over within 30 seconds, and serve read traffic from multiple endpoints. Which is the BEST solution?',opts:['RDS MySQL Multi-AZ with 5 read replicas','Amazon Aurora with Aurora Replicas across 3 AZs','RDS PostgreSQL with synchronous Multi-AZ standby','Amazon Redshift with Multi-AZ enabled'],ans:1,exp:'Aurora stores 6 copies of data across 3 AZs (2 per AZ), making it resilient to loss of an entire AZ with zero data loss. Aurora Replicas (up to 15) can be promoted to primary in <30 seconds and serve read traffic via the Aurora Reader Endpoint — ideal for read-heavy workloads. Standard RDS Multi-AZ has one non-readable standby and slower failover. Redshift is a data warehouse (OLAP), not OLTP. Aurora provides both the HA and read-scaling requirements.'},
+{id:118,domain:'resilient',sub:'DynamoDB',q:'A gaming company needs a database that accepts writes from players in North America, Europe, and Asia simultaneously, replicating changes to all regions within seconds with no single primary. Which capability enables this?',opts:['DynamoDB Streams with Lambda cross-region replication','DynamoDB Global Tables with multi-active replication','DynamoDB DAX in each region','DynamoDB with cross-region read replicas'],ans:1,exp:'DynamoDB Global Tables provide fully managed multi-region, multi-active (every replica accepts reads and writes) replication. Changes propagate to all replica regions typically within one second. DynamoDB Streams + Lambda can replicate data across regions but requires custom code, is eventually consistent, and can cause write conflicts in a multi-active setup. DAX is an in-memory cache, not a replication feature. DynamoDB has no native "read replica" feature — Global Tables are the replication mechanism.'},
+{id:119,domain:'resilient',sub:'S3',q:'Application deployment artifacts are uploaded to an S3 bucket in us-east-1 and must be available in eu-west-1 within minutes of upload, automatically, without developer action. What is the MOST operationally efficient solution?',opts:['A Lambda function copies new objects to eu-west-1 on S3 PutObject events.','Enable S3 Cross-Region Replication (CRR) from the source bucket to a destination bucket in eu-west-1.','Run an AWS CLI s3 sync job every 2 minutes via EventBridge Scheduler.','Use S3 Multi-Region Access Points to serve objects from the closest region.'],ans:1,exp:'S3 Cross-Region Replication automatically replicates objects to the destination bucket in another region within minutes — no code, no scheduling, no developer action after initial setup. It supports replication of all objects, specific prefixes, or tag-filtered objects. Lambda-based copying requires maintaining custom code. Scheduled sync has latency up to the sync interval. Multi-Region Access Points route requests to existing data, they don\'t replicate it.'},
+{id:120,domain:'resilient',sub:'SQS',q:'An SQS consumer processes messages that take up to 10 minutes. Occasionally the consumer crashes mid-processing, and the message is re-delivered and processed twice, causing data duplication. What is the CORRECT fix?',opts:['Switch to a FIFO queue with content-based deduplication enabled.','Increase the SQS visibility timeout to more than 10 minutes (e.g., 12 minutes).','Enable SQS long polling with a 20-second wait time.','Increase the message retention period to 24 hours.'],ans:1,exp:'When a consumer receives a message, SQS hides it for the visibility timeout. If the consumer crashes and doesn\'t delete the message before the timeout expires, SQS re-delivers it. Setting the timeout to 12 minutes (greater than the 10-minute max processing time) ensures the message stays invisible long enough for normal processing to complete. FIFO with deduplication prevents duplicate sends to the queue but doesn\'t help with consumer crash re-delivery. Long polling reduces empty receives. Retention period controls how long unprocessed messages live in the queue.'},
+{id:121,domain:'resilient',sub:'Disaster Recovery',q:'A company\'s RPO is 1 hour and RTO is 4 hours. Their current backup-and-restore approach takes 8 hours to restore (violates RTO). Which DR strategy meets both targets at the LOWEST additional cost?',opts:['Multi-site active/active — run full production in both primary and DR regions.','Warm standby — keep a scaled-down but running version of production in the DR region.','Pilot light — replicate only the core database to DR; pre-configure (but don\'t run) application servers.','Increase backup frequency to every 30 minutes and optimize restore automation.'],ans:2,exp:'Pilot light keeps only critical components (the database) continuously replicated/running in the DR region. Application servers are pre-configured and can be launched within 1-2 hours on failure — meeting the 4-hour RTO. Database replication (e.g., RDS Multi-Region read replica) keeps data lag well under 1 hour (meeting RPO). Pilot light costs far less than warm standby or active/active. Optimized backup/restore is still unlikely to achieve 4-hour RTO reliably for complex environments.'},
+{id:122,domain:'resilient',sub:'CloudFront',q:'A CloudFront distribution serves an S3 website in us-east-1. During an S3 regional outage, CloudFront returns 503 errors. What feature enables automatic failover to a secondary S3 bucket in us-west-2?',opts:['CloudFront Origin Shield placed in us-west-2','CloudFront Origin Failover with an origin group containing primary and secondary S3 origins','CloudFront field-level encryption with a secondary origin fallback','CloudFront signed URLs pointing to the secondary bucket'],ans:1,exp:'CloudFront Origin Failover lets you configure an origin group with a primary and secondary origin. When the primary origin returns a 5xx error or times out, CloudFront automatically retries the request against the secondary origin — transparently to the user. Using an S3 bucket backed by CRR in us-west-2 as the secondary ensures the content is current. Origin Shield reduces origin load but provides no failover. Field-level encryption is a data protection feature. Signed URLs control access, not failover.'},
+{id:123,domain:'resilient',sub:'ELB',q:'A company deploys application updates using blue/green deployment with an ALB. They want to gradually shift 10% of traffic to the new version, monitor for errors, and roll back automatically if error rates exceed 5%. What is the MOST automated approach?',opts:['Manually adjust Route 53 weighted routing records between blue and green target groups.','Use ALB weighted target groups integrated with AWS CodeDeploy for automated canary deployment and rollback.','Modify the ALB listener rules manually during each deployment.','Use CloudFront with two origins and adjust origin weights.'],ans:1,exp:'ALB weighted target groups allow sending a configurable percentage of traffic to each target group. AWS CodeDeploy integrates natively with ALB for blue/green deployments, supports canary and linear traffic-shifting schedules, and automatically rolls back when a configured CloudWatch alarm (e.g., error rate > 5%) triggers. Route 53 weighted routing has DNS propagation delays making precise, fast rollbacks unreliable. Manual listener rule changes require human intervention. CloudFront is a CDN, not designed for application deployment orchestration.'},
+{id:124,domain:'resilient',sub:'Messaging',q:'An order service must publish events so that three downstream services (inventory, shipping, billing) each independently receive every order event. Each service needs its own retry buffer and must process events independently. Which architecture achieves this fan-out?',opts:['One SQS standard queue that all three services poll.','One SNS topic with three SQS queues subscribed — one per downstream service.','One Kinesis Data Stream with three separate consumer applications.','Three separate SQS queues; the order service writes to all three.'],ans:1,exp:'SNS fan-out: the order service publishes one message to an SNS topic; SNS delivers a copy to each subscribed SQS queue. Each downstream service polls its own queue, giving each independent buffering, retry logic, and failure isolation. A single SQS queue would deliver each message to only one of the competing consumers (not all three). Kinesis works but requires consumers to manage shard offsets and is better suited to streaming/analytics. Writing to three queues from the order service couples it to downstream infrastructure.'},
+{id:125,domain:'resilient',sub:'Auto Scaling',q:'A web application experiences a predictable surge in traffic every weekday at 9 AM when users log in. EC2 instances take 7 minutes to launch and pass health checks. Users experience slow responses at exactly 9 AM despite having step scaling configured. What is the MOST effective fix?',opts:['Use target tracking scaling with a lower CPU threshold to trigger scaling sooner.','Configure a scheduled scaling action to increase capacity at 8:50 AM on weekdays.','Increase the default cooldown period to allow more instances to launch before the next policy fires.','Switch to larger EC2 instance types so each instance handles more traffic.'],ans:1,exp:'Scheduled scaling pre-emptively adds capacity at 8:50 AM (10 minutes before the spike), giving instances their 7-minute launch time before the 9 AM traffic arrives. Step and target tracking scaling are reactive — they trigger only after CPU or request count rises, meaning instances launch after the spike has already degraded performance. Larger instances help with per-instance capacity but don\'t solve the timing problem. Cooldown adjustments affect how quickly subsequent scaling occurs, not pre-spike capacity.'},
+{id:126,domain:'resilient',sub:'Backup',q:'A company runs RDS, DynamoDB tables, and EFS file systems across multiple AWS accounts. Compliance requires centrally managed backup policies, 90-day retention, and copies stored in a separate, isolated AWS account. Which service fulfills all requirements?',opts:['Individual service backup features (RDS automated backups, DynamoDB PITR, EFS backup policy)','AWS Backup with cross-account copy and backup vaults in the destination account','AWS DataSync with scheduled daily replication to the backup account','AWS DMS replicating all databases to the backup account continuously'],ans:1,exp:'AWS Backup provides centralized backup management for RDS, DynamoDB, EFS, EC2, S3, and other services via backup plans defining schedules and retention. Cross-account copy (enabled via AWS Organizations integration) automatically sends backup copies to an isolated backup account\'s vault. Per-service backup features lack central management and cross-account isolation. DataSync is a file/data migration service, not a backup manager. DMS is for database migration/replication, not backup orchestration with retention policies.'},
+// ── Performing ────────────────────────────────────────────────────────────────
+{id:127,domain:'performing',sub:'EC2',q:'An HPC cluster running tightly-coupled MPI simulations requires sub-millisecond inter-node latency and maximum network bandwidth between EC2 instances. Which placement group type is MOST appropriate?',opts:['Spread placement group — distributes instances across distinct hardware','Partition placement group — groups of instances in isolated partitions','Cluster placement group — instances on the same physical hardware rack','No placement group — AWS optimizes placement automatically'],ans:2,exp:'Cluster placement groups pack instances onto the same underlying hardware rack within a single AZ, enabling 100 Gbps network throughput (with ENA and EFA) and single-digit microsecond latency — essential for MPI. Spread placement groups limit 7 instances per AZ per group and maximize fault isolation (opposite of what HPC needs). Partition groups isolate large distributed workloads across fault domains (for HDFS/Cassandra, not MPI). Default placement makes no guarantees about network proximity.'},
+{id:128,domain:'performing',sub:'Storage',q:'A machine learning training job running on hundreds of EC2 instances requires a shared POSIX file system with sub-millisecond latency, hundreds of GB/s aggregate throughput, and native integration with data stored in S3. Which storage service is MOST appropriate?',opts:['Amazon EFS in Max I/O performance mode','Amazon FSx for Lustre','Amazon EBS Multi-Attach io2 volumes','S3 mounted via s3fs-fuse on each instance'],ans:1,exp:'FSx for Lustre is a fully managed, high-performance parallel file system purpose-built for compute-intensive workloads. It delivers sub-millisecond latencies, hundreds of GB/s aggregate throughput, scales to petabytes, and natively links to S3 (data can be lazily loaded from S3 or written back after processing). EFS Max I/O mode has higher metadata latency and lower per-file throughput — insufficient for demanding ML training. EBS Multi-Attach is limited to 16 instances and one AZ. s3fs is FUSE-based with high latency, not suitable for performance-sensitive training.'},
+{id:129,domain:'performing',sub:'Lambda',q:'A Java-based Lambda function has cold start latencies of 3-4 seconds that are unacceptable for a customer-facing API. The function must remain Java (cannot be rewritten). Traffic is unpredictable with frequent cold starts. Which approach MOST effectively reduces cold start latency?',opts:['Increase the function\'s allocated memory to the maximum (10,240 MB).','Enable Lambda Provisioned Concurrency for the function.','Deploy the function to Lambda@Edge closer to users.','Use Lambda SnapStart for the Java runtime.'],ans:3,exp:'Lambda SnapStart (available for Java 11, 17, and 21) takes a snapshot of the fully initialized execution environment after the init phase completes, then restores execution environments from that snapshot — bypassing the JVM startup and class-loading cost that makes Java cold starts slow. This can reduce cold start latency by up to 90%. Provisioned Concurrency pre-initializes environments but costs money continuously even when idle. Increasing memory speeds up execution but not initialization. Lambda@Edge reduces network latency, not cold start time.'},
+{id:130,domain:'performing',sub:'API Gateway',q:'A REST API on API Gateway and Lambda handles 1 million requests per day. Many requests query the same product catalog data that changes only once per hour. Lambda timeouts during traffic spikes cause 502 errors. Which solution reduces backend load with the LEAST application change?',opts:['Add an SQS queue between API Gateway and Lambda to buffer spikes.','Enable API Gateway caching with a 1-hour TTL for the product catalog endpoints.','Increase Lambda reserved concurrency to 10,000.','Deploy ElastiCache for Redis and update Lambda to check cache before querying the database.'],ans:1,exp:'API Gateway caching stores endpoint responses in a dedicated cache (TTL up to 1 hour). Repeated requests for the same resource are served from cache without invoking Lambda or hitting the database — dramatically reducing backend load during spikes. Zero application code changes required. SQS between API Gateway and Lambda makes the API asynchronous (no immediate response), breaking REST semantics. Increasing Lambda concurrency doesn\'t reduce database load. ElastiCache requires Lambda code changes.'},
+{id:131,domain:'performing',sub:'CloudFront',q:'CloudFront serves a product API where responses vary based on the Accept-Language and Currency HTTP headers. Currently all requests share one cache entry. How should CloudFront be configured to cache separate responses per language/currency combination?',opts:['Forward all headers to the origin by adding them to the Origin Request Policy.','Add Accept-Language and Currency to the CloudFront Cache Policy as cache key headers.','Set the default TTL to 0 to disable caching and always forward to origin.','Use Lambda@Edge to strip the headers before caching.'],ans:1,exp:'CloudFront cache keys determine which requests get different cached responses. Adding Accept-Language and Currency to the Cache Policy\'s header-based cache key causes CloudFront to maintain separate cache entries for each combination — serving the correct localized response from cache. Origin Request Policies control which headers are forwarded to origin, but adding headers there does NOT change the cache key (a common confusion). Setting TTL to 0 eliminates caching entirely. Lambda@Edge stripping headers would lose the localization data.'},
+{id:132,domain:'performing',sub:'Database',q:'An RDS PostgreSQL primary instance handles 15,000 read queries/second and 300 write queries/second. The instance is CPU-bound on reads. The application cannot be modified to use a caching layer. What is the MOST effective way to scale reads?',opts:['Enable RDS Multi-AZ — distribute read traffic to the standby instance.','Migrate to Amazon Aurora PostgreSQL and distribute reads across up to 15 Aurora Replicas.','Increase the RDS instance to the largest available class.','Add Amazon ElastiCache for PostgreSQL as a read cache.'],ans:1,exp:'Aurora PostgreSQL supports up to 15 Aurora Replicas that share the same underlying storage (no replication lag for reads). The Aurora Reader Endpoint load-balances read connections across all replicas, horizontally scaling read capacity. RDS Multi-AZ standby is NOT readable — it exists only for failover. Increasing instance size vertically scales one node and is quickly exhausted. There is no "ElastiCache for PostgreSQL" — ElastiCache is a standalone cache requiring application changes.'},
+{id:133,domain:'performing',sub:'Kinesis',q:'An IoT platform ingests 40,000 sensor events per second, each ~1 KB. Events must be processed in real-time, kept in order per device, and must be replayable for up to 7 days. Which service is MOST appropriate?',opts:['Amazon SQS FIFO queue — guarantees ordering and exactly-once delivery.','Amazon Kinesis Data Streams — multiple shards with device ID as partition key.','Amazon SNS — pub/sub fan-out to multiple processors.','Amazon MSK (Managed Kafka) — highest throughput but maximum operational overhead.'],ans:1,exp:'Kinesis Data Streams: 40,000 events/sec × 1 KB = 40 MB/s, manageable with 40+ shards (1 MB/s each). Using device ID as the partition key routes each device\'s events to the same shard, preserving order. Data retention of up to 365 days (7 days default, extendable). Sub-second processing with Lambda or KCL. SQS FIFO has a limit of 3,000 msg/s per queue (insufficient for 40,000/sec) and no replay. SNS has no ordering or replay. MSK provides similar capabilities but requires cluster management.'},
+{id:134,domain:'performing',sub:'DynamoDB',q:'A DynamoDB table has userId (partition key) and orderDate (sort key). An application must efficiently query all orders for a specific user within a date range, sorted by date. How should this query be structured?',opts:['Scan the table with a FilterExpression on userId and orderDate.','Query using KeyConditionExpression: userId = :id AND orderDate BETWEEN :start AND :end.','Create a GSI on orderDate and query by orderDate range.','Create an LSI on a secondary attribute and filter by userId.'],ans:1,exp:'Because userId is the partition key and orderDate is the sort key, a Query with KeyConditionExpression is the correct and efficient access pattern: userId = :id (partition) AND orderDate BETWEEN :start AND :end (sort key range). DynamoDB evaluates this server-side and returns results sorted by orderDate. A Scan reads the entire table (extremely inefficient at scale). A GSI on orderDate only would scatter orders across all partition key values — you couldn\'t efficiently filter by userId. The base table design already matches this exact access pattern.'},
+{id:135,domain:'performing',sub:'Compute',q:'A company runs 150 containerized microservices and wants to avoid all infrastructure management — no EC2 node provisioning, patching, or cluster scaling. Which container platform eliminates ALL infrastructure management?',opts:['Amazon ECS on EC2 with Cluster Auto Scaling.','Amazon EKS with managed node groups.','Amazon ECS or EKS with AWS Fargate.','Amazon EC2 Auto Scaling group with Docker installed.'],ans:2,exp:'AWS Fargate is a serverless compute engine for containers — you define the CPU and memory per task/pod, AWS manages all underlying compute infrastructure (no EC2 instances to provision, patch, or scale). Both ECS and EKS can use Fargate as the launch type. ECS on EC2 and EKS managed node groups both require managing EC2 instances (AMI updates, capacity scaling). EC2 Auto Scaling with Docker is entirely self-managed.'},
+{id:136,domain:'performing',sub:'Networking',q:'A company has 12 VPCs across 4 AWS accounts that need full any-to-any connectivity plus access to an on-premises network via one AWS Direct Connect connection. What is the MOST scalable architecture?',opts:['VPC peering between every pair of VPCs (66 peering connections) plus Direct Connect per account.','AWS Transit Gateway connected to all VPCs, with Direct Connect using a Transit VIF attached to the Transit Gateway.','One shared services VPC peered to all others (hub and spoke) with Direct Connect attached.','AWS VPN to each VPC from on-premises with peering between VPCs.'],ans:1,exp:'AWS Transit Gateway acts as a regional any-to-any routing hub. Each VPC attaches once to the TGW (12 attachments); a Transit VIF on Direct Connect connects to the TGW, giving on-premises access to all VPCs through one connection. VPC peering requires O(n²) connections (12 VPCs = 66 peerings), doesn\'t support transitive routing, and doesn\'t simplify Direct Connect. Hub-and-spoke VPC peering doesn\'t scale, and peering also doesn\'t support transitive routing.'},
+{id:137,domain:'performing',sub:'Analytics',q:'A data team needs to run ad-hoc SQL queries against 200 TB of compressed Parquet files stored in S3, without managing any servers or loading data into a separate database. Query results should appear in seconds to minutes. Which solution is MOST appropriate?',opts:['Load data into Amazon Redshift and run SQL queries.','Use Amazon Athena with an AWS Glue Data Catalog.','Launch an Amazon EMR cluster on-demand for each query session.','Use RDS PostgreSQL with S3 Foreign Data Wrapper.'],ans:1,exp:'Amazon Athena is a serverless interactive query service that runs SQL directly on S3 data using Presto. With Glue Data Catalog for schema management, it queries Parquet efficiently via columnar predicate pushdown — no data loading, no cluster management, pay per TB scanned. Redshift requires loading data and ongoing cluster management. EMR requires cluster provisioning (minutes of startup, ongoing management). RDS Foreign Data Wrapper has poor performance at 200 TB scale and still requires managing an RDS instance.'},
+{id:138,domain:'performing',sub:'ElastiCache',q:'A real-time gaming leaderboard needs to update player scores, retrieve the top 100 players by score in sorted order, and expire daily leaderboard data automatically via TTL. Which solution is BEST suited?',opts:['ElastiCache for Memcached with a hash map structure.','ElastiCache for Redis with sorted sets (ZSET) and key-level TTL.','ElastiCache for Redis with lists and LRANGE queries.','DynamoDB with a GSI on score for sorted reads.'],ans:1,exp:'Redis Sorted Sets (ZSET): ZADD sets or updates a player\'s score; ZREVRANGE retrieves the top N players in sorted order in O(log N + M) time. A TTL on the daily leaderboard key automatically expires it at midnight. This is the canonical Redis leaderboard pattern. Memcached doesn\'t support sorted data structures or key TTL. Redis Lists maintain insertion order, not score order. DynamoDB with a GSI works but adds read latency vs. in-memory and requires careful partition key design for hotspot avoidance.'},
+{id:139,domain:'performing',sub:'Compute',q:'A batch scientific simulation takes 60-90 minutes per job and can checkpoint its state every 5 minutes. The company wants to run hundreds of simulations simultaneously at minimum cost. Jobs are interruptible. Which EC2 strategy is MOST cost-effective?',opts:['On-Demand Instances with a large EC2 instance.','Reserved Instances (1-year) for the expected steady base workload.','Spot Instances using a Spot Fleet with checkpointing.','Dedicated Hosts to eliminate per-instance licensing costs.'],ans:2,exp:'Spot Instances offer up to 90% discount. With 5-minute checkpointing, a 2-minute Spot interruption notice means the job restarts losing at most ~7 minutes of work — acceptable for 60-90 minute simulations. Spot Fleet diversifies across instance types and AZs to minimize interruption probability. On-Demand at full price is unnecessary for interruptible batch. Reserved Instances are best for steady 24/7 workloads, not burst batch. Dedicated Hosts are for software licensing requirements, not cost optimization.'},
+// ── Cost ──────────────────────────────────────────────────────────────────────
+{id:140,domain:'cost',sub:'EC2 Purchasing',q:'A company runs a fleet of 20 EC2 instances 24/7 for 3 years. The instance types are fixed and will not change. Which purchasing option provides the GREATEST savings?',opts:['On-Demand Instances','Compute Savings Plans (3-year, all-upfront)','Standard Reserved Instances (3-year, all-upfront)','Spot Instances'],ans:2,exp:'3-year All-Upfront Standard Reserved Instances offer the maximum discount (~72% vs On-Demand) for a specific instance type, region, OS, and tenancy. When the instance type and region are fixed for 3 years, Standard RIs outperform Compute Savings Plans (~66% discount) because Savings Plans trade some discount for flexibility (change instance family, region, or service). Spot Instances cannot be used for 24/7 stable workloads due to interruption risk. On-Demand has no discount.'},
+{id:141,domain:'cost',sub:'S3 Storage Classes',q:'A company stores compliance documents in S3 that must be retained 7 years. Files are read frequently in the first 30 days then accessed perhaps once per year for audits (retrieval time up to 5 hours acceptable). Which lifecycle policy is MOST cost-effective?',opts:['Store in S3 Standard indefinitely.','Transition to S3 Standard-IA after 30 days, then to S3 Glacier Flexible Retrieval after 90 days.','Use S3 Intelligent-Tiering for the entire 7 years.','Transition to S3 One Zone-IA after 30 days, then to S3 Glacier Deep Archive after 90 days.'],ans:1,exp:'Standard for 30 days covers frequent access. Standard-IA ($0.0125/GB) covers the transition period where occasional immediate access is needed. Glacier Flexible Retrieval ($0.0036/GB) provides 3-5 hour retrieval (within the 5-hour SLA) for rare audit access — the cheapest class that meets the retrieval time. One Zone-IA stores data in only one AZ — unacceptable for compliance data. Glacier Deep Archive ($0.00099/GB) has 12-48 hour retrieval — may violate the 5-hour SLA. Intelligent-Tiering adds per-object monitoring fees optimized for unpredictable patterns.'},
+{id:142,domain:'cost',sub:'Serverless',q:'A REST API receives 300 requests per day, only during business hours (8 AM–6 PM weekdays). Each request takes 3 seconds of compute. What is the MOST cost-effective compute platform?',opts:['EC2 t3.small running 24/7 (On-Demand)','EC2 t3.small Reserved Instance (1-year, no-upfront)','AWS Lambda','ECS Fargate with scheduled scale-in at night'],ans:2,exp:'Lambda charges per invocation + GB-seconds. 300 req/day × 3s × 20 working days ≈ 18,000 GB-seconds/month — this costs cents at Lambda pricing ($0.0000166667/GB-second). The free tier (400,000 GB-seconds/month) likely covers it entirely. EC2 t3.small runs 24/7 even when idle, costing ~$15/month On-Demand or ~$10/month reserved. Fargate scales down but has cold start overhead and minimum billing. Lambda is the canonical choice for low-volume, event-driven APIs with irregular traffic.'},
+{id:143,domain:'cost',sub:'Data Transfer',q:'A company is surprised by high data transfer costs between EC2 instances within the same Region. Which scenario DOES incur data transfer charges?',opts:['EC2 in us-east-1a reading objects from Amazon S3 in us-east-1.','EC2 in us-east-1a sending data to EC2 in us-east-1b using private IP addresses.','EC2 in us-east-1a uploading data to S3 in us-east-1.','CloudFront fetching from an S3 origin bucket in the same Region.'],ans:1,exp:'Cross-AZ traffic within the same Region using private IPs is charged at $0.01/GB per direction ($0.02/GB round-trip). This is a commonly overlooked cost, especially for microservices architectures where services in different AZs communicate frequently. EC2-to-S3 in the same Region is free (both inbound to S3 and EC2-initiated transfers within the same region). CloudFront-to-S3 same-Region origin fetches are free. EC2 uploads to same-Region S3 are free.'},
+{id:144,domain:'cost',sub:'Savings Plans',q:'A company currently uses c5, m5, and r5 EC2 instances in us-east-1 and eu-west-1. Over the next year they plan to migrate some workloads to Lambda and AWS Fargate. Which purchasing option provides savings AND flexibility to change instance families, regions, and even compute service types?',opts:['Standard Reserved Instances per instance type and region.','EC2 Instance Savings Plans for c5, m5, and r5 in each region.','Compute Savings Plans (3-year).','Convertible Reserved Instances.'],ans:2,exp:'Compute Savings Plans automatically apply to EC2 (any instance family, size, region, OS, tenancy), Lambda, and Fargate — providing ~66% discount. They are ideal when migrating across instance types or services. EC2 Instance Savings Plans apply only to a specific instance family in a region (e.g., c5 in us-east-1). Standard RIs are locked to a specific instance type and region. Convertible RIs can be exchanged but don\'t cover Lambda or Fargate usage.'},
+{id:145,domain:'cost',sub:'Spot',q:'A company runs a Spot Instance fleet processing a video rendering job. AWS sends a Spot interruption notice. How much time does the application have to save its state before termination?',opts:['30 seconds','1 minute','2 minutes','5 minutes'],ans:2,exp:'AWS provides exactly 2 minutes of warning before reclaiming a Spot Instance. The interruption notice appears in the EC2 instance metadata at /latest/meta-data/spot/interruption-action and as an EventBridge event. Applications must checkpoint, drain connections, or gracefully terminate within this 2-minute window. Auto Scaling groups automatically request replacement Spot capacity. This 2-minute window is a fixed AWS SLA — designing applications around it is a core Spot Instance best practice.'},
+{id:146,domain:'cost',sub:'Storage',q:'A company must retrieve 1 TB of archived data from S3 Glacier Flexible Retrieval within 5 hours at the LOWEST cost. Which retrieval option should they use?',opts:['Expedited (1-5 minutes) — $0.03/GB','Standard (3-5 hours) — $0.01/GB','Bulk (5-12 hours) — $0.0025/GB','Instant (milliseconds) — $0.03/GB from Glacier Instant Retrieval class'],ans:1,exp:'Standard retrieval (3-5 hours) delivers within the required 5-hour window at $0.01/GB = $10 for 1 TB. Expedited (1-5 min) is $0.03/GB = $30 — three times more expensive and faster than required. Bulk retrieval ($0.0025/GB = $2.50) is cheapest but takes 5-12 hours — doesn\'t guarantee meeting the 5-hour SLA. Instant Retrieval is a separate S3 Glacier storage class, not a retrieval tier of Glacier Flexible Retrieval.'},
+{id:147,domain:'cost',sub:'Architecture',q:'A company runs an EC2 fleet that polls S3 every 5 seconds for new image uploads to process. CPU averages 4% utilization and costs $600/month. What redesign reduces costs MOST dramatically?',opts:['Switch to smaller EC2 instance types.','Replace On-Demand with Spot Instances.','Replace the polling EC2 fleet with Lambda functions triggered by S3 event notifications.','Add Auto Scaling to scale the fleet down to one instance at night.'],ans:2,exp:'The polling pattern wastes 96% of EC2 compute waiting for uploads that haven\'t arrived. Lambda triggered by S3 PutObject events runs only when an upload occurs — zero cost when idle, pennies per GB of images processed. This can reduce costs from $600/month to under $5/month for typical workloads. Spot Instances and smaller instance types reduce the bill but still pay for idle waiting. Auto Scaling helps with variable traffic, but the core problem is a polling architecture on an event-driven workload.'},
+{id:148,domain:'cost',sub:'RDS',q:'AWS Cost Explorer shows an RDS db.r5.8xlarge running at 12% CPU and 25% memory utilization on average. What is the RECOMMENDED cost optimization step?',opts:['Migrate from RDS to DynamoDB to eliminate relational database costs.','Enable Multi-AZ on the current instance to distribute load.','Rightsize to a db.r5.2xlarge or db.r5.4xlarge and monitor performance metrics after the change.','Purchase 3-year All-Upfront Reserved Instances for the current db.r5.8xlarge.'],ans:2,exp:'12% CPU and 25% memory on an 8xlarge indicates severe overprovisioning. Rightsizing to a 2xlarge or 4xlarge can cut RDS costs by 50-75% while maintaining comfortable headroom. AWS Compute Optimizer and RDS Performance Insights can confirm the right target size. Buying RIs for an oversized instance locks in ongoing waste. Multi-AZ doubles cost and doesn\'t reduce per-instance utilization. Migrating to DynamoDB requires significant application changes and isn\'t appropriate for complex relational schemas.'},
+{id:149,domain:'cost',sub:'S3',q:'A company\'s application frequently uploads and downloads the same set of 500 MB reference datasets from S3. Each dataset is downloaded by 200 EC2 instances on startup. The company wants to reduce S3 data transfer costs. Which solution is MOST cost-effective?',opts:['Enable S3 Transfer Acceleration for faster downloads.','Use S3 Select to retrieve only needed columns.','Store the datasets in ElastiCache for Redis instead of S3.','Use an S3 VPC Gateway Endpoint so EC2 instances download via the AWS network at no data transfer cost.'],ans:3,exp:'S3 data transfer within the same Region via a Gateway Endpoint is free — traffic stays on the AWS network and doesn\'t incur standard S3-to-EC2 data transfer charges ($0.00/GB within same region). A Gateway Endpoint requires only a route table entry. Transfer Acceleration speeds up transfers but costs extra and doesn\'t reduce transfer fees. S3 Select reduces data volume returned by filtering server-side, but only works for structured data. ElastiCache can cache data but is more expensive than S3 at scale and requires application changes.'},
+{id:150,domain:'cost',sub:'Compute',q:'A company runs 30 EC2 On-Demand instances in a dev/test environment that are used only Monday–Friday, 8 AM–6 PM (50 hours/week out of 168). What simple action reduces EC2 costs by approximately 70% without changing instance types?',opts:['Switch to Spot Instances for maximum savings.','Purchase 1-year Reserved Instances for all 30 instances.','Use Instance Scheduler or Auto Scaling Scheduled Actions to stop instances outside business hours.','Migrate the dev/test workloads to Lambda.'],ans:2,exp:'Dev/test instances run 50/168 hours per week = ~30% of the time. Stopping them outside business hours eliminates ~70% of EC2 charges immediately (you pay only for running hours). Instance Scheduler or scheduled Auto Scaling actions automate this. Spot Instances can be interrupted at any time, disrupting active developer sessions. Reserved Instances are billed 24/7 regardless of whether the instance runs — purchasing RIs for 30%-utilized instances wastes money. Migrating to Lambda requires significant application refactoring.'},
+{id:151,domain:'cost',sub:'Data Transfer',q:'A company processes large datasets by loading them from S3 into EC2 instances in the same Region for analysis, then uploads the results back to S3. They want to minimize all data transfer charges. What should they verify?',opts:['The EC2 instances are in the same AZ as the S3 bucket.','The EC2 instances use a VPC Gateway Endpoint for S3 and are in the same Region as the S3 bucket.','The EC2 instances are using S3 Transfer Acceleration.','The EC2 instances are Spot Instances to reduce the overall compute cost.'],ans:1,exp:'S3 data transfer from EC2 to S3 (and S3 to EC2) within the same Region using a VPC Gateway Endpoint incurs zero data transfer charges. S3 is a regional service — AZ co-location is irrelevant for S3 transfer costs (unlike EC2-to-EC2 which incurs cross-AZ fees). Transfer Acceleration speeds up uploads but adds fees, not removes them. Spot vs On-Demand affects compute cost but not data transfer cost.'},
+{id:152,domain:'cost',sub:'Architecture',q:'A company stores application logs in S3 and runs daily EMR jobs to analyze them. The EMR clusters are provisioned at maximum peak capacity but are only busy for 2 hours of their 8-hour runtime. What optimization reduces cost MOST significantly?',opts:['Switch EMR core nodes to Reserved Instances.','Use EMR managed scaling with Spot Instances for task nodes.','Increase EMR cluster size to finish jobs faster.','Migrate log analysis to a persistent RDS cluster.'],ans:1,exp:'EMR managed scaling automatically adds and removes task nodes (which don\'t store HDFS data) based on workload demand. Using Spot Instances for task nodes saves up to 90% on those nodes. Since task nodes hold no HDFS data, their interruption only slows jobs momentarily — they\'re restarted from the last checkpoint. Core nodes (on On-Demand or Reserved) maintain the cluster. This combination — managed scaling + Spot tasks — is the canonical cost optimization for variable EMR workloads. Larger clusters finish faster but don\'t reduce total cluster-hour cost.'},
+{id:153,domain:'cost',sub:'Networking',q:'A company runs a NAT Gateway in each of its 3 Availability Zones for high availability. Each NAT Gateway processes 10 TB/month of outbound traffic. The team notices NAT Gateway data processing fees are a top cost. Which architectural change MOST reduces these costs?',opts:['Replace NAT Gateways with a single NAT instance.','Use a VPC Gateway Endpoint for S3 traffic and an Interface Endpoint for other AWS service traffic, removing that traffic from the NAT Gateway path.','Reduce the number of NAT Gateways to one to cut the hourly charge.','Enable NAT Gateway data compression to reduce processing fees.'],ans:1,exp:'NAT Gateway charges $0.045/GB for all data processed. Traffic to AWS services (S3, DynamoDB via Gateway Endpoint; ECR, SSM, Secrets Manager, CloudWatch via Interface Endpoints) can be routed through VPC endpoints — bypassing the NAT Gateway entirely and eliminating those processing fees. This is commonly the largest component of NAT Gateway costs in containerized workloads (container image pulls from ECR being a major contributor). Reducing to one NAT Gateway saves the hourly fee (~$100/month) but creates an AZ single point of failure. NAT instances have no data compression feature.'},
+{id:154,domain:'cost',sub:'EC2',q:'AWS Compute Optimizer recommends downsizing 10 production EC2 instances from m5.4xlarge to m5.2xlarge based on utilization data. The operations team is concerned about performance impact. What is the SAFEST way to act on this recommendation?',opts:['Immediately resize all 10 instances at once during the next maintenance window.','Resize one instance, monitor CPU/memory/application metrics for a week, then proceed with the rest if no degradation is observed.','Dismiss the recommendation — Compute Optimizer can\'t account for traffic spikes.','Purchase Reserved Instances for the current m5.4xlarge size before resizing.'],ans:1,exp:'Rightsize one instance first (a canary approach). Monitor CPU utilization, memory, application response times, and error rates under real production traffic for several days to a week. If metrics remain healthy, proceed with the remaining instances in batches. Compute Optimizer analyzes 14 days of CloudWatch metrics and is generally accurate — dismissing recommendations without validation is a missed cost optimization opportunity. Resizing all 10 at once risks widespread performance impact if the recommendation is wrong for peak scenarios. Buying RIs at the current size locks in ongoing waste.'},
 ];
 
 // ── Flashcards ────────────────────────────────────────────────────────────────
@@ -587,6 +654,130 @@ Default behavior → Path-based behaviors (evaluated in order)
 **Exam tip:** For multi-account compliance enforcement → Organizations + SCPs + Config Aggregator + Security Hub. Each layer adds a different control plane.`},
 ];
 
+// ── Vocab / Glossary Data ─────────────────────────────────────────────────────
+const VOCAB=[
+  // Compute
+  {term:'EC2',cat:'Compute',def:'Elastic Compute Cloud. Resizable virtual servers in the cloud. Choose instance type (CPU/RAM/GPU), OS, and storage. Billed per second (Linux) or per hour (Windows).'},
+  {term:'EC2 Auto Scaling',cat:'Compute',def:'Automatically adds or removes EC2 instances based on demand or a schedule. Uses launch templates and scaling policies (target tracking, step, scheduled).'},
+  {term:'Lambda',cat:'Compute',def:'Serverless compute that runs code in response to events (API calls, S3 uploads, DynamoDB streams). You pay per 1-ms execution and don\'t manage servers. Max 15-min runtime.'},
+  {term:'ECS',cat:'Compute',def:'Elastic Container Service. Managed container orchestration for Docker containers. Runs on EC2 (you manage hosts) or Fargate (serverless). Integrates with ALB, IAM, and CloudWatch.'},
+  {term:'EKS',cat:'Compute',def:'Elastic Kubernetes Service. Managed Kubernetes control plane on AWS. You run worker nodes on EC2 or Fargate. Best for teams already using Kubernetes.'},
+  {term:'Fargate',cat:'Compute',def:'Serverless compute engine for containers. Works with ECS and EKS. No EC2 instances to manage; you specify CPU/memory per task and pay per second of use.'},
+  {term:'Elastic Beanstalk',cat:'Compute',def:'PaaS that handles deployment, capacity provisioning, load balancing, and monitoring for web apps. You upload code; AWS manages the infrastructure. Good for developers who want speed over control.'},
+  {term:'Lightsail',cat:'Compute',def:'Simplified virtual private servers with predictable pricing. Bundles compute, storage, and networking. Aimed at developers who need a simple VPS without full AWS complexity.'},
+  {term:'Batch',cat:'Compute',def:'Fully managed batch processing. Dynamically provisions EC2 or Spot instances to run hundreds of thousands of batch jobs. Define jobs as Docker containers.'},
+  {term:'Outposts',cat:'Compute',def:'AWS-managed rack of hardware delivered to your data center. Runs AWS services on-premises with the same APIs, tools, and hardware as AWS regions.'},
+
+  // Storage
+  {term:'S3',cat:'Storage',def:'Simple Storage Service. Object storage with 11 9s durability. Stores objects in buckets, each up to 5 TB. Storage classes include Standard, IA, Glacier, and Intelligent-Tiering.'},
+  {term:'S3 Glacier',cat:'Storage',def:'Low-cost archival storage within S3. Three retrieval tiers: Instant (ms), Flexible (minutes–hours), Deep Archive (up to 12 hrs). Minimum storage duration 90–180 days.'},
+  {term:'EBS',cat:'Storage',def:'Elastic Block Store. Network-attached block storage volumes for EC2. Types: gp3 (general SSD), io2 (provisioned IOPS), st1 (throughput HDD), sc1 (cold HDD). Single-AZ, snapshots are cross-region.'},
+  {term:'EFS',cat:'Storage',def:'Elastic File System. Managed NFS file system that scales automatically and can be mounted by thousands of EC2 instances across multiple AZs. Two modes: Regional (default) or One Zone.'},
+  {term:'FSx for Windows',cat:'Storage',def:'Managed Windows File Server using SMB protocol. Supports Active Directory, DFS namespaces, and Windows ACLs. Best for Windows workloads that need shared file storage.'},
+  {term:'FSx for Lustre',cat:'Storage',def:'Managed high-performance parallel file system for HPC and ML workloads. Can link to S3 as a data repository. Delivers hundreds of GB/s throughput with sub-ms latency.'},
+  {term:'Storage Gateway',cat:'Storage',def:'Hybrid cloud storage service. Bridges on-premises environments to S3. Three types: File Gateway (NFS/SMB → S3), Volume Gateway (iSCSI block), Tape Gateway (virtual tape to Glacier).'},
+  {term:'AWS Backup',cat:'Storage',def:'Centralized backup service that automates and manages backups across EC2, EBS, RDS, DynamoDB, EFS, and more. Supports cross-account and cross-region backup copies.'},
+  {term:'DataSync',cat:'Storage',def:'Automated data transfer service that moves data between on-premises storage and AWS (S3, EFS, FSx) at up to 10x faster than open-source tools. Handles scheduling, encryption, and verification.'},
+  {term:'Snow Family',cat:'Storage',def:'Physical devices for large-scale data migration or edge compute: Snowcone (8 TB, portable), Snowball Edge (80 TB, compute capable), Snowmobile (100 PB truck). Used when bandwidth is limited.'},
+
+  // Database
+  {term:'RDS',cat:'Database',def:'Relational Database Service. Managed relational databases (MySQL, PostgreSQL, MariaDB, Oracle, SQL Server, Aurora). Handles backups, patching, and Multi-AZ failover automatically.'},
+  {term:'Aurora',cat:'Database',def:'AWS-built relational database compatible with MySQL and PostgreSQL. 5x faster than MySQL, 3x faster than PostgreSQL. Storage auto-scales to 128 TB. Aurora Serverless v2 scales compute instantly.'},
+  {term:'DynamoDB',cat:'Database',def:'Managed NoSQL key-value and document database. Single-digit ms at any scale. Supports on-demand or provisioned capacity. Features: DAX caching, global tables, point-in-time recovery, streams.'},
+  {term:'ElastiCache',cat:'Database',def:'Managed in-memory cache service. Two engines: Redis (persistence, pub/sub, sorted sets, Cluster Mode for sharding) and Memcached (simple, multithreaded). Used to reduce database read load.'},
+  {term:'Redshift',cat:'Database',def:'Managed columnar data warehouse for analytics (OLAP). Petabyte-scale. Uses MPP architecture. Redshift Spectrum queries S3 data in place. Integrates with QuickSight, Glue, and Athena.'},
+  {term:'DocumentDB',cat:'Database',def:'Managed document database compatible with MongoDB APIs. Stores JSON-like documents. Decouples storage and compute; storage scales automatically up to 64 TB.'},
+  {term:'Neptune',cat:'Database',def:'Managed graph database. Supports property graph (Gremlin) and RDF (SPARQL). Used for social networks, fraud detection, knowledge graphs. Multi-AZ, up to 15 read replicas.'},
+  {term:'QLDB',cat:'Database',def:'Quantum Ledger Database. Immutable, cryptographically verifiable ledger. Maintains a complete journal of all changes. Used for banking, supply chain, medical records where audit trail is required.'},
+  {term:'Timestream',cat:'Database',def:'Serverless time-series database. Automatically scales to handle trillions of events per day. Built-in time-series analytics functions. Used for IoT, operational metrics, clickstream data.'},
+  {term:'Keyspaces',cat:'Database',def:'Managed Apache Cassandra-compatible database service. Serverless; no clusters to manage. Automatically replicates 3 ways across AZs. Good for migrating Cassandra workloads to AWS.'},
+
+  // Networking
+  {term:'VPC',cat:'Networking',def:'Virtual Private Cloud. Logically isolated network in AWS. You define IP ranges (CIDR), subnets (public/private), route tables, internet gateways, and security groups. Foundation of AWS networking.'},
+  {term:'Subnet',cat:'Networking',def:'A range of IP addresses within a VPC. Public subnets route to an Internet Gateway. Private subnets route to a NAT Gateway or VPN. Each subnet lives in exactly one Availability Zone.'},
+  {term:'Internet Gateway',cat:'Networking',def:'Horizontally scaled, redundant VPC component that allows communication between instances in a VPC and the internet. Attached to a VPC; referenced in route tables of public subnets.'},
+  {term:'NAT Gateway',cat:'Networking',def:'Managed Network Address Translation. Allows instances in private subnets to reach the internet while preventing inbound connections. Deployed in a public subnet; highly available within an AZ.'},
+  {term:'Security Group',cat:'Networking',def:'Stateful virtual firewall for EC2 instances. Controls inbound and outbound traffic at the instance level. Rules are allow-only; return traffic is automatically allowed (stateful).'},
+  {term:'NACL',cat:'Networking',def:'Network Access Control List. Stateless subnet-level firewall. Rules are numbered and evaluated in order. Must explicitly allow both inbound AND outbound traffic (stateless). Default NACL allows all traffic.'},
+  {term:'Route 53',cat:'Networking',def:'Managed DNS service. Supports A, AAAA, CNAME, MX, TXT, and alias records. Routing policies: Simple, Weighted, Latency, Failover, Geolocation, Geoproximity, Multi-value. Also does health checks.'},
+  {term:'CloudFront',cat:'Networking',def:'Content Delivery Network (CDN) with 400+ edge locations. Caches static and dynamic content close to users. Integrates with S3, ALB, Lambda@Edge, WAF, and ACM for HTTPS.'},
+  {term:'ALB',cat:'Networking',def:'Application Load Balancer. Layer 7 (HTTP/HTTPS/WebSocket). Routes based on path, hostname, headers, query strings. Supports target groups (EC2, Lambda, IPs, containers). Ideal for microservices.'},
+  {term:'NLB',cat:'Networking',def:'Network Load Balancer. Layer 4 (TCP/UDP/TLS). Handles millions of requests per second with ultra-low latency. Preserves source IP. Supports static IPs/Elastic IPs. Best for high-performance or non-HTTP traffic.'},
+  {term:'GLB',cat:'Networking',def:'Gateway Load Balancer. Layer 3 (IP packets). Used to deploy, scale, and manage third-party virtual appliances (firewalls, IDS/IPS). Uses GENEVE protocol. Traffic is inspected then forwarded.'},
+  {term:'VPC Peering',cat:'Networking',def:'Direct network connection between two VPCs using private IPs. Non-transitive (A↔B and B↔C does not mean A↔C). No overlapping CIDR blocks allowed. Works across accounts and regions.'},
+  {term:'Transit Gateway',cat:'Networking',def:'Regional network hub that connects VPCs and on-premises networks. Transitive routing — connect many VPCs without peering mesh. Supports multicast and inter-region peering.'},
+  {term:'Direct Connect',cat:'Networking',def:'Dedicated private network connection from your data center to AWS. Consistent latency and bandwidth. Takes weeks to provision. Use Direct Connect Gateway for multi-region access from a single connection.'},
+  {term:'VPN',cat:'Networking',def:'Site-to-Site VPN creates an IPsec tunnel between your on-premises network and a VPC via an internet connection. Quick to set up but subject to internet variability. Client VPN allows individual user connections.'},
+  {term:'PrivateLink',cat:'Networking',def:'Expose services to other VPCs without internet gateway, NAT, or VPC peering. Uses VPC Endpoints (Interface type). Traffic stays on the AWS network. Secure way to share internal services between accounts.'},
+  {term:'VPC Endpoint',cat:'Networking',def:'Enables private connections from VPC to AWS services without internet. Two types: Interface (ENI with private IP, powered by PrivateLink) and Gateway (S3 and DynamoDB only, uses route table entry).'},
+
+  // Security
+  {term:'IAM',cat:'Security',def:'Identity and Access Management. Controls who can do what in AWS. Components: Users, Groups, Roles, Policies (JSON). Best practices: least privilege, MFA, no root access, use roles for services.'},
+  {term:'IAM Role',cat:'Security',def:'An IAM identity with specific permissions that can be assumed by AWS services, users, or accounts. Unlike users, roles have no long-term credentials — they issue temporary credentials via STS.'},
+  {term:'STS',cat:'Security',def:'Security Token Service. Issues temporary, limited-privilege credentials (access key ID, secret key, session token). Used by roles, federation (SAML/OIDC), and cross-account access.'},
+  {term:'KMS',cat:'Security',def:'Key Management Service. Create and control encryption keys used to encrypt data across AWS services. Customer-managed keys (CMKs) vs. AWS-managed keys. Supports key rotation, auditing via CloudTrail.'},
+  {term:'Secrets Manager',cat:'Security',def:'Stores, rotates, and retrieves secrets (DB passwords, API keys). Automatic rotation using Lambda. Fine-grained access via IAM. Charges per secret per month + per 10,000 API calls.'},
+  {term:'Parameter Store',cat:'Security',def:'AWS Systems Manager feature. Stores configuration data and secrets as parameters. Standard tier is free; Advanced tier supports larger values and higher throughput. Use SecureString for encrypted values.'},
+  {term:'Cognito',cat:'Security',def:'User identity and access management for web/mobile apps. User Pools: authentication (sign-up/sign-in, MFA, OAuth). Identity Pools: authorization (exchange tokens for temporary AWS credentials).'},
+  {term:'WAF',cat:'Security',def:'Web Application Firewall. Protects against common web exploits (SQLi, XSS). Works with CloudFront, ALB, API Gateway, AppSync. Uses Web ACLs with rules and rule groups. Can block by IP, geo, rate limit.'},
+  {term:'Shield',cat:'Security',def:'DDoS protection. Shield Standard is free for all AWS customers (L3/L4 attacks). Shield Advanced ($3k/month) adds protection for L7, real-time attack visibility, AWS DDoS Response Team access.'},
+  {term:'GuardDuty',cat:'Security',def:'Managed threat detection. Analyzes CloudTrail logs, VPC Flow Logs, and DNS logs using ML. Detects unusual API calls, compromised instances, reconnaissance. Findings go to EventBridge or Security Hub.'},
+  {term:'Inspector',cat:'Security',def:'Automated vulnerability management. Scans EC2 instances, Lambda functions, and ECR container images for software vulnerabilities (CVEs) and network reachability issues. Generates risk-scored findings.'},
+  {term:'Macie',cat:'Security',def:'ML-powered service that discovers and protects sensitive data in S3. Automatically identifies PII, financial data, and credentials. Sends findings to EventBridge and Security Hub.'},
+  {term:'Security Hub',cat:'Security',def:'Centralized security findings aggregator. Collects findings from GuardDuty, Inspector, Macie, IAM Access Analyzer, Firewall Manager, and third-party tools. Checks against CIS and AWS best practices.'},
+  {term:'ACM',cat:'Security',def:'AWS Certificate Manager. Provision, manage, and deploy SSL/TLS certificates for free. Works with CloudFront, ALB, API Gateway. Certificates auto-renew. Private CA option for internal PKI.'},
+  {term:'Organizations',cat:'Security',def:'Manage multiple AWS accounts centrally. Group accounts in OUs. Apply Service Control Policies (SCPs) to restrict what member accounts can do. Centralized billing and consolidated cost management.'},
+  {term:'SCP',cat:'Security',def:'Service Control Policy. IAM-like policy applied at the AWS Organization level. SCPs set the maximum permissions for accounts in an OU. They do NOT grant permissions — they only restrict.'},
+  {term:'RAM',cat:'Security',def:'Resource Access Manager. Share AWS resources across accounts or within an Organization without needing VPC peering or resource copies. Shareable resources include subnets, Transit Gateways, Route 53 Resolver rules.'},
+
+  // Monitoring
+  {term:'CloudWatch',cat:'Monitoring',def:'Monitoring and observability service. Collects metrics, logs, and events. Features: Metrics (default + custom), Logs (log groups/streams), Alarms (SNS/Auto Scaling triggers), Dashboards, Contributor Insights.'},
+  {term:'CloudWatch Logs Insights',cat:'Monitoring',def:'Interactive log analytics. Query CloudWatch log groups using a SQL-like syntax. Run ad-hoc queries to debug, find error patterns, or aggregate log data. Supports multi-region and cross-account queries.'},
+  {term:'CloudTrail',cat:'Monitoring',def:'Records API calls made to AWS services. Captures who, what, where, and when. Logs stored in S3. Used for compliance, security analysis, and change tracking. Management events logged by default.'},
+  {term:'Config',cat:'Monitoring',def:'Tracks configuration changes to AWS resources over time. Evaluates compliance against Config Rules. Supports conformance packs (groups of rules). Can trigger SSM Automation for auto-remediation.'},
+  {term:'X-Ray',cat:'Monitoring',def:'Distributed tracing for applications. Visualizes request flow across services (Lambda, EC2, ECS, API Gateway). Identifies bottlenecks and errors. Uses sampling to control volume of traced requests.'},
+  {term:'EventBridge',cat:'Monitoring',def:'Serverless event bus. Routes events from AWS services, SaaS apps, and custom apps to targets (Lambda, SQS, SNS, Step Functions). Supports scheduled rules (cron/rate), event patterns, and event archives.'},
+  {term:'Health Dashboard',cat:'Monitoring',def:'Provides personalized view of AWS service health for your account. Proactive notifications about events affecting your resources. AWS Service Health Dashboard shows global service status.'},
+
+  // Messaging
+  {term:'SQS',cat:'Messaging',def:'Simple Queue Service. Managed message queue. Standard queue (at-least-once, best-effort ordering) and FIFO queue (exactly-once, strict ordering). Max message size 256 KB. Messages retained up to 14 days.'},
+  {term:'SNS',cat:'Messaging',def:'Simple Notification Service. Managed pub/sub messaging. Publishers send to topics; subscribers (Lambda, SQS, HTTP, email, SMS, mobile push) receive fan-out notifications. No message persistence after delivery.'},
+  {term:'SES',cat:'Messaging',def:'Simple Email Service. Managed email sending and receiving. Used for transactional emails, marketing, and bulk sending. Supports SMTP and API. Integrates with S3, Lambda, and SNS for inbound processing.'},
+  {term:'Kinesis Data Streams',cat:'Messaging',def:'Real-time streaming data service. Producers write to shards; consumers read within 24 hrs to 365 days. Each shard: 1 MB/s in, 2 MB/s out. Enhanced fan-out delivers 2 MB/s per shard per consumer.'},
+  {term:'Kinesis Firehose',cat:'Messaging',def:'Fully managed delivery stream. Loads streaming data into S3, Redshift, OpenSearch, or Splunk. Can transform data with Lambda. Buffer size and interval configurable. Near-real-time (60-second minimum buffer).'},
+  {term:'MSK',cat:'Messaging',def:'Managed Streaming for Apache Kafka. Fully managed Kafka clusters. Compatible with existing Kafka clients. Used for high-throughput event streaming. MSK Serverless auto-scales capacity.'},
+  {term:'AppSync',cat:'Messaging',def:'Managed GraphQL and Pub/Sub API service. Connects to DynamoDB, Lambda, RDS, HTTP APIs. Real-time subscriptions via WebSockets. Good for mobile/web apps that need flexible data fetching.'},
+  {term:'Step Functions',cat:'Messaging',def:'Visual workflow orchestration. Coordinates Lambda, ECS, DynamoDB, and other services using state machines. Standard workflows (up to 1 year, exactly-once) vs. Express (up to 5 min, high-volume).'},
+
+  // Analytics
+  {term:'Athena',cat:'Analytics',def:'Serverless interactive query service. Query data directly in S3 using standard SQL (Presto). Pay per TB scanned. Best with columnar formats (Parquet, ORC) and partitioned data to reduce cost.'},
+  {term:'Glue',cat:'Analytics',def:'Managed ETL service. Discovers data schemas (Crawlers), stores metadata (Data Catalog), and transforms data (Spark jobs). Glue Studio provides visual ETL. Used to prepare data for Athena and Redshift.'},
+  {term:'EMR',cat:'Analytics',def:'Elastic MapReduce. Managed big data platform. Runs open-source frameworks (Spark, Hadoop, Hive, Presto). Spot-friendly; use Spot for task nodes. Supports EC2 or EKS as compute.'},
+  {term:'OpenSearch Service',cat:'Analytics',def:'Managed OpenSearch (formerly Elasticsearch). Full-text search, log analytics, and real-time application monitoring. Integrates with Kinesis Firehose and CloudWatch Logs. Supports Kibana/OpenSearch Dashboards.'},
+  {term:'QuickSight',cat:'Analytics',def:'Serverless BI and visualization tool. Connects to S3, Athena, Redshift, RDS, and third-party sources. Uses SPICE (Super-fast Parallel In-memory Calculation Engine) for fast queries. Pay per session.'},
+  {term:'Data Exchange',cat:'Analytics',def:'Find, subscribe to, and use third-party data in the cloud. Data providers publish datasets; subscribers access via S3, Redshift, or API Gateway. Used for financial data, weather feeds, genomics datasets.'},
+  {term:'Lake Formation',cat:'Analytics',def:'Simplifies building data lakes on S3. Manages permissions (column/row-level security), catalogs data via Glue, and coordinates with Athena and Redshift Spectrum. Provides centralized data governance.'},
+
+  // Management
+  {term:'CloudFormation',cat:'Management',def:'Infrastructure as Code (IaC) service. Define AWS resources in JSON or YAML templates. CloudFormation creates, updates, and deletes resources as stacks. Drift detection identifies manual changes.'},
+  {term:'CDK',cat:'Management',def:'Cloud Development Kit. Define infrastructure using familiar programming languages (TypeScript, Python, Java, Go). CDK synthesizes CloudFormation templates. Constructs are reusable infrastructure components.'},
+  {term:'Systems Manager',cat:'Management',def:'Operations hub for AWS infrastructure. Key features: Session Manager (browser-based SSH/RDP), Patch Manager, Parameter Store, Run Command (remote script execution), Inventory, OpsCenter.'},
+  {term:'Trusted Advisor',cat:'Management',def:'Analyzes your AWS environment and recommends improvements in 5 categories: Cost Optimization, Performance, Security, Fault Tolerance, Service Limits. Full checks require Business or Enterprise support plan.'},
+  {term:'Control Tower',cat:'Management',def:'Automated landing zone setup for multi-account AWS environments. Sets up guardrails (preventive via SCPs, detective via Config rules), Account Factory (automated account vending), and dashboards.'},
+  {term:'Service Catalog',cat:'Management',def:'Create and manage approved IT service portfolios. Admins define products (CloudFormation templates); end users deploy self-service. Enforces standards and policies for provisioning.'},
+  {term:'OpsWorks',cat:'Management',def:'Configuration management using Chef or Puppet. Automates server configuration, deployment, and management. AWS OpsWorks Stacks is the managed version. Generally being replaced by Systems Manager.'},
+  {term:'Well-Architected Tool',cat:'Management',def:'Review workloads against AWS best practices using the 6 pillars: Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability. Generates improvement plans.'},
+  {term:'Compute Optimizer',cat:'Management',def:'Analyzes EC2, Lambda, EBS, and ECS utilization using ML and recommends right-sized configurations. Can reduce cost and improve performance by identifying over-provisioned resources.'},
+
+  // Migration
+  {term:'Migration Hub',cat:'Migration',def:'Single place to track application migration progress across multiple AWS and partner migration tools. Provides visibility into server and application migration status.'},
+  {term:'DMS',cat:'Migration',def:'Database Migration Service. Migrates databases to AWS with minimal downtime. Supports homogeneous (MySQL→MySQL) and heterogeneous (Oracle→Aurora) migrations. Continuous replication for CDC.'},
+  {term:'SMS',cat:'Migration',def:'Server Migration Service. Automates migration of on-premises VMware, Hyper-V, and Azure VMs to AWS. Incrementally replicates server volumes to AMIs. Replaced largely by MGN.'},
+  {term:'MGN',cat:'Migration',def:'Application Migration Service (MGN). Lift-and-shift migration. Continuously replicates source servers to AWS for cutover. Minimal performance impact. Replaces SMS as the recommended migration tool.'},
+  {term:'Schema Conversion Tool',cat:'Migration',def:'SCT converts database schema and code from one engine to another (e.g., Oracle → Aurora PostgreSQL). Part of the AWS DMS workflow. Highlights conversion issues that need manual attention.'},
+  {term:'Transfer Family',cat:'Migration',def:'Managed file transfer service supporting SFTP, FTPS, and FTP protocols. Transfers files directly to/from S3 or EFS without changing client workflows. Integrates with IAM for access control.'},
+];
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const today=()=>new Date().toISOString().slice(0,10);
 const dayOfYear=()=>{const n=new Date();return Math.floor((n-new Date(n.getFullYear(),0,0))/86400000)};
@@ -618,7 +809,9 @@ const NAV=[
   {id:'lesson',icon:'◈',label:'Daily Lesson'},
   {id:'quiz',icon:'◉',label:'Quiz'},
   {id:'flashcards',icon:'⬜',label:'Flashcards'},
+  {id:'vocab',icon:'◧',label:'Glossary'},
   {id:'exam',icon:'◎',label:'Practice Exam'},
+  {id:'history',icon:'◷',label:'History'},
   {id:'analytics',icon:'◈',label:'Analytics'},
   {id:'notes',icon:'▤',label:'Notes'},
   {id:'leaderboard',icon:'◆',label:'Leaderboard'},
@@ -687,8 +880,106 @@ function BottomNav({active,setActive}){
   );
 }
 
+// ── Readiness ─────────────────────────────────────────────────────────────────
+function calcReadiness(quizHistory,examHistory,flashConf){
+  const dWeights={secure:0.30,resilient:0.26,performing:0.24,cost:0.20};
+  const byDomain={};
+  let quizSum=0,wSum=0;
+  Object.entries(dWeights).forEach(([d,w])=>{
+    const qs=quizHistory.filter(h=>h.domain===d);
+    const c=qs.filter(h=>h.correct).length;
+    byDomain[d]={correct:c,total:qs.length,pct:qs.length>0?Math.round(c/qs.length*100):null};
+    if(qs.length>=5){quizSum+=(c/qs.length)*w;wSum+=w;}
+  });
+  const quizPct=wSum>0?Math.round((quizSum/wSum)*100):0;
+  const hasExam=examHistory.length>0;
+  const recent=examHistory.slice(-5);
+  const avgExam=hasExam?Math.round(recent.reduce((s,e)=>s+e.score,0)/recent.length):0;
+  const examPct=hasExam?Math.round(Math.min(100,(avgExam/85)*100)):0;
+  const known=(flashConf||[]).filter(f=>f.conf==='know').length;
+  const flashPct=Math.round((known/ALL_FLASH.length)*100);
+  const tried=new Set(quizHistory.map(h=>h.qid)).size;
+  const covPct=Math.round(Math.min(100,(tried/(QUESTIONS.length*0.5))*100));
+  const w=hasExam?{exam:0.45,quiz:0.30,flash:0.15,cov:0.10}:{exam:0,quiz:0.55,flash:0.25,cov:0.20};
+  const total=Math.round(Math.min(100,examPct*w.exam+quizPct*w.quiz+flashPct*w.flash+covPct*w.cov));
+  return{total,examPct,quizPct,flashPct,covPct,byDomain,hasExam,avgExam,known,tried};
+}
+
+function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
+  const col=r.total>=80?'#10b981':r.total>=65?'#6366f1':r.total>=40?'#f59e0b':'#94a3b8';
+  const msg=r.total>=80?'Ready to book!':r.total>=65?'Almost there':r.total>=40?'Keep going':'Just getting started';
+  let days=null;
+  if(targetDate){const d=Math.ceil((new Date(targetDate)-new Date())/86400000);if(d>0)days=d;}
+  const weakest=Object.entries(r.byDomain).filter(([,v])=>v.total>=5).sort(([,a],[,b])=>(a.pct??100)-(b.pct??100))[0];
+  const tiles=[
+    {lbl:'Practice Exams',val:r.hasExam?`${r.examPct}%`:'—',sub:r.hasExam?`avg ${r.avgExam}% · last ${Math.min(5,examHistory.length)} exam${Math.min(5,examHistory.length)>1?'s':''}`:'Take one to unlock score',id:'exam',good:r.examPct>=75},
+    {lbl:'Quiz Accuracy',val:quizHistory.length>=5?`${r.quizPct}%`:'—',sub:quizHistory.length>=5?`${r.tried} unique questions tried`:'Need 5+ answers',id:'quiz',good:r.quizPct>=72},
+    {lbl:'Flashcards',val:`${r.flashPct}%`,sub:`${r.known} of ${ALL_FLASH.length} mastered`,id:'flashcards',good:r.flashPct>=70},
+  ];
+  return(
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Exam Readiness</span>
+        {r.total>=80
+          ?<span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">✓ Ready to Book</span>
+          :days?<span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">{days} days left</span>:null}
+      </div>
+      <div className="flex items-end gap-1.5 mb-3">
+        <span className="text-6xl font-bold leading-none tabular-nums" style={{color:col}}>{r.total}</span>
+        <div className="mb-1.5">
+          <span className="text-xl font-bold text-slate-300">%</span>
+          <div className="text-xs text-slate-500 font-medium mt-0.5">{msg}</div>
+        </div>
+      </div>
+      <div className="mb-5">
+        <div className="w-full bg-slate-100 rounded-full h-2.5 mb-1">
+          <div className="h-2.5 rounded-full transition-all duration-700" style={{width:`${r.total}%`,background:col}}/>
+        </div>
+        <div className="relative h-4">
+          {[{v:40,l:'Building'},{v:65,l:'Almost'},{v:80,l:'Book it!'}].map(m=>(
+            <div key={m.v} className="absolute flex flex-col items-center -translate-x-1/2" style={{left:`${m.v}%`}}>
+              <div className={`w-px h-1 ${r.total>=m.v?'bg-emerald-400':'bg-slate-300'}`}/>
+              <span className={`text-[9px] font-semibold whitespace-nowrap ${r.total>=m.v?'text-emerald-500':'text-slate-400'}`}>{m.l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {tiles.map(c=>(
+          <button key={c.id} onClick={()=>setActive(c.id)}
+            className="rounded-xl p-3 text-left border transition-all hover:shadow-sm"
+            style={{
+              borderColor:c.val!=='—'?(c.good?'#bbf7d0':'#fde68a'):'#e2e8f0',
+              background:c.val!=='—'?(c.good?'#f0fdf4':'#fffbeb'):'#f8fafc'
+            }}>
+            <div className="text-[10px] text-slate-400 font-medium mb-1.5 leading-tight">{c.lbl}</div>
+            <div className="text-lg font-bold leading-none mb-1 text-slate-800">{c.val}</div>
+            <div className="text-[10px] text-slate-400 leading-tight">{c.sub}</div>
+          </button>
+        ))}
+      </div>
+      {weakest&&(
+        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs">
+          <span className="text-amber-400">▲</span>
+          <span className="text-amber-700 font-semibold">Focus:</span>
+          <span className="text-amber-600">{DOMAINS[weakest[0]].label} — {weakest[1].pct}% accuracy</span>
+          <button onClick={()=>setActive('quiz')} className="ml-auto text-amber-700 font-bold hover:underline shrink-0">Practice →</button>
+        </div>
+      )}
+      {!r.hasExam&&quizHistory.length>=20&&(
+        <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs mt-2">
+          <span className="text-indigo-500">◎</span>
+          <span className="text-indigo-600">Take a full practice exam to unlock an accurate readiness score</span>
+          <button onClick={()=>setActive('exam')} className="ml-auto text-indigo-700 font-bold hover:underline shrink-0">Go →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
+function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}){
+  const r=useMemo(()=>calcReadiness(quizHistory,examHistory,flashConf),[quizHistory,examHistory,flashConf]);
   const domainScores=useMemo(()=>{
     const scores={};
     Object.keys(DOMAINS).forEach(d=>{
@@ -699,7 +990,7 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
   },[quizHistory]);
 
   const weak=Object.entries(domainScores).filter(([,v])=>v.total>0).sort(([,a],[,b])=>pct(a.correct,a.total)-pct(b.correct,b.total));
-  const totalCards=FLASHCARDS.length;
+  const totalCards=ALL_FLASH.length;
   const known=flashConf.filter(f=>f.conf==='know').length;
   const lastExam=examHistory[examHistory.length-1];
 
@@ -707,9 +998,11 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive}){
     <div className="p-4 md:p-6 space-y-6">
       <div className="pb-2">
         <div className="text-slate-400 text-xs mb-1">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
-        <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'18ch'}}>AWS SAA-C03 Hub</h1>
+        <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'22ch'}}>AWS SAA-C03 Hub</h1>
         <p className="text-slate-500 text-sm mt-1">Keep the streak going. You've got this.</p>
       </div>
+
+      <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate}/>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -826,7 +1119,10 @@ function Quiz({onAnswer}){
   const[showExp,setShowExp]=useState(false);
   const[sessionResults,setSessionResults]=useState([]);
 
+  const sessionIdRef=useRef(null);
+
   const startQuiz=()=>{
+    sessionIdRef.current='q_'+Date.now();
     const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
     setSession(shuffle(pool).slice(0,10));
     setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);
@@ -840,7 +1136,7 @@ function Quiz({onAnswer}){
     setSelected(i);setShowExp(true);
     const q=session[idx];
     const correct=isCorrectOpt(q,i);
-    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now()});
+    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:i});
     setSessionResults(r=>[...r,{correct,dontKnow:false,domain:q.domain,sub:q.sub,qtext:q.q,ans:correctLabel(q)}]);
   };
 
@@ -848,7 +1144,7 @@ function Quiz({onAnswer}){
     if(selected!==null)return;
     setSelected('dk');setShowExp(true);
     const q=session[idx];
-    onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now()});
+    onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:'dk'});
     setSessionResults(r=>[...r,{correct:false,dontKnow:true,domain:q.domain,sub:q.sub,qtext:q.q,ans:correctLabel(q)}]);
   };
 
@@ -1002,14 +1298,47 @@ function Quiz({onAnswer}){
 }
 
 // ── Flashcards ────────────────────────────────────────────────────────────────
+const VOCAB_CAT_DOMAIN={Compute:'performing',Storage:'performing',Database:'performing',Networking:'resilient',Security:'secure',Monitoring:'cost',Messaging:'resilient',Analytics:'performing',Management:'cost',Migration:'resilient'};
+
+const VOCAB_CARDS=VOCAB.map(v=>({
+  id:'v_'+v.term.replace(/\s+/g,'_'),
+  domain:VOCAB_CAT_DOMAIN[v.cat]||'performing',
+  source:'vocab',
+  front:v.term,
+  back:v.def,
+  badge:v.cat,
+}));
+
+const QUESTION_CARDS=QUESTIONS.map(q=>{
+  const correctIdxs=Array.isArray(q.ans)?q.ans:[q.ans];
+  const correctAnswers=correctIdxs.map(i=>q.opts[i]).join(' / ');
+  return{
+    id:'q_fc_'+q.id,
+    domain:q.domain,
+    source:'question',
+    front:q.q,
+    back:`✓ ${correctAnswers}\n\n${q.exp}`,
+    badge:q.sub,
+  };
+});
+
+const ALL_FLASH=[...FLASHCARDS.map(c=>({...c,source:'concept'})),...VOCAB_CARDS,...QUESTION_CARDS];
+
 function Flashcards(){
   const[conf,setConf]=useStore('flash_conf',[]);
   const[domain,setDomain]=useState('all');
+  const[source,setSource]=useState('all');
   const[idx,setIdx]=useState(0);
   const[flipped,setFlipped]=useState(false);
   const[showAll,setShowAll]=useState(false);
 
-  const cards=useMemo(()=>domain==='all'?FLASHCARDS:FLASHCARDS.filter(c=>c.domain===domain),[domain]);
+  const cards=useMemo(()=>{
+    let c=ALL_FLASH;
+    if(source!=='all')c=c.filter(x=>x.source===source);
+    if(domain!=='all')c=c.filter(x=>x.domain===domain);
+    return c;
+  },[domain,source]);
+
   const card=cards[Math.min(idx,cards.length-1)];
   const cardConf=conf.find(c=>c.id===card?.id);
 
@@ -1025,26 +1354,33 @@ function Flashcards(){
     nope:conf.filter(c=>c.conf==='nope').length,
   }),[conf]);
 
+  const domainColors={secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'};
+  const domainBg={secure:'#f0fdf4',resilient:'#f0f9ff',performing:'#fffbeb',cost:'#faf5ff'};
+  const domainBorder={secure:'#bbf7d0',resilient:'#bae6fd',performing:'#fde68a',cost:'#e9d5ff'};
+
   if(showAll){
     return(
       <div className="p-4 md:p-6 max-w-4xl">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <button onClick={()=>setShowAll(false)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
-          <h1 className="text-slate-800 text-xl font-semibold">All Flashcards</h1>
+          <h1 className="text-slate-800 text-xl font-semibold">All Cards ({cards.length})</h1>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {FLASHCARDS.map((c,i)=>{
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((c,i)=>{
             const cv=conf.find(x=>x.id===c.id);
             return(
-              <div key={c.id} className="bg-white border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-slate-200"
-                onClick={()=>{setDomain(c.domain);setIdx(cards.findIndex(x=>x.id===c.id)||0);setShowAll(false);setFlipped(false)}}>
-                <div className="flex items-center justify-between mb-1">
-                  <Tag domain={c.domain} small/>
+              <div key={c.id} className="bg-white border border-slate-200 rounded-lg p-3 cursor-pointer hover:shadow-sm transition-shadow"
+                onClick={()=>{setIdx(i);setShowAll(false);setFlipped(false)}}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span style={{width:8,height:8,borderRadius:'50%',background:domainColors[c.domain],display:'inline-block'}}/>
+                    <span className="text-xs text-slate-400">{c.badge||DOMAINS[c.domain]?.label}</span>
+                  </div>
                   {cv&&<span className={`text-xs ${cv.conf==='know'?'text-emerald-600':cv.conf==='sorta'?'text-amber-600':'text-red-400'}`}>
-                    {cv.conf==='know'?'✓ know':cv.conf==='sorta'?'~ sorta':'✗ nope'}
+                    {cv.conf==='know'?'✓':cv.conf==='sorta'?'~':'✗'}
                   </span>}
                 </div>
-                <div className="text-slate-600 text-sm">{c.front}</div>
+                <div className="text-slate-700 text-xs leading-snug line-clamp-2">{c.front}</div>
               </div>
             );
           })}
@@ -1053,9 +1389,11 @@ function Flashcards(){
     );
   }
 
+  const frontLabel=card?.source==='question'?'QUESTION':card?.source==='vocab'?'TERM':'CONCEPT';
+
   return(
     <div className="p-4 md:p-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-slate-800 text-xl font-semibold">Flashcards</h1>
         <div className="flex items-center gap-3 text-xs">
           <span className="text-emerald-600">✓ {stats.know}</span>
@@ -1065,8 +1403,19 @@ function Flashcards(){
         </div>
       </div>
 
-      <div className="flex gap-2 mb-5 flex-wrap">
-        {[{id:'all',label:'All (' + FLASHCARDS.length + ')'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
+      {/* Source tabs */}
+      <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
+        {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
+          <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
+            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Domain filter */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
           <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
             className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
             {d.label}
@@ -1074,44 +1423,87 @@ function Flashcards(){
         ))}
       </div>
 
-      <div className="text-slate-400 text-xs mb-3 text-center">{idx+1} / {cards.length} · Click card to flip</div>
-
-      <div className="flip-card mb-4 cursor-pointer" onClick={()=>setFlipped(f=>!f)}>
-        <div className={`flip-inner ${flipped?'flipped':''}`}>
-          <div className="flip-face bg-white text-center" style={{border:'2px solid #e2e8f0'}}>
-            {card&&<div className="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl" style={{background:{secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'}[card.domain]}}/>}
-            <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3 mt-2">CONCEPT</div>
-            <div className="text-slate-900 text-lg font-semibold leading-snug mb-3">{card?.front}</div>
-            {card&&<Tag domain={card.domain}/>}
-            <div className="text-slate-300 text-xs mt-4">tap to reveal →</div>
-          </div>
-          <div className={`flip-face ${card?DOMAINS[card.domain].bg:'bg-slate-50'}`}>
-            <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">ANSWER</div>
-            <div className="text-slate-800 text-sm text-center leading-relaxed font-medium">{card?.back}</div>
-          </div>
+      {cards.length===0?(
+        <div className="text-center py-16 text-slate-400">
+          <div className="text-3xl mb-3">📭</div>
+          <p>No cards match this filter</p>
         </div>
-      </div>
+      ):(
+        <>
+          <div className="text-slate-400 text-xs mb-3 text-center">{idx+1} / {cards.length} · tap to flip</div>
 
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={()=>go(-1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">← Prev</button>
-        <div className="flex gap-2">
-          {[{k:'nope',label:'✗ Nope',cls:'border-red-400 text-red-600 hover:bg-red-50 bg-white'},
-            {k:'sorta',label:'~ Sorta',cls:'border-amber-400 text-amber-700 hover:bg-amber-50 bg-white'},
-            {k:'know',label:'✓ Know',cls:'border-emerald-400 text-emerald-700 hover:bg-emerald-50 bg-white'}
-          ].map(b=>(
-            <button key={b.k} onClick={()=>setCardConf(b.k)}
-              className={`text-xs px-3 py-1.5 rounded border transition-colors ${b.cls} ${cardConf?.conf===b.k?'opacity-100 font-semibold':'opacity-60'}`}>
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
-      </div>
+          <div className="relative mb-4 cursor-pointer select-none" style={{height:card?.source==='question'?340:290}} onClick={()=>setFlipped(f=>!f)}>
+            {/* Front */}
+            <div style={{
+              position:'absolute',inset:0,borderRadius:16,background:'#fff',
+              border:'2px solid #e2e8f0',
+              display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+              padding:'24px',textAlign:'center',
+              boxShadow:'0 4px 24px rgba(0,0,0,.07)',
+              transition:'opacity .22s ease,transform .22s ease',
+              opacity:flipped?0:1,
+              transform:flipped?'scale(.97)':'scale(1)',
+              pointerEvents:flipped?'none':'auto',
+              overflowY:'auto',
+            }}>
+              {card&&<div style={{position:'absolute',top:0,left:0,right:0,height:5,borderRadius:'14px 14px 0 0',background:domainColors[card.domain]}}/>}
+              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">{frontLabel}</div>
+              {card?.badge&&<div style={{marginBottom:8,fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:999,background:domainColors[card.domain]+'22',color:domainColors[card.domain]}}>{card.badge}</div>}
+              <div className={`text-slate-900 font-semibold leading-snug mb-3 ${card?.source==='question'?'text-sm':'text-lg'}`}>{card?.front}</div>
+              {card&&<Tag domain={card.domain}/>}
+              <div className="text-slate-300 text-xs mt-4">tap to reveal →</div>
+            </div>
+            {/* Back */}
+            <div style={{
+              position:'absolute',inset:0,borderRadius:16,
+              background:domainBg[card?.domain]||'#f8fafc',
+              border:'2px solid',
+              borderColor:domainBorder[card?.domain]||'#e2e8f0',
+              display:'flex',flexDirection:'column',alignItems:'flex-start',justifyContent:'center',
+              padding:'24px',textAlign:'left',
+              boxShadow:'0 4px 24px rgba(0,0,0,.07)',
+              transition:'opacity .22s ease,transform .22s ease',
+              opacity:flipped?1:0,
+              transform:flipped?'scale(1)':'scale(1.03)',
+              pointerEvents:flipped?'auto':'none',
+              overflowY:'auto',
+            }}>
+              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3 w-full text-center">ANSWER</div>
+              <div className="text-slate-800 text-sm leading-relaxed font-medium w-full" style={{whiteSpace:'pre-wrap'}}>{card?.back}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={()=>go(-1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">← Prev</button>
+            <div className="flex gap-2">
+              {[{k:'nope',label:'✗ Nope',cls:'border-red-400 text-red-600 hover:bg-red-50 bg-white'},
+                {k:'sorta',label:'~ Sorta',cls:'border-amber-400 text-amber-700 hover:bg-amber-50 bg-white'},
+                {k:'know',label:'✓ Know',cls:'border-emerald-400 text-emerald-700 hover:bg-emerald-50 bg-white'}
+              ].map(b=>(
+                <button key={b.k} onClick={()=>setCardConf(b.k)}
+                  className={`text-xs px-3 py-1.5 rounded border transition-colors ${b.cls} ${cardConf?.conf===b.k?'opacity-100 font-semibold':'opacity-60'}`}>
+                  {b.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 // ── Practice Exam ─────────────────────────────────────────────────────────────
+const examAnswerCorrect=(userAns,qAns)=>{
+  if(userAns===undefined||userAns===null)return false;
+  if(Array.isArray(qAns)){
+    if(!Array.isArray(userAns))return false;
+    return qAns.length===userAns.length&&qAns.every(a=>userAns.includes(a));
+  }
+  return userAns===qAns;
+};
+
 function PracticeExam({onExamComplete}){
   const[phase,setPhase]=useState('setup');
   const[questions,setQuestions]=useState([]);
@@ -1140,14 +1532,15 @@ function PracticeExam({onExamComplete}){
 
   useEffect(()=>{
     if(phase==='result'&&questions.length>0){
-      const correct=questions.filter((q,i)=>answers[i]===q.ans).length;
+      const correct=questions.filter((q,i)=>examAnswerCorrect(answers[i],q.ans)).length;
       const score=Math.round(correct/questions.length*100);
       const byDomain={};
       Object.keys(DOMAINS).forEach(d=>{
         const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
-        byDomain[d]={correct:dqs.filter(q=>answers[q.i]===q.ans).length,total:dqs.length};
+        byDomain[d]={correct:dqs.filter(q=>examAnswerCorrect(answers[q.i],q.ans)).length,total:dqs.length};
       });
-      onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today()});
+      const items=questions.map((q,i)=>({qid:q.id,domain:q.domain,sub:q.sub,correct:examAnswerCorrect(answers[i],q.ans),userAns:answers[i]}));
+      onExamComplete({ts:Date.now(),score,correct,total:questions.length,byDomain,date:today(),items});
     }
   },[phase]);
 
@@ -1184,13 +1577,13 @@ function PracticeExam({onExamComplete}){
   }
 
   if(phase==='result'){
-    const correct=questions.filter((q,i)=>answers[i]===q.ans).length;
+    const correct=questions.filter((q,i)=>examAnswerCorrect(answers[i],q.ans)).length;
     const score=Math.round(correct/questions.length*100);
     const pass=score>=72;
     const byDomain={};
     Object.keys(DOMAINS).forEach(d=>{
       const dqs=questions.map((q,i)=>({...q,i})).filter(q=>q.domain===d);
-      byDomain[d]={correct:dqs.filter(q=>answers[q.i]===q.ans).length,total:dqs.length};
+      byDomain[d]={correct:dqs.filter(q=>examAnswerCorrect(answers[q.i],q.ans)).length,total:dqs.length};
     });
     return(
       <div className="p-4 md:p-6 max-w-2xl">
@@ -1298,6 +1691,11 @@ function PracticeExam({onExamComplete}){
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 function Analytics({quizHistory,examHistory,flashConf}){
+  const[tab,setTab]=useState('summary');
+  const[expandedExam,setExpandedExam]=useState(null);
+
+  const qMap=useMemo(()=>{const m={};QUESTIONS.forEach(q=>m[q.id]=q);return m;},[]);
+
   const domainStats=useMemo(()=>{
     return Object.entries(DOMAINS).map(([key,d])=>{
       const qs=quizHistory.filter(h=>h.domain===key);
@@ -1316,15 +1714,111 @@ function Analytics({quizHistory,examHistory,flashConf}){
     const know=flashConf.filter(f=>f.conf==='know').length;
     const sorta=flashConf.filter(f=>f.conf==='sorta').length;
     const nope=flashConf.filter(f=>f.conf==='nope').length;
-    return{know,sorta,nope,total:FLASHCARDS.length};
+    return{know,sorta,nope,total:ALL_FLASH.length};
   },[flashConf]);
 
-  const recentExams=examHistory.slice(-5).reverse();
+  const recentExamsSummary=examHistory.slice(-5).reverse();
+
+  const recentQuiz=[...quizHistory].reverse().slice(0,100);
+  const recentExams=[...examHistory].reverse();
 
   return(
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-      <h1 className="text-slate-800 text-xl font-semibold">Analytics</h1>
+    <div className="p-4 md:p-6 space-y-5 max-w-4xl">
+      <div className="flex items-center justify-between">
+        <h1 className="text-slate-800 text-xl font-semibold">Analytics</h1>
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+          {[{id:'summary',label:'Summary'},{id:'log',label:'Question Log'}].map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-all ${tab===t.id?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      {tab==='log'&&(
+        <div className="space-y-5">
+          {/* Quiz question log */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="text-slate-700 text-sm font-semibold mb-1">Quiz History</div>
+            <div className="text-slate-400 text-xs mb-4">{quizHistory.length} total attempts · showing last {recentQuiz.length}</div>
+            {recentQuiz.length===0?(
+              <div className="text-slate-400 text-sm py-4 text-center">No quiz attempts yet — start a quiz to build your history.</div>
+            ):(
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {recentQuiz.map((h,i)=>{
+                  const q=qMap[h.qid];
+                  return(
+                    <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border text-xs ${h.correct?'border-emerald-200 bg-emerald-50/40':'border-red-200 bg-red-50/40'}`}>
+                      <span className={`shrink-0 font-bold mt-0.5 ${h.correct?'text-emerald-600':'text-red-400'}`}>{h.correct?'✓':'✗'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-slate-700 font-medium leading-snug mb-1">{q?q.q:`Question #${h.qid}`}</div>
+                        {q&&!h.correct&&<div className="text-slate-400 leading-snug">Correct: <span className="text-emerald-700 font-medium">{Array.isArray(q.ans)?q.ans.map(a=>q.opts[a]).join(' / '):q.opts[q.ans]}</span></div>}
+                      </div>
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        <Tag domain={h.domain}/>
+                        <span className="text-slate-300">{new Date(h.ts).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Exam attempts with per-question breakdown */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="text-slate-700 text-sm font-semibold mb-1">Practice Exam Attempts</div>
+            <div className="text-slate-400 text-xs mb-4">{examHistory.length} total exam{examHistory.length!==1?'s':''} · click to see questions</div>
+            {recentExams.length===0?(
+              <div className="text-slate-400 text-sm py-4 text-center">No practice exams yet.</div>
+            ):(
+              <div className="space-y-2">
+                {recentExams.map((e,i)=>{
+                  const expanded=expandedExam===i;
+                  return(
+                    <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <button onClick={()=>setExpandedExam(expanded?null:i)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-bold ${e.score>=72?'text-emerald-600':'text-red-400'}`}>{e.score}%</span>
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${e.score>=72?'bg-emerald-100 text-emerald-700':'bg-red-50 text-red-500'}`}>{e.score>=72?'PASS':'FAIL'}</span>
+                          <span className="text-slate-400 text-xs">{e.correct}/{e.total} correct</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-400 text-xs">{e.date||new Date(e.ts).toLocaleDateString()}</span>
+                          <span className="text-slate-300 text-xs">{expanded?'▲':'▼'}</span>
+                        </div>
+                      </button>
+                      {expanded&&(e.items?.length>0?(
+                        <div className="border-t border-slate-100 max-h-96 overflow-y-auto">
+                          {e.items.map((item,j)=>{
+                            const q=qMap[item.qid];
+                            return(
+                              <div key={j} className={`flex items-start gap-3 px-4 py-2.5 text-xs border-b border-slate-50 last:border-0 ${item.correct?'bg-white':'bg-red-50/30'}`}>
+                                <span className={`shrink-0 font-bold mt-0.5 ${item.correct?'text-emerald-500':'text-red-400'}`}>{item.correct?'✓':'✗'}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-slate-700 leading-snug mb-0.5">{q?q.q:`Question #${item.qid}`}</div>
+                                  {q&&!item.correct&&<div className="text-slate-400">Correct: <span className="text-emerald-700 font-medium">{Array.isArray(q.ans)?q.ans.map(a=>q.opts[a]).join(' / '):q.opts[q.ans]}</span></div>}
+                                </div>
+                                <Tag domain={item.domain}/>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ):(
+                        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-400">Per-question breakdown only available for exams taken after this update.</div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab==='summary'&&<>
       {/* Domain breakdown */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {domainStats.map(d=>(
@@ -1367,11 +1861,11 @@ function Analytics({quizHistory,examHistory,flashConf}){
       {/* Exam history */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <div className="text-slate-600 text-sm font-medium mb-3">Exam History</div>
-        {recentExams.length===0?(
+        {recentExamsSummary.length===0?(
           <div className="text-slate-400 text-sm">No exam attempts yet.</div>
         ):(
           <div className="space-y-2">
-            {recentExams.map((e,i)=>(
+            {recentExamsSummary.map((e,i)=>(
               <div key={i} className="flex items-center justify-between py-2 border-b border-slate-200 last:border-0">
                 <div className="text-slate-400 text-xs">{e.date||new Date(e.ts).toLocaleDateString()}</div>
                 <div className="flex items-center gap-3">
@@ -1385,6 +1879,7 @@ function Analytics({quizHistory,examHistory,flashConf}){
           </div>
         )}
       </div>
+      </>}
     </div>
   );
 }
@@ -1530,7 +2025,7 @@ function Settings({settings,setSettings,onReset}){
     <div className="p-4 md:p-6 max-w-xl space-y-6">
       <h1 className="text-slate-800 text-xl font-semibold">Settings</h1>
 
-      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-gray-800">
+      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-200">
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
             <div className="text-slate-700 text-sm">Exam Target Date</div>
@@ -1594,6 +2089,226 @@ function Settings({settings,setSettings,onReset}){
   );
 }
 
+// ── Vocab / Glossary ─────────────────────────────────────────────────────────
+const VOCAB_CATS=['All','Compute','Storage','Database','Networking','Security','Monitoring','Messaging','Analytics','Management','Migration'];
+const catColor={
+  Compute:'#f97316',Storage:'#0ea5e9',Database:'#8b5cf6',Networking:'#06b6d4',
+  Security:'#10b981',Monitoring:'#f59e0b',Messaging:'#ec4899',Analytics:'#6366f1',
+  Management:'#64748b',Migration:'#84cc16',
+};
+function Vocab(){
+  const[search,setSearch]=useState('');
+  const[cat,setCat]=useState('All');
+  const filtered=useMemo(()=>{
+    const q=search.toLowerCase().trim();
+    return VOCAB.filter(v=>{
+      const matchCat=cat==='All'||v.cat===cat;
+      const matchQ=!q||v.term.toLowerCase().includes(q)||v.def.toLowerCase().includes(q);
+      return matchCat&&matchQ;
+    }).sort((a,b)=>a.term.localeCompare(b.term));
+  },[search,cat]);
+  return(
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">AWS Glossary</h1>
+        <p className="text-slate-500 text-sm">{VOCAB.length} terms across {VOCAB_CATS.length-1} categories</p>
+      </div>
+      {/* Search */}
+      <div className="relative mb-4">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <input
+          className="w-full pl-8 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:border-slate-400 transition-colors"
+          placeholder="Search terms or definitions…"
+          value={search}
+          onChange={e=>setSearch(e.target.value)}
+        />
+      </div>
+      {/* Category filter */}
+      <div className="flex gap-2 flex-wrap mb-6">
+        {VOCAB_CATS.map(c=>(
+          <button
+            key={c}
+            onClick={()=>setCat(c)}
+            style={cat===c&&c!=='All'?{background:catColor[c],borderColor:catColor[c],color:'#fff'}:{}}
+            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+              cat===c
+                ? c==='All'?'bg-slate-800 border-slate-800 text-white':'border-transparent'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+            }`}
+          >{c}</button>
+        ))}
+      </div>
+      {/* Results count */}
+      {search&&<p className="text-xs text-slate-400 mb-4">{filtered.length} result{filtered.length!==1?'s':''}</p>}
+      {/* Term cards */}
+      {filtered.length===0?(
+        <div className="text-center py-16 text-slate-400">
+          <div className="text-4xl mb-3">📭</div>
+          <p className="font-medium">No terms found</p>
+          <p className="text-xs mt-1">Try a different search or category</p>
+        </div>
+      ):(
+        <div className="grid gap-3 md:grid-cols-2">
+          {filtered.map(v=>(
+            <div key={v.term} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <span className="font-bold text-slate-900 text-sm leading-tight">{v.term}</span>
+                <span
+                  className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style={{background:catColor[v.cat]+'22',color:catColor[v.cat]}}
+                >{v.cat}</span>
+              </div>
+              <p className="text-slate-600 text-xs leading-relaxed">{v.def}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+function History({quizHistory,examHistory}){
+  const[expandedQuiz,setExpandedQuiz]=useState(null);
+  const[expandedExam,setExpandedExam]=useState(null);
+
+  const qMap=useMemo(()=>{const m={};QUESTIONS.forEach(q=>m[q.id]=q);return m;},[]);
+
+  const quizSessions=useMemo(()=>{
+    const grouped={};
+    quizHistory.forEach(h=>{
+      const sid=h.sessionId||('day_'+new Date(h.ts).toISOString().slice(0,10));
+      if(!grouped[sid])grouped[sid]={sid,ts:h.ts,items:[]};
+      grouped[sid].items.push(h);
+      if(h.ts>grouped[sid].ts)grouped[sid].ts=h.ts;
+    });
+    return Object.values(grouped).sort((a,b)=>b.ts-a.ts);
+  },[quizHistory]);
+
+  const examSessions=[...examHistory].reverse();
+
+  const QuestionRow=({item,qMap})=>{
+    const[showExp,setShowExp]=useState(false);
+    const q=qMap[item.qid];
+    const userOptText=item.userAns==='dk'?"I don't know"
+      :Array.isArray(item.userAns)?item.userAns.map(a=>q?.opts?.[a]).filter(Boolean).join(' + ')
+      :(item.userAns!==undefined&&q)?q.opts[item.userAns]:'—';
+    const correctOptText=q?(Array.isArray(q.ans)?q.ans.map(a=>q.opts[a]).join(' / '):q.opts[q.ans]):'—';
+    return(
+      <div className={`px-4 py-3 text-xs border-b border-slate-50 last:border-0 ${item.correct?'':'bg-red-50/40'}`}>
+        <div className="flex items-start gap-2 mb-2">
+          <span className={`font-bold mt-0.5 shrink-0 text-sm ${item.correct?'text-emerald-500':'text-red-400'}`}>{item.correct?'✓':'✗'}</span>
+          <span className="text-slate-700 leading-snug font-medium flex-1">{q?q.q:`Question #${item.qid}`}</span>
+          <Tag domain={item.domain}/>
+        </div>
+        <div className="ml-5 space-y-1">
+          <div className="text-slate-500">You answered: <span className={`font-semibold ${item.correct?'text-emerald-600':'text-red-400'}`}>{userOptText}</span></div>
+          {!item.correct&&<div className="text-slate-500">Correct answer: <span className="font-semibold text-emerald-600">{correctOptText}</span></div>}
+          {q?.exp&&(
+            <button onClick={()=>setShowExp(s=>!s)} className="text-indigo-400 hover:text-indigo-600 underline-offset-2 hover:underline mt-1">
+              {showExp?'Hide':'Show'} explanation
+            </button>
+          )}
+          {showExp&&q?.exp&&<div className="text-slate-400 leading-relaxed italic border-l-2 border-indigo-200 pl-2 mt-1">{q.exp}</div>}
+        </div>
+      </div>
+    );
+  };
+
+  return(
+    <div className="p-4 md:p-6 max-w-3xl space-y-6">
+      <h1 className="text-slate-800 text-xl font-semibold">Attempt History</h1>
+
+      {/* Quiz sessions */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <div className="text-slate-700 text-sm font-semibold">Quiz Sessions</div>
+            <div className="text-slate-400 text-xs mt-0.5">{quizSessions.length} session{quizSessions.length!==1?'s':''} · {quizHistory.length} questions answered</div>
+          </div>
+          <span className="text-slate-300 text-xs">◉</span>
+        </div>
+        {quizSessions.length===0?(
+          <div className="p-8 text-center text-slate-400 text-sm">No quiz sessions yet — start a quiz to build your history.</div>
+        ):(
+          <div className="divide-y divide-slate-100">
+            {quizSessions.map((sess,i)=>{
+              const expanded=expandedQuiz===i;
+              const correct=sess.items.filter(q=>q.correct).length;
+              const score=Math.round(correct/sess.items.length*100);
+              const domains=[...new Set(sess.items.map(q=>q.domain))];
+              return(
+                <div key={sess.sid}>
+                  <button onClick={()=>setExpandedQuiz(expanded?null:i)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-left">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`text-sm font-bold tabular-nums ${score>=80?'text-emerald-600':score>=60?'text-amber-500':'text-red-400'}`}>{score}%</span>
+                      <span className="text-slate-400 text-xs">{correct}/{sess.items.length} correct</span>
+                      <div className="flex gap-1">{domains.map(d=><Tag key={d} domain={d}/>)}</div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-slate-400 text-xs">{new Date(sess.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                      <span className="text-slate-300 text-xs">{expanded?'▲':'▼'}</span>
+                    </div>
+                  </button>
+                  {expanded&&(
+                    <div className="border-t border-slate-100 max-h-[500px] overflow-y-auto">
+                      {sess.items.map((item,j)=><QuestionRow key={j} item={item} qMap={qMap}/>)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Exam attempts */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <div className="text-slate-700 text-sm font-semibold">Practice Exam Attempts</div>
+            <div className="text-slate-400 text-xs mt-0.5">{examHistory.length} attempt{examHistory.length!==1?'s':''}</div>
+          </div>
+          <span className="text-slate-300 text-xs">◎</span>
+        </div>
+        {examSessions.length===0?(
+          <div className="p-8 text-center text-slate-400 text-sm">No practice exams yet.</div>
+        ):(
+          <div className="divide-y divide-slate-100">
+            {examSessions.map((e,i)=>{
+              const expanded=expandedExam===i;
+              return(
+                <div key={i}>
+                  <button onClick={()=>setExpandedExam(expanded?null:i)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-bold tabular-nums ${e.score>=72?'text-emerald-600':'text-red-400'}`}>{e.score}%</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${e.score>=72?'bg-emerald-100 text-emerald-700':'bg-red-50 text-red-500'}`}>{e.score>=72?'PASS':'FAIL'}</span>
+                      <span className="text-slate-400 text-xs">{e.correct}/{e.total} correct</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-slate-400 text-xs">{e.date||new Date(e.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                      <span className="text-slate-300 text-xs">{expanded?'▲':'▼'}</span>
+                    </div>
+                  </button>
+                  {expanded&&(e.items?.length>0?(
+                    <div className="border-t border-slate-100 max-h-[500px] overflow-y-auto">
+                      {e.items.map((item,j)=><QuestionRow key={j} item={item} qMap={qMap}/>)}
+                    </div>
+                  ):(
+                    <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-400">Per-question detail only available for exams taken after the latest update.</div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const[active,setActive]=useState('dashboard');
@@ -1623,11 +2338,13 @@ function App(){
 
   const renderPage=()=>{
     switch(active){
-      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive}/>;
+      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
       case'flashcards':return<Flashcards/>;
+      case'vocab':return<Vocab/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
+      case'history':return<History quizHistory={quizHistory} examHistory={examHistory}/>;
       case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
       case'notes':return<Notes/>;
       case'leaderboard':return<Leaderboard quizHistory={quizHistory} examHistory={examHistory} streak={streak}/>;
