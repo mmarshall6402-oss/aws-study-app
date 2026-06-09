@@ -964,6 +964,207 @@ Organizations (account structure + consolidated billing) + SCPs (preventive top-
 - "We need a quick way to assess our overall account health across cost, security, and performance with zero setup" → Trusted Advisor, the built-in automated advisor`},
 ];
 
+// ── Architect's Mindset Data ─────────────────────────────────────────────────
+const ARCH_SCENARIOS=[
+  {
+    id:'a1',tag:'Startup',title:'Traffic spike in 6 weeks — no time to rewrite',
+    difficulty:3,
+    context:"A 3-person engineering team runs a Rails monolith on a single EC2 instance. They've just landed a TV feature that could send 50x their normal traffic in six weeks. Monthly AWS spend is $2k. The CTO's question: 'How do we not go down on the air date?'",
+    challenge:"How do you architect for 50x peak traffic in six weeks without touching application code?",
+    options:[
+      {label:"Rewrite as microservices",signal:"bad",note:"Architecturally correct but takes 6–18 months"},
+      {label:"Scale up to a bigger EC2 instance",signal:"partial",note:"Buys headroom but single point of failure remains"},
+      {label:"ALB + ASG + ElastiCache + CloudFront",signal:"good",note:"No code changes, handles 50x, cost-efficient"},
+      {label:"Migrate everything to Lambda",signal:"bad",note:"Monolith doesn't decompose overnight — risky"},
+    ],
+    decision:"ALB + Auto Scaling Group + ElastiCache (sessions) + CloudFront (static assets)",
+    why:"The constraint is six weeks — that eliminates any rewrite. The bottleneck is stateful: sessions pinned to one instance. Fix that first (ElastiCache Redis for sessions, S3 for file uploads), then you can horizontal-scale freely behind an ALB. ASG with target tracking at 60% CPU handles burst automatically. CloudFront absorbs 70-90% of traffic for images/CSS/JS before it ever reaches an origin. Total engineering effort: 2–3 days.",
+    explain_exec:"Think of it like opening more checkout lanes before Black Friday. We're copying your current store so customers automatically route to whichever copy is least busy. We can spin up 20 copies in minutes and shut them down after — you only pay for what you use during the spike.",
+    explain_eng:"Make the app stateless: sessions to ElastiCache Redis, filesystem writes to S3. Bake a golden AMI. ALB + ASG (min 2, max 20, target tracking 60% CPU). RDS read replica for analytics queries so they don't compete with writes. CloudFront for statics. Budget $300–600 for the event window — nothing compared to engineer time on a rewrite.",
+    tradeoffs:"You're scaling technical debt, not eliminating it. The monolith will hit a database write bottleneck eventually. This is the right call for this timeline — but schedule the real refactor for next quarter when the pressure is off.",
+    antipattern:"'Let's use this as an opportunity to go microservices.' This sounds responsible but will miss the deadline. Six weeks is not enough time to decompose a monolith AND learn new deployment patterns AND test under production load. Constraints drive design.",
+    cost:"ASG means idle capacity auto-terminates. 20 × t3.medium running 48 hours ≈ $200. Compare to the cost of downtime on a national TV segment or a $200k microservices sprint."
+  },
+  {
+    id:'a2',tag:'Enterprise',title:"The CIO says: 'Our on-prem is paid off — why cloud?'",
+    difficulty:4,
+    context:"A 2,000-employee manufacturing company runs 400 servers in two owned data centers. The hardware is 3 years old with 2 years left before refresh. The CIO pushed back on cloud migration: 'Our servers are fully depreciated — the cloud is more expensive.' The board wants a decision.",
+    challenge:"How do you reframe the cloud ROI conversation when the CIO believes on-prem is free?",
+    options:[
+      {label:"Build TCO model including all hidden on-prem costs",signal:"good",note:"Shows real total cost, including staff, power, facilities"},
+      {label:"Agree and stay on-prem",signal:"bad",note:"Avoids the conversation but ignores the refresh cost cycle"},
+      {label:"Lift-and-shift everything to EC2 immediately",signal:"partial",note:"Cloud benefits without optimization — often costs MORE"},
+      {label:"Start with new workloads only, prove value",signal:"good",note:"Low risk, builds internal capability, generates evidence"},
+    ],
+    decision:"Build an honest TCO that includes ALL on-prem costs, then propose a phased approach: new workloads first, then selective modernization of high-value targets.",
+    why:"'Paid off hardware' ignores: power/cooling (often $1,500–3,000/server/year), data center lease, facilities staff, patching labor, the hardware refresh cycle in 2 years (capital event), and opportunity cost of innovation velocity. Cloud shifts capex to opex and transfers undifferentiated heavy lifting (patching, hardware failure, capacity planning) to AWS. Lift-and-shift EC2 alone usually IS more expensive — the ROI comes from managed services, elasticity, and developer productivity.",
+    explain_exec:"The servers may be depreciated on the books, but running them is not free — power, cooling, staff, facilities, and a hardware refresh in two years are all real costs. More importantly, cloud lets us launch new capabilities in days instead of quarters. Our competitors who moved to cloud two years ago ship 4x faster. The question isn't 'is cloud cheaper per server' — it's 'what is the cost of moving slower than our competition?'",
+    explain_eng:"Map current on-prem costs: hardware amortization (2-year refresh cycle), power (avg $150–200/server/month), data center space, network circuits, and ops staff time. Model three scenarios: stay as-is, lift-and-shift, and modernize. Modernize wins on 3-year NPV. Use AWS Migration Evaluator for data-backed numbers. Start with greenfield workloads — no migration risk, immediate learning.",
+    tradeoffs:"Cloud does have real cost surprises: data egress charges, poorly-sized instances, and dev teams provisioning resources without lifecycle management. Set up a FinOps practice from day one: Cost Explorer, Budgets, tagging policy. The migration itself costs money (DMS, professional services, retraining).",
+    antipattern:"'Move everything at once.' Big-bang migrations almost always go over budget and schedule. The right approach: migrate in waves. Wave 1 is new workloads only. Wave 2 is dev/test environments (easy, reversible). Wave 3 is stateless apps. Wave 4 is databases. Never move batch-migration AND production cutover in the same sprint.",
+    cost:"AWS Migration Evaluator typically shows 20–40% savings over 3 years when modernization is included. Staff cost is the biggest lever: a managed RDS instance means your DBA focuses on schema optimization instead of patching, backups, and failover drills."
+  },
+  {
+    id:'a3',tag:'Fintech',title:'Fraud detection must respond in under 50ms at 100k TPS',
+    difficulty:5,
+    context:"A payment processor handles 100,000 transactions per second at peak. Fraud rules today run as a nightly batch job — they catch fraud the next day. The head of risk wants real-time decisions before each transaction completes. Latency budget: 50ms end-to-end. Any wrong answer costs millions per year in fraud losses OR in declined legitimate transactions.",
+    challenge:"Design a real-time fraud scoring system that makes a risk decision in <50ms at 100k TPS without blocking the payment flow.",
+    options:[
+      {label:"Add fraud checks to the existing relational DB",signal:"bad",note:"Cannot handle 100k TPS read/write with sub-50ms guarantee"},
+      {label:"Kinesis + Lambda + DynamoDB + ML model",signal:"good",note:"Event-driven, sub-ms lookups, scales horizontally"},
+      {label:"Move the nightly batch job to run every hour",signal:"bad",note:"Faster but still not real-time — fraud window stays large"},
+      {label:"Kafka + Flink + Redis + a rule engine",signal:"partial",note:"Valid architecture but adds significant operational overhead"},
+    ],
+    decision:"Event-driven pipeline: payment event → Kinesis Data Streams → Lambda for feature extraction → DynamoDB (pre-computed user risk features, <1ms lookup) → SageMaker endpoint (ML model, ~10ms inference) → decision returned synchronously.",
+    why:"The 50ms budget breaks down: ~5ms network, ~1ms DynamoDB feature lookup, ~10ms model inference, ~5ms Lambda overhead, leaving margin. DynamoDB handles 100k TPS at single-digit ms with provisioned capacity and DAX. Lambda scales to 1,000 concurrent invocations per region (increase limit for this workload). The ML model is pre-trained offline (batch), deployed as a SageMaker endpoint. The key insight: enrich transactions with pre-computed features (last 30-day spend pattern, device fingerprint, geo velocity) stored in DynamoDB — you never run the model cold.",
+    explain_exec:"Today we catch fraud the day after it happens. This system is like a credit card bouncer: every transaction gets scored in less than a blink of an eye before the payment completes. It checks the customer's recent behavior, device, and location against patterns our model learned from millions of historical transactions. We stop fraud in the moment instead of doing damage control the next morning.",
+    explain_eng:"Partition Kinesis by user_id to ensure per-user ordering. Lambda concurrency: provision 2,000+ to eliminate cold starts for latency-critical path. DynamoDB: partition on user_id, store rolling feature vectors updated by a separate async stream. SageMaker: deploy model behind an auto-scaling endpoint with provisioned concurrency. Circuit breaker: if ML endpoint latency exceeds 40ms, fall back to a fast rule-based decision from DynamoDB alone. Test with shadow mode (score but don't act) for 2 weeks before going live.",
+    tradeoffs:"ML models need continuous retraining as fraud patterns evolve — this is an ongoing cost. False positive rate (blocking legitimate transactions) must be measured carefully: losing a $200 sale to prevent a $30 fraud is bad math. Model explainability matters for regulatory compliance in some jurisdictions.",
+    antipattern:"'We'll just query the main transaction database for risk signals.' The OLTP database was designed for write throughput, not read-intensive risk queries. Adding 100k analytical reads per second will collapse your payment processing latency and take down production. Never build a critical real-time path on a system designed for a different access pattern.",
+    cost:"SageMaker endpoint + Lambda + Kinesis + DynamoDB for 100k TPS runs roughly $15–40k/month depending on model complexity and feature richness. Compare to average fraud loss rates of 0.1–0.5% of GMV — at any meaningful transaction volume, the fraud prevention ROI is 10-100x the infrastructure cost."
+  },
+  {
+    id:'a4',tag:'Healthcare',title:"HIPAA compliance across regions — what can go where?",
+    difficulty:4,
+    context:"A healthcare SaaS company serves US and EU customers. US customers' data is governed by HIPAA; EU customers' by GDPR. The CTO wants to consolidate infrastructure to cut costs. The legal team says EU patient data cannot leave the EU. Engineering wants to build once, deploy everywhere. A junior architect proposes 'one global region with replicated backups.'",
+    challenge:"How do you architect multi-region healthcare data that satisfies legal data residency, operational efficiency, and cost constraints simultaneously?",
+    options:[
+      {label:"One global region with encrypted cross-region replication",signal:"bad",note:"PHI crossing borders violates data residency rules regardless of encryption"},
+      {label:"Completely separate stacks per region with no shared components",signal:"partial",note:"Safe but expensive — duplicates control plane, increases operational burden"},
+      {label:"Shared control plane, isolated data plane per region",signal:"good",note:"One deployment pipeline, legally isolated data stores"},
+      {label:"Put everything in a third country (e.g., Switzerland) and argue it's neutral",signal:"bad",note:"Not how data residency law works"},
+    ],
+    decision:"Shared control plane (deployment pipelines, monitoring, billing) with strictly isolated data planes per jurisdiction. US data stays in us-east-1/us-west-2, EU data stays in eu-west-1/eu-central-1. Data planes never connect to each other.",
+    why:"Data residency is a legal requirement, not a technical preference — encryption does not change where data 'resides.' The architect's insight: separate 'control plane' (code deployments, dashboards, CI/CD — no PII) from 'data plane' (where actual patient records live). Use a single IaC codebase (CloudFormation StackSets or Terraform workspaces) to deploy the same stack to multiple regions, but ensure data stores (RDS, S3, DynamoDB) never replicate across jurisdictions. AWS KMS CMKs must be regional — a key in one region cannot decrypt ciphertext from another.",
+    explain_exec:"Think of it like franchises — the same menu, the same branding, the same kitchen equipment — but each location's customer records stay in that location's filing cabinet and are never shipped overseas. We build one set of blueprints and deploy them in both countries. This keeps us legally compliant and operationally efficient at the same time.",
+    explain_eng:"Use separate AWS accounts per jurisdiction (Organizations structure: US OU, EU OU). Shared CI/CD pipeline deploys identical CloudFormation/CDK stacks to each account. Data-plane resources (RDS, S3 with PHI, DynamoDB, KMS CMKs) are strictly account/region-bound. VPC peering or Transit Gateway is PROHIBITED between jurisdictional accounts. Shared services (monitoring aggregation, billing) use a hub account that receives metrics and logs with PII stripped at source. BAA with AWS covers HIPAA; standard DPA covers GDPR.",
+    tradeoffs:"You pay for redundant infrastructure (two RDS clusters, two EKS clusters, etc.) and carry operational overhead of managing multiple environments. That said, this is genuinely the correct architecture — any attempt to 'share' patient data across borders to save costs creates legal exposure that dwarfs the infrastructure savings.",
+    antipattern:"'Encryption makes it fine to replicate cross-region.' This is the most common compliance misunderstanding. GDPR and HIPAA govern data LOCATION and data PROCESSING, not just data confidentiality. Encrypted EU patient records sitting in a US S3 bucket still violates GDPR data residency requirements — the regulator's question is 'where is the data processed?' not 'is it encrypted?'",
+    cost:"Two isolated stacks cost roughly 2x a single region. Offset this by using Aurora Serverless in the less-trafficked jurisdiction (scales to zero during off-hours), and sharing the CI/CD, monitoring, and alerting infrastructure (which contains no PII) from a single hub account."
+  },
+  {
+    id:'a5',tag:'SaaS',title:'Multi-tenancy: isolation vs. cost for 1,000 B2B customers',
+    difficulty:5,
+    context:"A B2B project management SaaS has 1,000 customers ranging from 5-person startups to Fortune 500 enterprises. Enterprise customers in the top 10% generate 70% of revenue and are demanding dedicated infrastructure for compliance audits. Everyone else just wants things to work cheaply. The current architecture is a single shared database — it works, but enterprise deals are stalling on the 'data isolation' question.",
+    challenge:"How do you architect multi-tenancy to close enterprise deals without multiplying your infrastructure cost by 1,000?",
+    options:[
+      {label:"One database for all 1,000 tenants (current state)",signal:"partial",note:"Cheapest but cannot satisfy enterprise audit requirements"},
+      {label:"Dedicated RDS instance per tenant",signal:"bad",note:"Technically safest, but 1,000 RDS instances = $2M+/month"},
+      {label:"Tiered isolation: shared pool for SMB, dedicated for enterprise",signal:"good",note:"Product decision, not just a technical one"},
+      {label:"Schema-per-tenant in one database",signal:"partial",note:"Logical isolation, not physical — often insufficient for compliance"},
+    ],
+    decision:"Tiered multi-tenancy: SMB tier shares a DynamoDB table (tenant_id partition key, row-level IAM conditions) + a shared Aurora cluster (separate schema per tenant for richer queries). Enterprise tier: dedicated Aurora Serverless cluster per customer, deployed via automated IaC pipeline.",
+    why:"Multi-tenancy architecture is fundamentally a pricing and product decision. The question 'how isolated should tenants be?' maps directly to 'what tier are they paying for?' The cost math matters: dedicated Aurora Serverless v2 costs ~$50-150/month at low activity (scales to zero) — pricing the enterprise tier at $1,000+/month covers the isolation cost with margin. For 990 shared-tier customers, a single Aurora cluster handles the load easily. The IaC pipeline (CDK or Terraform) deploys a new dedicated cluster in minutes when a new enterprise customer signs — no manual intervention.",
+    explain_exec:"Think of it like a hotel. Budget travelers share common areas and standard rooms — they get great value at a low price. VIP guests get a private suite with their own entrance, their own staff, and their own records. We're building both: a great shared experience for most customers, and a 'private suite' option we can charge a premium for. The premium tier is what closes enterprise deals.",
+    explain_eng:"DynamoDB shared tier: partition key = tenant_id, row-level access via IAM condition `dynamodb:LeadingKeys`. Aurora shared tier: schema per tenant, application-layer tenant routing via connection pooling (RDS Proxy). Enterprise tier: dedicated Aurora Serverless v2 cluster per tenant, deployed by CDK pipeline when contract is signed. All tiers: tenant context injected at authentication layer (JWT claim), middleware enforces tenant isolation before any DB query. VPC per enterprise tenant optional for strictest isolation.",
+    tradeoffs:"Tiered infrastructure requires your platform team to maintain two code paths. Automated provisioning (IaC pipeline) is essential — if every enterprise onboard is a manual ops ticket, you've created a scaling problem. Test the automation thoroughly before selling it.",
+    antipattern:"'We'll just give everyone a dedicated database when they ask for it.' Without automation, this becomes a hand-built snowflake per customer. One enterprise customer paying $2k/month doesn't justify a $10k ops effort to provision and maintain their dedicated environment. The architecture only works if the enterprise tier is fully automated from contract signature to deployed environment.",
+    cost:"Shared Aurora cluster for 990 customers: ~$2–5k/month. Dedicated Serverless v2 clusters for 10 enterprise customers: ~$500–1,500/month total (most idle off-hours). Revenue from 10 enterprise customers at $1,500/month average: $15k/month. Infrastructure for enterprise tier: $1,500/month. Margin: excellent."
+  },
+  {
+    id:'a6',tag:'Cost Architecture',title:"The AWS bill spikes to $300k for 3 days every November",
+    difficulty:3,
+    context:"An e-commerce company has a steady-state AWS bill of $40k/month but spends $300k in the three days around Black Friday and Cyber Monday. The CFO asks: 'Should we buy Reserved Instances to save money?' The engineering team already uses Auto Scaling.",
+    challenge:"How do you right-size AWS purchasing commitments for a highly seasonal workload, and how do you explain the recommendation to a CFO?",
+    options:[
+      {label:"Buy 1-year Standard RIs sized for Black Friday peak",signal:"bad",note:"Paying for 365 days of peak capacity to use it 3 days"},
+      {label:"Keep everything On-Demand",signal:"partial",note:"Maximum flexibility, maximum cost — no optimization"},
+      {label:"Savings Plans for baseline + Spot for burst processing + On-Demand ceiling",signal:"good",note:"Optimizes steady-state AND handles burst cost-efficiently"},
+      {label:"Move workloads to a competitor cloud for 3 days",signal:"bad",note:"Multi-cloud operational complexity > any potential savings"},
+    ],
+    decision:"Three-layer purchasing strategy: Compute Savings Plans covering 70% of steady-state baseline (committed $/hr for 1yr) + Spot instances for fault-tolerant burst processing (image resizing, email queues, analytics) + On-Demand for stateful production services that can't tolerate interruption.",
+    why:"RIs and Savings Plans reward CONSISTENT usage, not peak usage. Buying peak-sized RIs means paying full price all year for capacity you use 3 days. The math: $40k/month baseline → Compute Savings Plans at ~60% of that spend saves ~$15-20k/month year-round. Black Friday burst: the stateless processing layer (image optimization, order processing queues, async jobs) moves to a Spot fleet — up to 90% savings on 40-60% of peak compute. The remaining stateful production tier (RDS, stateful APIs) runs On-Demand during the event — no commitment needed.",
+    explain_exec:"Think of it like airline seats versus taxi cabs. We buy discounted tickets for the flights we know we'll always take — our everyday traffic — and we hail cabs for the extra trips around the holidays. We're committing to the predictable part of our business in exchange for a discount, and staying flexible for the unpredictable part.",
+    explain_eng:"Compute Savings Plans: commit to $X/hour spend across all EC2 + Fargate + Lambda — auto-applies to whatever you run. Spot strategy: ASG mixed instances policy with On-Demand base (2 instances) + Spot pool (diversify across 10+ instance types to avoid mass interruption). Spot interruption handling: checkpointing for any job >5 min, SQS dead-letter queue for retries, graceful drain on 2-min notice. Ensure stateless workers are genuinely stateless before enabling Spot. Pre-scale ASG the day before the event using scheduled scaling actions.",
+    tradeoffs:"Spot instances can be interrupted with 2 minutes notice — any workload on Spot must be designed to tolerate that. This means: idempotent operations, checkpoint/resume for long jobs, queue-based decoupling. Not every workload qualifies for Spot. The Savings Plans commitment is a 1-year contract — you're betting your baseline stays above that level.",
+    antipattern:"'Buying Reserved Instances for our peak capacity.' A RI for a large instance type running 3 days/year has an ROI measured in decades. Standard RIs are for steady-state, predictable workloads. Using them for spike capacity is paying full price all year to save money for 72 hours.",
+    cost:"Savings Plans on $28k/month baseline: saves ~$10–12k/month ($120–144k/year). Spot for burst processing (assume 50% of Black Friday $300k is eligible): saves ~$100–130k on the event itself vs On-Demand. Total annual savings vs all On-Demand: $200–250k."
+  },
+  {
+    id:'a7',tag:'Data Architecture',title:'The BI team wants historical dashboards. Ops wants real-time alerts. One database cannot serve both.',
+    difficulty:4,
+    context:"A logistics company's single PostgreSQL RDS instance is collapsing under two competing workloads: BI analysts running hour-long aggregate queries and the ops team needing sub-second dashboards on live shipment status. Adding more read replicas has helped marginally but the root problem is that OLAP queries and OLTP queries have fundamentally different access patterns.",
+    challenge:"Architect a data platform that serves real-time operational queries (<1s) AND complex historical analytics — without overloading the production database.",
+    options:[
+      {label:"Add more RDS read replicas and optimize queries",signal:"partial",note:"Buys time but doesn't solve the fundamental access pattern mismatch"},
+      {label:"Move BI to Redshift, keep ops on RDS",signal:"good",note:"Right tools for each job, but misses the real-time ops requirement"},
+      {label:"Lambda Architecture: hot path for real-time + cold path for analytics",signal:"good",note:"Correct but adds operational complexity"},
+      {label:"Put everything in DynamoDB",signal:"bad",note:"DynamoDB is fast but not suited for complex multi-table analytics"},
+    ],
+    decision:"Decouple into two pipelines: hot path (real-time ops) via DMS CDC → Kinesis Data Streams → Lambda → DynamoDB or OpenSearch for live dashboards; cold path (BI analytics) via DMS CDC → S3 (raw) → Glue (catalog + transform) → Redshift or Athena for historical queries. Production RDS is untouched.",
+    why:"Two different questions need two different filing systems. Real-time ops queries need: single-entity lookups, low-latency index access, sub-second response → DynamoDB/OpenSearch. Historical analytics need: full table scans, aggregations, JOINs, columnar storage → Redshift/Athena. The key is using DMS Change Data Capture to stream changes out of production RDS without any impact on the source — RDS never knows the analytics layer exists. This is the 'strangler fig' for data: add new consumers without modifying the source.",
+    explain_exec:"Imagine your warehouse manager has two jobs: 'tell me right now which truck is late' and 'show me last year's delivery performance by region.' These are fundamentally different questions that need different filing systems. Right now we're asking one person to answer both instantly with one filing cabinet. We're going to give each question its own purpose-built system — the live dashboard gets a speed-optimized board, the analytics team gets a query-optimized warehouse. The production system stays exactly as-is.",
+    explain_eng:"DMS with CDC enabled streams row-level changes as events to Kinesis. Hot path Lambda consumer writes to DynamoDB (keyed by shipment_id) — ops dashboard reads DynamoDB directly, sub-ms. Cold path: Kinesis Firehose to S3 (raw parquet), Glue Crawler catalogs it, Athena or Redshift for BI. Separate Glue job for daily aggregations into Redshift for fast executive dashboards. OpenSearch alternative to DynamoDB for hot path if full-text search or complex filtering of live data is needed. Decouple hot and cold path error handling completely.",
+    tradeoffs:"Eventual consistency on the hot path: ops dashboard is typically 1–5 seconds behind production. This is acceptable for most operational use cases — if you need exact real-time balance or inventory counts, you need a different pattern (write to both systems synchronously). Operational complexity increases: now you maintain DMS, Kinesis, Lambda, and two downstream stores instead of one database.",
+    antipattern:"'We'll just schedule BI queries to run at 2am.' Time-based scheduling doesn't solve the OLAP/OLTP conflict — it just moves it to off-hours. Peak BI usage follows business hours, not midnight. More importantly, tomorrow's requirement will be near-real-time BI. Build the decoupled architecture now.",
+    cost:"DMS: ~$200/month for CDC replication. Kinesis: $50–200/month depending on throughput. Lambda: near-zero for CDC processing. Athena: pay-per-query (~$5/TB scanned). Redshift: $0.25/hour for ra3.xlplus = ~$180/month. Total additional spend: $500–1,000/month. Compare to the ops cost of slow queries: developer time optimizing queries endlessly, BI team blocked, ops escalations from delayed shipment alerts."
+  },
+  {
+    id:'a8',tag:'Global Delivery',title:'Users in APAC report 8-second load times. The easy answer is wrong.',
+    difficulty:3,
+    context:"A US-based media company has 40% of their user growth coming from Southeast Asia. Users in Singapore and Tokyo report 8–12 second initial page loads. The VP of Engineering says: 'We need an EC2 deployment in APAC.' An architect says: 'We need CloudFront first.' The debate is about cost, speed to implement, and whether they're actually solving the right problem.",
+    challenge:"Diagnose the actual cause of APAC latency and design the right solution — which may not be deploying EC2 in every region.",
+    options:[
+      {label:"Deploy full application stack in ap-southeast-1 immediately",signal:"partial",note:"Solves dynamic content latency but expensive if most latency is static assets"},
+      {label:"Add CloudFront with APAC edge locations only",signal:"good",note:"Solves 70-90% of the problem at 10% of a regional deployment cost"},
+      {label:"Use Route 53 latency routing to ap-southeast-1 for all traffic",signal:"bad",note:"Without a regional stack ready, this routes users to nothing"},
+      {label:"CloudFront for static + S3 CRR to APAC + latency routing when ready",signal:"good",note:"Solves static AND sets foundation for future dynamic regionalization"},
+    ],
+    decision:"Phase 1 (this week): CloudFront distribution with APAC edge locations enabled, origin shield in us-west-2, aggressive caching for static assets, S3 Cross-Region Replication of media assets to ap-southeast-1 and ap-northeast-1. Phase 2 (next quarter, if needed): evaluate actual TTFB for dynamic API calls after Phase 1 — only then invest in a regional application tier if metrics justify it.",
+    why:"The diagnosis matters more than the solution. 8-second load times for a media site are almost always dominated by asset transfer time, not application logic. CloudFront's 450+ edge locations mean APAC users connect to an edge in Singapore or Tokyo, not traverse the Pacific to us-east-1. Page load goes from 8s to under 1s for cached assets — and most media assets are highly cacheable. Deploying EC2 in APAC before measuring what's actually slow is premature optimization that costs $3–10k/month in running infrastructure that may solve 20% of the problem.",
+    explain_exec:"Right now, every time a user in Singapore visits our site, their browser makes a trip to Virginia and back across the Pacific Ocean — that's the 8-second delay. CloudFront is like opening a local post office in Singapore: we store copies of our most popular content there, so most requests never cross the ocean at all. We can have this live in 48 hours for a fraction of the cost of building a full regional data center.",
+    explain_eng:"Enable all CloudFront edge locations including APAC POPs. Set Origin Shield in us-west-2 (lowest latency to ap-southeast-1). Cache policy: static assets (images, CSS, JS) with 1-year TTL + versioned filenames. Dynamic API calls: cache GET responses where possible with short TTL. S3 CRR: replicate media bucket to ap-southeast-1 and ap-northeast-1, update CloudFront origin to use regional S3 endpoint with OAC. After deployment: measure with RUM (CloudWatch RUM or third-party) — instrument actual TTFB and full page load in each APAC geography. Make the regional EC2 decision based on that data.",
+    tradeoffs:"CloudFront doesn't help if the bottleneck is database queries driving dynamic API responses (e.g., a personalized feed that can't be cached). That requires regional application deployment. Always measure before building: set up real-user monitoring first, diagnose the actual bottleneck, then build the targeted fix.",
+    antipattern:"'We need a full regional stack in APAC.' This feels like the comprehensive solution, but it's building a house before checking whether the foundation is the problem. A full regional deployment (VPC, RDS Multi-AZ, EKS, ALB, all the supporting services) adds $10–30k/month, 4–8 weeks of engineering, and ongoing operational overhead — and if the root cause was static assets all along, you've solved 8s → 6.5s instead of 8s → 0.8s at 30x the cost.",
+    cost:"CloudFront: $0.01–0.08/GB transferred + $0.0075/10k HTTPS requests — a media site serving 10TB/month APAC pays ~$200–800/month. Compare to regional EC2 deployment: $3–15k/month depending on redundancy and instance sizing. CloudFront ROI on this scenario: immediate and massive. Bonus: CloudFront also reduces S3 egress costs, since CloudFront-to-internet pricing is lower than S3-to-internet."
+  },
+];
+
+const ARCH_PRINCIPLES=[
+  {
+    id:'p1',title:'Constraints are the design',
+    summary:"The best architecture is the one that ships on time, within budget, with the team you actually have — not the one you'd build with infinite resources.",
+    body:"Every architectural decision is made inside a box of constraints: time, budget, team size and skill, risk tolerance, compliance requirements, and existing technical debt. The most common mistake is ignoring constraints and proposing architecturally ideal solutions that can't be built in the real world. 'We should use microservices' may be correct in theory — but if you have a 3-person team, 6 weeks, and a monolith that works, it's the wrong answer right now. The highest-leverage skill in architecture is clearly identifying the binding constraint and designing directly against it.",
+    bullets:["Ask 'what is the most limiting constraint?' before proposing any solution","Time constraints eliminate redesigns — optimize within the current architecture","Budget constraints favor managed services (trade money for engineering time), but require FinOps discipline","Team skill constraints favor boring, well-understood technology over cutting-edge — choose Postgres over Cassandra if your team knows SQL","Compliance constraints (HIPAA, GDPR, PCI) are non-negotiable — they eliminate options, not add them"],
+    warning:"The trap: proposing an architecture that requires skills the team doesn't have. A Kubernetes-native microservices platform is the wrong answer for a team that has never managed containers in production."
+  },
+  {
+    id:'p2',title:'Managed services: when the trade is worth it',
+    summary:"A managed service trades money for operational responsibility. It is not always the right trade — but it usually is.",
+    body:"Every managed service (RDS vs self-managed MySQL, Kinesis vs self-managed Kafka, ECS vs self-managed Kubernetes) involves the same trade: you pay a premium over raw infrastructure in exchange for AWS handling provisioning, patching, scaling, HA configuration, and operational runbooks. The calculus tips in favor of managed services when: (1) the team's differentiation is NOT in operating that service, (2) the engineering hours saved are worth more than the cost premium, (3) the operational risk of running it yourself is high. It tips against managed when the service's opinionated behavior conflicts with your requirements, the cost at scale becomes prohibitive, or your team genuinely has the expertise and needs the control.",
+    bullets:["Calculate the real cost of self-managed: engineering hours × hourly rate + incident cost × MTTR","For most 'undifferentiated heavy lifting' (databases, queues, load balancers): managed wins","The break-even point where self-managed beats managed on cost is usually at very high scale (hundreds of nodes)","Vendor lock-in is real but overweighted in most discussions — the cost of re-architecture is almost always higher than the cost of lock-in","'We could run this ourselves' is true for almost everything — the question is whether it's a good use of your team's time"],
+    warning:"The self-hosted trap: a 5-person startup running a self-managed Kafka cluster because 'we don't want lock-in.' That cluster will consume 30% of your senior engineer's time. MSK costs $500/month. Your senior engineer costs $200/hour. The math is obvious."
+  },
+  {
+    id:'p3',title:'Stateless first, stateful by exception',
+    summary:"If every instance of your application can handle any request without knowing what happened before, you can scale horizontally without limit.",
+    body:"Stateful applications bind users to specific instances: sessions, local cache, in-process queues, local filesystem writes. This makes horizontal scaling complex, failover lossy, and Auto Scaling unreliable. The single highest-leverage architectural change for most web applications is removing state from the compute layer and externalizing it: sessions to ElastiCache, uploads to S3, queues to SQS, scheduled jobs to EventBridge + Lambda. After this change, every instance is identical and replaceable. ASG can scale in/out freely. Blue/green deployments become trivial. Failover is instant with no session loss.",
+    bullets:["Sessions → ElastiCache Redis or DynamoDB (TTL-based)","File uploads → S3 (never write to local disk in production)","Background jobs → SQS + Lambda or ECS tasks (not cron on a specific instance)","Configuration → Parameter Store or Secrets Manager (not instance-local config files)","The 12-factor app methodology provides the full checklist"],
+    warning:"Stateless doesn't mean no state — it means state lives in a purpose-built stateful tier (database, cache, object store), not in the compute tier. Your RDS database is legitimately stateful. Your application servers should not be."
+  },
+  {
+    id:'p4',title:'Cost is a first-class architectural concern',
+    summary:"Every architectural decision has a cost dimension. The architect who ignores it will build systems that are technically correct but economically unsustainable.",
+    body:"Cost architecture is not 'FinOps' or 'optimization' — it is a design-time concern. The decisions that determine 90% of your AWS costs are made in architecture design, not in a cost review six months later. Key principles: (1) At-rest storage is cheap; in-flight processing is expensive. Design data flows to minimize processing of data you don't need. (2) Egress costs are a tax on poor architecture — data that leaves AWS to the internet (or crosses regions unnecessarily) costs money; keep data flows internal where possible. (3) The cost profile changes dramatically with scale — evaluate cost models at 10x and 100x current load, not just today. (4) Idle compute is wasted money — design for elasticity, not worst-case provisioning.",
+    bullets:["Data egress: moving data OUT of AWS to the internet costs $0.09/GB — design data flows to minimize this","Avoid cross-AZ data transfer charges: keep traffic within a single AZ where latency allows","Kinesis vs SQS vs SNS: pricing models differ significantly — match the tool to the traffic pattern","Spot instances for fault-tolerant batch: 90% savings for workloads that can be interrupted","Use Cost Explorer DURING design to model the projected cost of your architecture before you build it"],
+    warning:"The 'we'll optimize later' trap: naively loading TBs of raw data through Lambda transformations per record is architecturally simple but costs 100x a batch approach. Cost-naive architectures are hard to fix after they're in production because the optimization often requires redesigning data flows."
+  },
+  {
+    id:'p5',title:"The right database isn't the database you know best",
+    summary:"Relational databases are remarkably versatile, but using them for everything is like driving a station wagon on a racetrack — it works, it's just not the right tool.",
+    body:"The relational default is understandable: SQL is universal, teams know it, tooling is mature. But the cost of using the wrong database at scale is high: performance degradation, expensive re-architecture, team frustration. The decision tree: Does the data have complex relationships requiring JOINs? → Relational. Is access primarily by a known key with high throughput and low latency requirements? → Key-value (DynamoDB). Are relationships the primary data structure (social graphs, recommendation networks)? → Graph (Neptune). Is the workload write-once, read-many analytical aggregation over large datasets? → Columnar (Redshift, Athena on S3). Is the workload time-series? → Timestream. Need full-text search? → OpenSearch.",
+    bullets:["Start with the access patterns, not the data model — 'what queries does this service run?' drives the choice","DynamoDB single-digit-ms at any scale, but requires you to define access patterns upfront — bad for ad-hoc queries","Never use RDS as a queue — SQS exists for this; RDS polling at scale is expensive and fragile","ElastiCache is a complement to a primary database, never a replacement for it (data loss on eviction)","If you're choosing between RDS and Aurora for a new workload: choose Aurora unless you have a specific reason not to"],
+    warning:"The worst outcome: realizing 18 months and 100M records in that your relational schema should have been DynamoDB, or vice versa. Data migrations at scale are expensive and risky. Get the database choice right early by defining access patterns before writing the first CREATE TABLE."
+  },
+  {
+    id:'p6',title:'Complexity has a bill — and it comes due late',
+    summary:"Every layer of abstraction, every additional service, every microservice boundary you add multiplies your operational surface area. Some complexity earns its keep. Most doesn't.",
+    body:"Architectural complexity has direct costs: more things to monitor, more failure modes to handle, more deployment coordination, more junior engineer onboarding time, more cognitive overhead in incidents at 3am. The rule is simple: add complexity only when it solves a real problem you have today, not one you might have in the future. Microservices solve the problem of independent scaling and independent deployability — if you don't have both of those problems right now, a microservices architecture is paying a high operational tax for benefits you don't need. Event-driven architectures enable decoupling and async processing — if your current system doesn't have coupling problems causing real pain, the complexity isn't earning its keep.",
+    bullets:["Ask: 'what specific problem does this complexity solve that we have today?'","Monolith → Services when: independent scaling requirements emerge, team size crosses ~20 engineers per service area, deployment coupling causes release bottlenecks","Simple synchronous calls beat event-driven patterns when latency is low and the use case is not genuinely async","'We might need to scale this later' is not a valid reason to add distributed systems complexity today","The most common form of premature optimization is over-architecting for a scale problem that may never materialize"],
+    warning:"The startup microservices trap: a 4-person team building 12 microservices because 'that's how Netflix does it.' Netflix has 2,000 engineers and specific scale problems that justify that complexity. A 4-person team needs a monolith with clean internal module boundaries — not 12 separate deployment pipelines, 12 service meshes, and 12 sets of infrastructure to maintain."
+  },
+];
+
 // ── Vocab / Glossary Data ─────────────────────────────────────────────────────
 const VOCAB=[
   // Compute
@@ -1125,34 +1326,49 @@ function ProgressBar({value,max,domain,className=''}){
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 const NAV=[
-  {id:'dashboard',icon:'⬡',label:'Dashboard'},
-  {id:'learn',icon:'▦',label:'Learn'},
-  {id:'lesson',icon:'◈',label:'Daily Lesson'},
-  {id:'quiz',icon:'◉',label:'Quiz'},
-  {id:'flashcards',icon:'⬜',label:'Flashcards'},
-  {id:'vocab',icon:'◧',label:'Glossary'},
-  {id:'exam',icon:'◎',label:'Practice Exam'},
-  {id:'history',icon:'◷',label:'History'},
-  {id:'analytics',icon:'◈',label:'Analytics'},
-  {id:'notes',icon:'▤',label:'Notes'},
-  {id:'leaderboard',icon:'◆',label:'Leaderboard'},
-  {id:'settings',icon:'⚙',label:'Settings'},
+  {id:'dashboard',icon:'⬡',label:'Dashboard',group:'exam'},
+  {id:'learn',icon:'▦',label:'Learn',group:'exam'},
+  {id:'lesson',icon:'◈',label:'Daily Lesson',group:'exam'},
+  {id:'quiz',icon:'◉',label:'Quiz',group:'exam'},
+  {id:'flashcards',icon:'⬜',label:'Flashcards',group:'exam'},
+  {id:'vocab',icon:'◧',label:'Glossary',group:'exam'},
+  {id:'exam',icon:'◎',label:'Practice Exam',group:'exam'},
+  {id:'history',icon:'◷',label:'History',group:'exam'},
+  {id:'analytics',icon:'◈',label:'Analytics',group:'exam'},
+  {id:'notes',icon:'▤',label:'Notes',group:'exam'},
+  {id:'leaderboard',icon:'◆',label:'Leaderboard',group:'exam'},
+  {id:'settings',icon:'⚙',label:'Settings',group:'exam'},
+  {id:'architect',icon:'⬟',label:"Architect Mind",group:'arch'},
 ];
 
 function Sidebar({active,setActive,streak}){
+  const examNav=NAV.filter(n=>n.group==='exam');
+  const archNav=NAV.filter(n=>n.group==='arch');
   return(
     <div className="hidden md:flex w-56 bg-white border-r border-slate-200 flex-col h-screen sticky top-0 shadow-sm">
-      <div className="p-4 border-b border-slate-100">
-        <div className="text-indigo-600 font-bold text-base tracking-tight">AWS SAA-C03</div>
-        <div className="text-slate-400 text-xs mt-0.5 font-medium">Study Hub</div>
-      </div>
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {NAV.map(n=>(
-          <button key={n.id} onClick={()=>setActive(n.id)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-50 text-indigo-700 font-semibold shadow-sm':'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-            <span className={`text-sm ${active===n.id?'opacity-100':'opacity-50'}`}>{n.icon}</span>{n.label}
-          </button>
-        ))}
+      <button onClick={()=>setActive('home')} className="p-4 border-b border-slate-100 text-left hover:bg-slate-50 transition-colors group">
+        <div className="text-indigo-600 font-bold text-base tracking-tight group-hover:text-indigo-700">AWS SAA-C03</div>
+        <div className="text-slate-400 text-xs mt-0.5 font-medium">Study Hub · Home</div>
+      </button>
+      <nav className="flex-1 p-2 overflow-y-auto">
+        <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 pt-2 pb-1">SAA-C03 Exam</div>
+        <div className="space-y-0.5 mb-3">
+          {examNav.map(n=>(
+            <button key={n.id} onClick={()=>setActive(n.id)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-50 text-indigo-700 font-semibold shadow-sm':'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
+              <span className={`text-sm ${active===n.id?'opacity-100':'opacity-50'}`}>{n.icon}</span>{n.label}
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-slate-100 pt-3">
+          <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest px-3 pb-1">Architect Mind</div>
+          {archNav.map(n=>(
+            <button key={n.id} onClick={()=>setActive(n.id)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-600 text-white font-semibold shadow-sm':'text-indigo-500 hover:text-indigo-800 hover:bg-indigo-50'}`}>
+              <span className={`text-sm ${active===n.id?'opacity-100':'opacity-60'}`}>{n.icon}</span>{n.label}
+            </button>
+          ))}
+        </div>
       </nav>
       <div className="p-4 border-t border-slate-100">
         <div className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Streak</div>
@@ -1165,10 +1381,10 @@ function Sidebar({active,setActive,streak}){
 function BottomNav({active,setActive}){
   const[more,setMore]=useState(false);
   const primary=[
-    {id:'dashboard',icon:'⬡',label:'Home'},
+    {id:'home',icon:'⌂',label:'Home'},
     {id:'quiz',icon:'◉',label:'Quiz'},
     {id:'flashcards',icon:'⬜',label:'Cards'},
-    {id:'exam',icon:'◎',label:'Exam'},
+    {id:'architect',icon:'⬟',label:'Architect'},
   ];
   const secondary=NAV.filter(n=>!primary.find(p=>p.id===n.id));
   return(
@@ -1373,6 +1589,220 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Welcome / Home ───────────────────────────────────────────────────────────
+function Welcome({setActive}){
+  return(
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-6">
+      <div className="max-w-2xl w-full">
+        <div className="text-center mb-10">
+          <div className="text-4xl mb-3">⬡</div>
+          <h1 className="text-slate-900 text-3xl font-bold mb-2">AWS Study Hub</h1>
+          <p className="text-slate-500 text-base">What do you want to work on today?</p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-5">
+          <button onClick={()=>setActive('dashboard')}
+            className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all text-left shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-2xl mb-4 group-hover:bg-indigo-200 transition-colors">◉</div>
+            <div className="font-bold text-slate-900 text-lg mb-1">SAA-C03 Exam Prep</div>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">Quizzes, flashcards, practice exams, and structured lessons to pass the Solutions Architect Associate exam.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['Quiz','Flashcards','Practice Exam','Learn'].map(t=>(
+                <span key={t} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
+              ))}
+            </div>
+            <div className="mt-4 text-indigo-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Go to Dashboard →</div>
+          </button>
+
+          <button onClick={()=>setActive('architect')}
+            className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-violet-300 hover:shadow-xl transition-all text-left shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-2xl mb-4 group-hover:bg-violet-200 transition-colors">⬟</div>
+            <div className="font-bold text-slate-900 text-lg mb-1">Architect's Mindset</div>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">Real business scenarios. Learn to choose the right services, explain the trade-offs, and defend decisions to executives and engineers.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['Scenarios','Principles','Trade-offs','Explanations'].map(t=>(
+                <span key={t} className="text-xs bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
+              ))}
+            </div>
+            <div className="mt-4 text-violet-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Start thinking →</div>
+          </button>
+        </div>
+        <p className="text-center text-slate-300 text-xs mt-8">You can switch between sections any time from the sidebar</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Architect's Mindset ───────────────────────────────────────────────────────
+function ArchitectMind(){
+  const[tab,setTab]=useState('scenarios');
+  const[selected,setSelected]=useState(null);
+  const[revealed,setRevealed]=useStore('arch_revealed',[]);
+  const[audience,setAudience]=useState('exec');
+
+  const tagColor={Startup:'#6366f1',Enterprise:'#0ea5e9',Fintech:'#10b981',Healthcare:'#f59e0b','Cost Architecture':'#8b5cf6',SaaS:'#ec4899','Data Architecture':'#14b8a6','Global Delivery':'#f97316'};
+
+  if(selected){
+    const s=ARCH_SCENARIOS.find(x=>x.id===selected);
+    const isRevealed=revealed.includes(s.id);
+    const signalStyle=(sig)=>sig==='good'?{border:'1.5px solid #10b981',background:'#f0fdf4'}:sig==='partial'?{border:'1.5px solid #f59e0b',background:'#fffbeb'}:{border:'1.5px solid #fca5a5',background:'#fff1f2'};
+    const signalIcon=(sig)=>sig==='good'?'✓':sig==='partial'?'~':'✗';
+    const signalColor=(sig)=>sig==='good'?'#10b981':sig==='partial'?'#d97706':'#ef4444';
+    return(
+      <div className="p-4 md:p-6 max-w-3xl">
+        <button onClick={()=>setSelected(null)} className="text-slate-400 hover:text-slate-600 text-sm mb-4 flex items-center gap-1">← Back to Scenarios</button>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:tagColor[s.tag]||'#6366f1'}}>{s.tag}</span>
+        </div>
+        <h2 className="text-slate-900 text-xl font-bold mb-4 leading-snug">{s.title}</h2>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">The Situation</div>
+          <p className="text-slate-700 text-sm leading-relaxed">{s.context}</p>
+        </div>
+
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4">
+          <div className="text-xs font-semibold text-indigo-400 uppercase tracking-wide mb-1">The Challenge</div>
+          <p className="text-indigo-900 text-sm font-medium leading-relaxed">{s.challenge}</p>
+        </div>
+
+        <div className="mb-5">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Your Options</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {s.options.map((o,i)=>(
+              <div key={i} className="rounded-lg p-3 text-sm" style={isRevealed?signalStyle(o.signal):{border:'1.5px solid #e2e8f0',background:'#fff'}}>
+                <div className="flex items-start gap-2">
+                  {isRevealed&&<span className="font-bold mt-0.5 flex-shrink-0 text-sm" style={{color:signalColor(o.signal)}}>{signalIcon(o.signal)}</span>}
+                  <div>
+                    <div className="font-medium text-slate-800">{o.label}</div>
+                    {isRevealed&&<div className="text-xs text-slate-500 mt-0.5">{o.note}</div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {!isRevealed?(
+          <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl mb-4">
+            <div className="text-slate-400 text-sm mb-3">Think through the options above before revealing</div>
+            <button onClick={()=>setRevealed(r=>[...r.filter(x=>x!==s.id),s.id])}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-6 py-2.5 rounded-lg transition-colors">
+              Reveal Recommendation
+            </button>
+          </div>
+        ):(
+          <>
+            <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 mb-4">
+              <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Recommendation</div>
+              <p className="text-emerald-900 text-sm font-semibold leading-relaxed">{s.decision}</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">The Reasoning</div>
+              <p className="text-slate-700 text-sm leading-relaxed">{s.why}</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+              <div className="flex gap-2 mb-3">
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex-1">Explain It</div>
+                <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg">
+                  {[{k:'exec',label:'Executive'},{k:'eng',label:'Engineer'}].map(a=>(
+                    <button key={a.k} onClick={()=>setAudience(a.k)}
+                      className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all ${audience===a.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-slate-700 text-sm leading-relaxed italic">{audience==='exec'?s.explain_exec:s.explain_eng}</p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">What You Give Up</div>
+                <p className="text-amber-900 text-xs leading-relaxed">{s.tradeoffs}</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">Common Mistake</div>
+                <p className="text-red-900 text-xs leading-relaxed">{s.antipattern}</p>
+              </div>
+            </div>
+
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-4">
+              <div className="text-xs font-semibold text-violet-600 uppercase tracking-wide mb-2">The Cost Story</div>
+              <p className="text-violet-900 text-xs leading-relaxed">{s.cost}</p>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return(
+    <div className="p-4 md:p-6 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-slate-900 text-2xl font-bold mb-1">Architect's Mindset</h1>
+        <p className="text-slate-500 text-sm">Business-level architectural thinking. Not what services do — but which to choose, why, and how to explain it.</p>
+      </div>
+
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6">
+        {[{k:'scenarios',label:'Scenarios'},{k:'principles',label:'Principles'}].map(t=>(
+          <button key={t.k} onClick={()=>setTab(t.k)}
+            className={`text-sm px-5 py-2 rounded-lg font-semibold transition-all ${tab===t.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab==='scenarios'&&(
+        <>
+          <div className="text-xs text-slate-400 mb-3">{revealed.length}/{ARCH_SCENARIOS.length} scenarios completed</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {ARCH_SCENARIOS.map(s=>{
+              const done=revealed.includes(s.id);
+              return(
+                <div key={s.id} onClick={()=>setSelected(s.id)}
+                  className="bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:shadow-md transition-all hover:border-indigo-200 group">
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:tagColor[s.tag]||'#6366f1'}}>{s.tag}</span>
+                    {done&&<span className="text-emerald-500 text-xs font-bold">✓ Done</span>}
+                  </div>
+                  <h3 className="text-slate-800 text-sm font-semibold leading-snug mb-2 group-hover:text-indigo-700 transition-colors">{s.title}</h3>
+                  <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">{s.context.slice(0,120)}…</p>
+                  <div className="mt-3 text-indigo-500 text-xs font-semibold">{done?'Review →':'Think through it →'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {tab==='principles'&&(
+        <div className="space-y-4">
+          {ARCH_PRINCIPLES.map(p=>(
+            <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-5">
+              <h3 className="text-slate-900 font-bold text-base mb-1">{p.title}</h3>
+              <p className="text-indigo-600 text-sm font-medium italic mb-3">{p.summary}</p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">{p.body}</p>
+              <div className="space-y-1 mb-4">
+                {p.bullets.map((b,i)=>(
+                  <div key={i} className="flex gap-2 text-sm text-slate-600">
+                    <span className="text-indigo-400 mt-0.5 flex-shrink-0">•</span><span>{b}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Watch out: </span>
+                <span className="text-amber-900 text-xs">{p.warning}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2736,7 +3166,7 @@ function History({quizHistory,examHistory}){
 
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
-  const[active,setActive]=useState('dashboard');
+  const[active,setActive]=useState('home');
   const[quizHistory,setQuizHistory]=useStore('quiz_history',[]);
   const[examHistory,setExamHistory]=useStore('exam_history',[]);
   const[flashConf]=useStore('flash_conf',[]);
@@ -2763,7 +3193,9 @@ function App(){
 
   const renderPage=()=>{
     switch(active){
+      case'home':return<Welcome setActive={setActive}/>;
       case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
+      case'architect':return<ArchitectMind/>;
       case'learn':return<Learn/>;
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
@@ -2781,11 +3213,11 @@ function App(){
 
   return(
     <div className="flex min-h-screen bg-white font-mono">
-      <Sidebar active={active} setActive={setActive} streak={streak}/>
+      {active!=='home'&&<Sidebar active={active} setActive={setActive} streak={streak}/>}
       <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         {renderPage()}
       </main>
-      <BottomNav active={active} setActive={setActive}/>
+      {active!=='home'&&<BottomNav active={active} setActive={setActive}/>}
     </div>
   );
 }
