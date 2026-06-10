@@ -2280,6 +2280,7 @@ function Flashcards(){
   const[conf,setConf]=useStore('flash_conf',[]);
   const[domain,setDomain]=useState('all');
   const[source,setSource]=useState('all');
+  const[confFilter,setConfFilter]=useState('all');
   const[idx,setIdx]=useState(0);
   const[flipped,setFlipped]=useState(false);
   const[showAll,setShowAll]=useState(false);
@@ -2290,9 +2291,15 @@ function Flashcards(){
     let c=ALL_FLASH;
     if(source!=='all')c=c.filter(x=>x.source===source);
     if(domain!=='all')c=c.filter(x=>x.domain===domain);
+    if(confFilter!=='all'){
+      c=c.filter(x=>{
+        const cv=conf.find(y=>y.id===x.id);
+        return confFilter==='new'?!cv:cv?.conf===confFilter;
+      });
+    }
     if(shuffleOn)c=shuffle(c);
     return c;
-  },[domain,source,shuffleOn,shuffleSeed]);
+  },[domain,source,confFilter,conf,shuffleOn,shuffleSeed]);
 
   const toggleShuffle=()=>{
     setShuffleOn(s=>!s);
@@ -2314,7 +2321,10 @@ function Flashcards(){
     know:conf.filter(c=>c.conf==='know').length,
     sorta:conf.filter(c=>c.conf==='sorta').length,
     nope:conf.filter(c=>c.conf==='nope').length,
+    new:ALL_FLASH.length-conf.length,
   }),[conf]);
+
+  const setFilter=(f)=>{setConfFilter(c=>c===f?'all':f);setIdx(0);setFlipped(false)};
 
   const domainColors={secure:'#10b981',resilient:'#0ea5e9',performing:'#f59e0b',cost:'#8b5cf6'};
   const domainBg={secure:'#f0fdf4',resilient:'#f0f9ff',performing:'#fffbeb',cost:'#faf5ff'};
@@ -2355,14 +2365,11 @@ function Flashcards(){
 
   return(
     <div className="p-4 md:p-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-slate-800 text-xl font-semibold">Flashcards</h1>
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-emerald-600">✓ {stats.know}</span>
-          <span className="text-amber-600">~ {stats.sorta}</span>
-          <span className="text-red-400">✗ {stats.nope}</span>
           <button onClick={shuffleOn?reshuffle:toggleShuffle} title={shuffleOn?'Click to re-shuffle':'Shuffle card order'}
-            className={`border px-2 py-1 rounded ml-2 transition-colors ${shuffleOn?'border-indigo-400 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+            className={`border px-2 py-1 rounded transition-colors ${shuffleOn?'border-indigo-400 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             🔀 {shuffleOn?'Shuffled':'Shuffle'}
           </button>
           {shuffleOn&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
@@ -2381,13 +2388,29 @@ function Flashcards(){
       </div>
 
       {/* Domain filter */}
-      <div className="flex gap-2 mb-4 flex-wrap">
+      <div className="flex gap-2 mb-3 flex-wrap">
         {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
           <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
             className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
             {d.label}
           </button>
         ))}
+      </div>
+
+      {/* Confidence filter — focus on cards by how well you know them */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[
+          {k:'new',label:`New ${stats.new}`,cls:'border-slate-300 text-slate-500',activeCls:'border-slate-500 text-slate-700 bg-slate-100'},
+          {k:'nope',label:`✗ Nope ${stats.nope}`,cls:'border-red-200 text-red-400',activeCls:'border-red-400 text-red-600 bg-red-50'},
+          {k:'sorta',label:`~ Sorta ${stats.sorta}`,cls:'border-amber-200 text-amber-500',activeCls:'border-amber-400 text-amber-700 bg-amber-50'},
+          {k:'know',label:`✓ Know ${stats.know}`,cls:'border-emerald-200 text-emerald-500',activeCls:'border-emerald-400 text-emerald-700 bg-emerald-50'},
+        ].map(f=>(
+          <button key={f.k} onClick={()=>setFilter(f.k)}
+            className={`text-xs px-2.5 py-1 rounded border transition-colors ${confFilter===f.k?f.activeCls+' font-semibold':f.cls+' hover:border-slate-400'}`}>
+            {f.label}
+          </button>
+        ))}
+        {confFilter!=='all'&&<button onClick={()=>setFilter('all')} className="text-xs px-2.5 py-1 rounded border border-slate-200 text-slate-400 hover:text-slate-600">✕ Clear filter</button>}
       </div>
 
       {cards.length===0?(
@@ -2416,7 +2439,11 @@ function Flashcards(){
               {card&&<div style={{position:'absolute',top:0,left:0,right:0,height:5,borderRadius:'14px 14px 0 0',background:domainColors[card.domain]}}/>}
               <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">{frontLabel}</div>
               {card?.badge&&<div style={{marginBottom:8,fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:999,background:domainColors[card.domain]+'22',color:domainColors[card.domain]}}>{card.badge}</div>}
-              <div className={`text-slate-900 font-semibold leading-snug mb-3 ${card?.source==='question'?'text-sm':'text-lg'}`}>{card?.front}</div>
+              {card?.source==='question'?(
+                <div className="text-slate-400 text-sm leading-snug mb-3">Scenario question — tap to read</div>
+              ):(
+                <div className="text-slate-900 font-semibold leading-snug mb-3 text-lg">{card?.front}</div>
+              )}
               {card&&<Tag domain={card.domain}/>}
               <div className="text-slate-300 text-xs mt-4">tap to reveal →</div>
             </div>
@@ -2435,7 +2462,8 @@ function Flashcards(){
               pointerEvents:flipped?'auto':'none',
               overflowY:'auto',
             }}>
-              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3 w-full text-center">ANSWER</div>
+              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3 w-full text-center">{card?.source==='question'?'QUESTION & ANSWER':'ANSWER'}</div>
+              {card?.source==='question'&&<div className="text-slate-900 text-sm leading-relaxed font-semibold w-full mb-3 pb-3 border-b border-slate-200" style={{whiteSpace:'pre-wrap'}}>{card.front}</div>}
               <div className="text-slate-800 text-sm leading-relaxed font-medium w-full" style={{whiteSpace:'pre-wrap'}}>{card?.back}</div>
             </div>
           </div>
