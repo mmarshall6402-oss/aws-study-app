@@ -1013,6 +1013,60 @@ Organizations (account structure + consolidated billing) + SCPs (preventive top-
 - "Marketing campaign's spam complaints are hurting transactional email deliverability" → separate dedicated IP pools via configuration sets
 - "Need real-time visibility into delivery failures to maintain list hygiene" → configuration set event publishing to SNS/CloudWatch + automated suppression handling
 - SES is for SENDING/RECEIVING email at scale — it is not a general pub/sub or push-notification service (that's SNS) and not a managed message queue (that's SQS)`},
+  {day:22,domain:'performing',title:'Hybrid & Edge Computing',content:`**The core question these services answer:** "Some of our workload can't run in a standard AWS Region — because of latency, data residency, connectivity, or where the hardware needs to physically sit." Each service below solves a DIFFERENT flavor of that problem — the exam tests whether you can match the constraint to the right one.
+
+**AWS Outposts — AWS infrastructure IN your data center:**
+- Physical racks of real AWS-designed compute/storage hardware, shipped to and installed in YOUR on-premises data center or co-location facility, but fully managed by AWS (monitoring, patching, updates — same as in-Region hardware)
+- Runs a subset of AWS services locally with the SAME APIs, SDKs, and console you already use — EC2, EBS, S3 (on Outposts), ECS/EKS, RDS on Outposts
+- Connects back to a "parent" AWS Region for management and any services not available locally
+- Use cases: low-latency access to on-prem systems, local data processing for data-residency/regulatory requirements (data must physically stay in-country/in-building), migrating latency-sensitive legacy applications without a full rewrite
+- Two form factors: Outposts racks (full 42U racks, large capacity) and Outposts servers (1U/2U single servers, smaller footprint for space-constrained sites like retail stores)
+- Exam trap: "must run AWS services but data must never leave our own building" → Outposts (the hardware is physically on-site), NOT Local Zones (which is still AWS-owned infrastructure elsewhere)
+
+**AWS Local Zones — AWS infrastructure NEAR you, but still AWS-owned:**
+- An extension of an AWS Region placed in or near a large population/industry center, providing single-digit-millisecond latency to end users in that metro area
+- You don't own or host any hardware — Local Zones are AWS data centers, just smaller and geographically closer to specific cities than the parent Region
+- Appear as just another Availability Zone you can opt into within your existing VPC — same APIs, same console, you simply choose the Local Zone as the AZ when launching supported resources (commonly EC2, EBS, ALB, ECS/EKS, RDS)
+- Use cases: latency-sensitive applications (real-time gaming, live video streaming, AR/VR, media production, real-time ad-serving) for users concentrated in a specific city, where the nearest full Region is too far away
+- Exam trap distinguishing the trio: Outposts = hardware physically inside YOUR facility; Local Zones = AWS facility physically close to a metro area, still AWS-owned/operated; Wavelength Zones = AWS infrastructure embedded WITHIN telecom providers' 5G networks, for ultra-low-latency mobile/edge applications
+
+**AWS Wavelength (often paired with Local Zones in exam scenarios):**
+- Embeds AWS compute/storage at the edge of 5G telecom networks, so traffic from 5G mobile devices reaches your application without leaving the telco network — eliminates the multiple hops to a Region
+- Use cases: connected vehicles, smart factories/IoT, immersive AR/VR experiences requiring near-instant response over mobile networks
+
+**Snow Family — moving DATA (and sometimes compute) to/from AWS physically:**
+- Snowcone: smallest, ~8TB, portable, can run edge compute (EC2 instances) for small remote-site processing before shipping data back
+- Snowball Edge: ~80TB usable, includes significant onboard compute (up to dozens of vCPUs) — used both for bulk data migration AND running workloads at disconnected/remote edge locations (ships, oil rigs, military operations) where there's no reliable connectivity at all
+- Snowmobile: a literal shipping container on a truck, up to 100PB — for one-time exabyte-scale data center migrations
+- Rule of thumb: if transferring data over your network would take longer than about a week, Snow devices are usually cheaper/faster than the wire
+- Key distinction from Outposts/Local Zones: Snow devices are TEMPORARY/PORTABLE and typically shipped back to AWS; Outposts and Local Zones are PERSISTENT infrastructure you operate against indefinitely
+
+**Amazon EKS Anywhere — Kubernetes consistency, anywhere:**
+- A deployment option that lets you create and operate Kubernetes clusters on YOUR OWN infrastructure (on-premises servers, VMware vSphere, bare metal) using the same EKS tooling, distro, and operational patterns as EKS in AWS
+- Built on EKS Distro — the same Kubernetes distribution AWS curates and validates for its managed EKS service — so your on-prem clusters behave consistently with cloud-based EKS clusters
+- Use case: organizations that must run Kubernetes on-premises (regulatory, latency, disconnected environments) but want a single, AWS-supported Kubernetes experience across both on-prem and cloud, easing eventual migration
+- Distinguish from EKS on Outposts: EKS Anywhere runs on YOUR hardware anywhere with no Outposts dependency; EKS on Outposts runs on AWS-supplied Outposts hardware in your data center
+
+**AWS Storage Gateway — the ONGOING bridge between on-prem and AWS storage:**
+- Three gateway types, each presenting a different on-prem protocol backed by AWS storage:
+  - File Gateway: NFS/SMB file shares backed by S3 — on-prem apps read/write files, gateway transparently stores them as S3 objects (with local caching for low-latency access to recently used files)
+  - Volume Gateway: iSCSI block storage backed by EBS snapshots — Cached mode keeps frequently accessed data locally with the full dataset in S3; Stored mode keeps the full dataset locally with async backups to S3 as EBS snapshots
+  - Tape Gateway: presents a virtual tape library (VTL) interface compatible with existing backup software, storing "tapes" in S3/Glacier — for organizations replacing physical tape infrastructure without changing their backup software
+- Critical distinction from Snow Family: Storage Gateway is for CONTINUOUS, ongoing hybrid access; Snow Family is for ONE-TIME (or scheduled bulk) physical data transport
+
+**Putting it together — a decision framework for "where does this workload run?":**
+1. Does it need to run ENTIRELY disconnected or at a remote site with no AWS connectivity? → Snowball Edge (compute) for processing, Snowcone for lighter workloads
+2. Does the data/workload have to be physically located inside YOUR building for compliance/latency? → Outposts (with EKS on Outposts if Kubernetes is needed) or EKS Anywhere if you don't want Outposts hardware
+3. Does it just need to be CLOSE to a specific city's users, with AWS still owning the infrastructure? → Local Zones (or Wavelength if specifically for 5G mobile networks)
+4. Does an on-prem application just need ONGOING access to cloud storage via familiar protocols (NFS/SMB/iSCSI/VTL)? → Storage Gateway
+5. Is this a ONE-TIME (or scheduled) bulk data move, not an ongoing access pattern? → Snow Family (for huge volumes) or DataSync (for network-based transfer)
+
+**Exam traps:**
+- "We need AWS services running on hardware physically inside our secure facility" → Outposts, not Local Zones
+- "Our users are concentrated in [specific city] and need ultra-low latency, but we don't want to manage hardware" → Local Zones
+- "Mobile app over 5G needs near-instant response times" → Wavelength
+- "We need Kubernetes on-premises with the same tooling as our AWS EKS clusters, no AWS hardware required" → EKS Anywhere
+- "On-prem application needs to read/write files that are actually stored in S3, with local caching" → Storage Gateway File Gateway`},
 ];
 
 // ── Architect's Mindset Data ─────────────────────────────────────────────────
