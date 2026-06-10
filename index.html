@@ -962,6 +962,57 @@ Organizations (account structure + consolidated billing) + SCPs (preventive top-
 - SCPs prevent (stop an action before it happens); Config rules detect (flag it after the fact, for remediation) — Control Tower's "preventive vs detective guardrails" terminology maps directly onto this distinction
 - CloudFormation StackSets, not individual stacks, is the answer whenever a scenario says "deploy consistently across many accounts/regions"
 - "We need a quick way to assess our overall account health across cost, security, and performance with zero setup" → Trusted Advisor, the built-in automated advisor`},
+  {day:21,domain:'performing',title:'Simple Email Service (SES)',content:`**What SES is for:**
+- A fully managed, highly scalable email-sending and -receiving platform — used for transactional email (password resets, order confirmations, OTP codes), marketing/bulk email, and automated notifications
+- Pay-as-you-go pricing with no minimum commitments — exam framing: "the company needs to send millions of transactional emails cost-effectively" → SES, not running your own mail server (SMTP relay) on EC2
+
+**Three ways to send mail through SES:**
+- SES API: call SendEmail or SendRawEmail directly (supports attachments, custom headers, multipart MIME) — preferred for application integration
+- SMTP interface: point any SMTP-capable application/library at SES's SMTP endpoint using SMTP credentials (separate from IAM access keys, generated specifically for SES)
+- Console: manual one-off sends, mainly for testing and verification
+
+**Identity verification — two types of "identity" you can verify:**
+- Email address identity: verify a single from-address by clicking a link sent to that inbox — fine for testing or very small senders
+- Domain identity: verify ownership of an entire domain by adding DNS records — lets you send from ANY address @that domain (no@example.com, support@example.com, etc.) without verifying each one individually
+- Domain verification is done by adding a TXT record (ownership proof) AND, for full deliverability, configuring DKIM
+
+**DKIM setup — exam-relevant detail:**
+- DKIM (DomainKeys Identified Mail) cryptographically signs outgoing messages so receiving mail servers can verify the email genuinely came from your domain and wasn't altered in transit
+- Easy DKIM: SES generates a public/private key pair; you add 3 CNAME records to your domain's DNS (Route 53 or elsewhere) pointing to SES-hosted public keys — SES then signs every outgoing message automatically
+- BYODKIM (Bring Your Own DKIM): use your own key pair if you have an existing DKIM setup elsewhere
+- DKIM works alongside SPF (an authorized-senders DNS record) and DMARC (a policy record telling receivers what to do if SPF/DKIM fail) — together these three are what gets your mail INTO inboxes instead of spam folders. Exam trap: "emails are landing in recipients' spam folders" → check DKIM/SPF/DMARC configuration, not sending rate
+
+**Sandbox mode vs Production access — a classic exam scenario:**
+- Every new SES account starts in the SANDBOX: you can only send TO verified email addresses/domains, and sending is capped (e.g., 200 emails/24hr, 1 email/sec) — designed to prevent abuse and let you test safely
+- To send to arbitrary, unverified recipients (i.e., real customers), you must request to move OUT of the sandbox into production access via a support case, describing your use case, bounce/complaint handling process, and how you obtain recipient consent
+- Sending limits in production scale up over time based on your sending reputation (AWS reviews and raises your daily quota and max send rate automatically as you demonstrate good sending hygiene)
+- Exam trap: "the application can email the developer's test inbox but fails to email real customers" → account is still in SES sandbox; the fix is requesting production access, NOT an IAM permission change
+
+**Dedicated IPs and IP pools:**
+- By default, SES sends from a shared IP pool — your deliverability reputation is partly influenced by other senders sharing those IPs
+- Dedicated IP: an IP address allocated solely to your account — gives you full control over your own sending reputation, recommended for high-volume senders who want reputation isolation; takes time to "warm up" (gradually ramp sending volume so receiving ISPs build trust in the new IP)
+- Dedicated IP pools: group dedicated IPs and route different types of mail (e.g., marketing vs transactional) through different pools via configuration sets — so a marketing campaign's reputation issues don't affect critical transactional email deliverability
+- Standard vs Managed dedicated IPs: AWS can also auto-manage warm-up and IP assignment for you (Easy Managed Dedicated IPs)
+
+**Configuration sets — the operational control layer:**
+- A configuration set is a named set of rules you attach to outgoing emails (via header or API parameter) to control HOW those emails are sent and tracked, without changing application code for every variation
+- Event publishing: configuration sets can publish sending events — sends, deliveries, opens, clicks, bounces, complaints, rejects — to CloudWatch (metrics/dashboards), SNS (real-time notifications), Kinesis Data Firehose (stream to S3/analytics), or Pinpoint
+- IP pool assignment: a configuration set can route mail through a specific dedicated IP pool
+- Reputation tracking: enable reputation metrics per configuration set to monitor bounce/complaint rates for different mail streams independently
+
+**Feedback handling — bounces and complaints:**
+- Bounce: the receiving server permanently rejects the email (e.g., mailbox doesn't exist) — "hard bounce"; or temporarily rejects it (mailbox full) — "soft bounce"
+- Complaint: the recipient marked the message as spam/junk via their mail client's "report spam" button
+- SES forwards bounce and complaint notifications back to you via SNS topics (configured per identity or per configuration set) — your application MUST process these and stop sending to addresses that bounce or complain
+- Why this matters: AWS monitors your account's bounce rate and complaint rate — if these exceed thresholds (roughly >5% bounce, >0.1% complaint, as general guidance), SES can pause or suspend your sending privileges entirely
+- Best practice architecture: SNS notification → SQS queue or Lambda → update a suppression list / mark the recipient address as invalid in your database so you never email it again. SES also has a built-in account-level Suppression List that automatically stops sending to addresses with recent hard bounces or complaints
+
+**Exam traps:**
+- "Emails sent from the application aren't reaching real users, only test addresses work" → SES sandbox restriction, request production access
+- "Need to send from any address @company.com without verifying each one" → verify the DOMAIN identity (with DKIM), not individual email addresses
+- "Marketing campaign's spam complaints are hurting transactional email deliverability" → separate dedicated IP pools via configuration sets
+- "Need real-time visibility into delivery failures to maintain list hygiene" → configuration set event publishing to SNS/CloudWatch + automated suppression handling
+- SES is for SENDING/RECEIVING email at scale — it is not a general pub/sub or push-notification service (that's SNS) and not a managed message queue (that's SQS)`},
 ];
 
 // ── Architect's Mindset Data ─────────────────────────────────────────────────
