@@ -1232,6 +1232,174 @@ const ARCH_SCENARIOS=[
   },
 ];
 
+// ── Console Labs Data ─────────────────────────────────────────────────────────
+const CONSOLE_LABS=[
+  {
+    id:'cl1',
+    tag:'Startup',
+    title:'Host a Static Marketing Site (and break it first)',
+    difficulty:1,
+    services:['S3','CloudFront','OAC'],
+    timeEstimate:'45–60 min',
+    businessContext:"RetailCo just hired you as their first cloud engineer. They need their marketing site live by Monday. It's a folder of HTML/CSS/JS files. Your manager says 'just make it public on S3.' You will — then you'll show them why that's a security mistake and fix it properly with CloudFront.",
+    phases:[
+      {
+        id:'p1',
+        name:'Phase 1 — The Wrong Way: Public Bucket',
+        type:'wrong',
+        examConcept:'S3 Block Public Access is account-level AND bucket-level. Disabling it to serve a static site is a real pattern, but it exposes every object in the bucket — including any config files you accidentally upload. The exam loves this trap.',
+        steps:[
+          {n:1,text:'Open the S3 console → click "Create bucket". Name it something like retailco-site-2024 (must be globally unique). Leave the region as us-east-1.'},
+          {n:2,text:'Under "Block Public Access settings for this bucket" — uncheck "Block all public access". Acknowledge the warning. Click "Create bucket".'},
+          {n:3,text:'Upload a simple index.html file. You can use: <html><body><h1>RetailCo</h1></body></html>. Upload it to the root of the bucket.'},
+          {n:4,text:'Go to the bucket → Properties tab → scroll to "Static website hosting" → click Edit. Enable it. Set Index document to index.html. Save.'},
+          {n:5,text:'Go to the bucket → Permissions tab → Bucket policy → Edit. Paste this policy (replace YOUR-BUCKET-NAME):\n{\n  "Version":"2012-10-17",\n  "Statement":[{\n    "Effect":"Allow",\n    "Principal":"*",\n    "Action":"s3:GetObject",\n    "Resource":"arn:aws:s3:::YOUR-BUCKET-NAME/*"\n  }]\n}',warn:'Principal * means ANYONE on the internet can read every object in this bucket. This is the wrong way. Note the website endpoint URL on the Properties tab — your site is live, but dangerously exposed.'},
+          {n:6,text:'Visit the static website endpoint URL from Properties → Static website hosting. Confirm the site loads. This is what your manager asked for. Now you will fix it.'},
+        ]
+      },
+      {
+        id:'p2',
+        name:'Phase 2 — Fix It: CloudFront + Origin Access Control',
+        type:'fix',
+        examConcept:'Origin Access Control (OAC) is the modern replacement for the legacy OAI (Origin Access Identity). With OAC, CloudFront signs requests to S3 using SigV4. The bucket stays PRIVATE — only CloudFront can read from it. This is the production-correct pattern. The exam tests OAC vs OAI frequently.',
+        steps:[
+          {n:1,text:'Go back to the S3 bucket → Permissions → Block Public Access → Edit. RE-ENABLE "Block all public access". Save. The public website endpoint is now broken — good.'},
+          {n:2,text:'Delete the public bucket policy you added in Phase 1. Go to Permissions → Bucket policy → Edit → clear the entire policy → Save. The bucket is now fully private.'},
+          {n:3,text:'Open the CloudFront console → click "Create a CloudFront distribution".'},
+          {n:4,text:'Origin domain: click the dropdown and select your S3 bucket (it should appear as a suggestion). Do NOT use the static website hosting endpoint URL — use the bucket itself.'},
+          {n:5,text:'Origin access: select "Origin access control settings (recommended)". Click "Create new OAC". Accept defaults. Click Create.'},
+          {n:6,text:'A yellow banner will appear: "You must update the S3 bucket policy." Click the "Copy policy" button — CloudFront generates the exact policy you need.'},
+          {n:7,text:'Leave the CloudFront tab open. Go back to S3 → Permissions → Bucket policy → Edit. Paste the copied policy. It should look like it allows s3:GetObject from Principal cloudfront.amazonaws.com with a Condition on the aws:SourceArn matching your distribution ARN. Save.'},
+          {n:8,text:'Back in CloudFront, scroll to "Default root object" and type index.html. This tells CloudFront what to serve when someone visits the root URL.'},
+          {n:9,text:'Viewer protocol policy: select "Redirect HTTP to HTTPS". Leave everything else as defaults. Click "Create distribution". Wait 3–5 minutes for it to deploy (status changes from "Deploying" to showing the last modified date).'},
+          {n:10,text:'Copy the CloudFront Distribution Domain Name (format: xxxxxxxxxxxx.cloudfront.net). Visit it in a browser. Your site loads over HTTPS — through CloudFront — with the S3 bucket staying completely private.',tip:'The S3 website endpoint is now dead (try it). The bucket itself returns 403 Access Denied on direct access. CloudFront is the only path in.'},
+        ]
+      },
+      {
+        id:'teardown',
+        name:'Teardown — Do This or You Will Be Billed',
+        type:'teardown',
+        examConcept:'CloudFront distributions are billed by data transfer and requests even if they serve minimal traffic. Always disable or delete test distributions.',
+        steps:[
+          {n:1,text:'CloudFront console → select your distribution → click Disable. Wait for status to change to "Disabled" (2–5 min).'},
+          {n:2,text:'Once disabled, select it again → click Delete → confirm. The distribution is gone.'},
+          {n:3,text:'S3 console → open your bucket → select all objects → Delete. Empty the bucket.'},
+          {n:4,text:'Go back to the bucket list → select the bucket → Delete. Type the bucket name to confirm.'},
+          {n:5,text:'Check your CloudFront console is empty and your S3 bucket list no longer shows the bucket. You are clean.'},
+        ]
+      }
+    ]
+  },
+  {
+    id:'cl2',
+    tag:'Startup',
+    title:'Launch an EC2 Web Server (and expose it too broadly first)',
+    difficulty:1,
+    services:['EC2','VPC','Security Groups','IAM'],
+    timeEstimate:'30–45 min',
+    businessContext:"DevCo needs a quick web server for an internal demo. You will launch an EC2 instance, connect to it, install a web server, and learn why security groups are the most common misconfiguration in cloud environments — by making the mistake yourself first.",
+    phases:[
+      {
+        id:'p1',
+        name:'Phase 1 — Launch EC2 the Lazy Way (Too Open)',
+        type:'wrong',
+        examConcept:'Security groups are STATEFUL virtual firewalls at the instance level. They are allow-only — you cannot write a Deny rule. The common beginner mistake is allowing 0.0.0.0/0 on all ports (or even just port 22 from 0.0.0.0/0). The exam tests this constantly because it is the #1 real-world misconfiguration.',
+        steps:[
+          {n:1,text:'EC2 console → click "Launch instance". Name it: demo-web-server.'},
+          {n:2,text:'AMI: select "Amazon Linux 2023 AMI" (free tier eligible, listed first).'},
+          {n:3,text:'Instance type: t2.micro or t3.micro (free tier eligible). Leave as default.'},
+          {n:4,text:'Key pair: click "Create new key pair". Name it demo-key. Type: RSA, format: .pem. Download it and note where it saves — you cannot download it again.'},
+          {n:5,text:'Network settings → click "Edit". Confirm you are in a public subnet of the default VPC. For Security Group, click "Create security group". Name it: demo-sg-wrong.',warn:'Add a rule: Type = All traffic, Source = Anywhere (0.0.0.0/0). This allows every port from every IP on the internet to reach this instance. This is what you see in compromised cloud accounts. Do it now so you understand what wrong looks like — then you will fix it.'},
+          {n:6,text:'Scroll down — leave storage at default 8 GB gp3. Click "Launch instance".'},
+          {n:7,text:'Once running, select the instance → note the Public IPv4 address. In your terminal: chmod 400 ~/Downloads/demo-key.pem then ssh -i ~/Downloads/demo-key.pem ec2-user@YOUR-PUBLIC-IP'},
+          {n:8,text:'You are in. Run: sudo dnf install -y httpd && sudo systemctl start httpd && sudo systemctl enable httpd. This installs Apache.'},
+          {n:9,text:'Visit http://YOUR-PUBLIC-IP in a browser. You should see the Apache test page. Note: HTTP (port 80) works because your security group allows all traffic.'},
+        ]
+      },
+      {
+        id:'p2',
+        name:'Phase 2 — Fix It: Least Privilege Security Group',
+        type:'fix',
+        examConcept:'Least privilege applies to network rules too. Port 22 (SSH) should only be allowed from your specific IP — not the internet. Port 80/443 can be open to 0.0.0.0/0 only if this is a public-facing web server. The exam distinguishes between the security group (instance-level, stateful) and the NACL (subnet-level, stateless) — here you are working at the SG layer.',
+        steps:[
+          {n:1,text:'EC2 console → select your instance → Security tab → click the security group name (demo-sg-wrong).'},
+          {n:2,text:'Inbound rules → Edit inbound rules. Delete the "All traffic / 0.0.0.0/0" rule.'},
+          {n:3,text:'Add rule: Type = HTTP, Source = Anywhere (0.0.0.0/0, ::/0). This allows the web server to be public — intentional.'},
+          {n:4,text:'Add rule: Type = SSH, Source = My IP. AWS will auto-fill your current public IP. This locks SSH to only your machine.',tip:'In production, you would go further: disable direct SSH entirely and use AWS Systems Manager Session Manager instead — no port 22 needed, all access logged in CloudTrail.'},
+          {n:5,text:'Save rules. Try to access http://YOUR-PUBLIC-IP — still works. Try a port scan from another network or use a site like portscanner.net — nothing else is reachable.'},
+          {n:6,text:'Open the IAM console → Roles → Create role. Trusted entity: AWS service → EC2. Attach the managed policy "AmazonSSMManagedInstanceCore". Name the role: ec2-ssm-role. Create it.',tip:'You just created an instance role. Even if you never use SSM, attaching this role is a best practice — it allows AWS Systems Manager to manage the instance without needing open port 22.'},
+          {n:7,text:'Back in EC2 → select your instance → Actions → Security → Modify IAM role → select ec2-ssm-role → Update. The instance can now be managed via SSM — no SSH required.'},
+        ]
+      },
+      {
+        id:'teardown',
+        name:'Teardown — Do This or You Will Be Billed',
+        type:'teardown',
+        examConcept:'EC2 t3.micro costs ~$0.0104/hr outside free tier. Always terminate, not just stop — stopped instances still incur EBS charges.',
+        steps:[
+          {n:1,text:'EC2 console → select your instance → Instance state → Terminate instance. Type "terminate" to confirm. The instance will move to "terminated" state.'},
+          {n:2,text:'EC2 console → Security Groups → select demo-sg-wrong → Actions → Delete security groups. (Will fail if anything still uses it — terminate the instance first.)'},
+          {n:3,text:'EC2 console → Key Pairs → select demo-key → Actions → Delete. The .pem file on your machine is now useless too — delete it.'},
+          {n:4,text:'IAM console → Roles → find ec2-ssm-role → Delete. Confirm.'},
+          {n:5,text:'Check EC2 Instances — only "terminated" instances visible. Check your bill in Billing → Cost Explorer if you are concerned. Free tier covers 750 hours/month of t2.micro.'},
+        ]
+      }
+    ]
+  },
+  {
+    id:'cl3',
+    tag:'Startup',
+    title:'VPC From Scratch: Public + Private Subnets',
+    difficulty:2,
+    services:['VPC','Subnets','Route Tables','IGW','NAT Gateway','Security Groups'],
+    timeEstimate:'60–90 min',
+    businessContext:"Every production AWS workload lives inside a VPC. Your team is building a two-tier app: a public-facing web server and a private database that should NEVER be reachable from the internet. You will build this network from scratch — not use the default VPC — so you understand what every component does.",
+    phases:[
+      {
+        id:'p1',
+        name:'Phase 1 — The Wrong Way: Everything in Public Subnets',
+        type:'wrong',
+        examConcept:'Public vs Private subnets: a subnet is "public" only if its route table has a route to an Internet Gateway (0.0.0.0/0 → igw-xxx). A "private" subnet routes internet-bound traffic to a NAT Gateway instead — or has no internet route at all. This is the most tested VPC concept on the exam.',
+        steps:[
+          {n:1,text:'VPC console → Your VPCs → Create VPC. Name: lab-vpc. IPv4 CIDR: 10.0.0.0/16. Leave everything else as default. Create.'},
+          {n:2,text:'Subnets → Create subnet. VPC: lab-vpc. Create TWO subnets in the same AZ (e.g. us-east-1a):\n- Name: lab-public-1a, CIDR: 10.0.1.0/24\n- Name: lab-private-1a, CIDR: 10.0.2.0/24'},
+          {n:3,text:'Internet Gateways → Create internet gateway. Name: lab-igw. Create it. Then Actions → Attach to VPC → select lab-vpc. The IGW is now the door to the internet for your VPC.',warn:'Here is the wrong way: attach the IGW route to BOTH subnets. Do this: Route Tables → find the main route table for lab-vpc → Routes tab → Edit routes → Add route: 0.0.0.0/0 → Target: lab-igw. Save. Now BOTH subnets are public because the main route table applies to all subnets without an explicit association. This is wrong — the database subnet should never route to the internet.'},
+        ]
+      },
+      {
+        id:'p2',
+        name:'Phase 2 — Fix It: Explicit Route Tables per Tier',
+        type:'fix',
+        examConcept:'Each subnet should have its OWN route table. The public subnet routes 0.0.0.0/0 to the IGW. The private subnet routes 0.0.0.0/0 to a NAT Gateway (for outbound-only internet access, e.g. package downloads) — or has NO internet route if the workload never needs internet. NAT Gateway is in the public subnet but serves the private subnet. This is the standard two-tier VPC pattern.',
+        steps:[
+          {n:1,text:'Route Tables → Create route table. Name: lab-public-rt, VPC: lab-vpc. Create. Then Routes → Edit routes → Add: 0.0.0.0/0 → lab-igw. Save.'},
+          {n:2,text:'Still in lab-public-rt → Subnet associations tab → Edit subnet associations → check lab-public-1a. Save. Now only the public subnet uses this route table.'},
+          {n:3,text:'Route Tables → Create route table. Name: lab-private-rt, VPC: lab-vpc. Create. Leave it with only the local route (10.0.0.0/16 → local). Do NOT add an IGW route.'},
+          {n:4,text:'Associate lab-private-rt with lab-private-1a. Now the private subnet has no path to the internet — correct for a database.'},
+          {n:5,text:'(Optional but important to understand) NAT Gateway → Create NAT Gateway. Name: lab-nat. Subnet: lab-public-1a (NAT must be in the PUBLIC subnet). Connectivity: Public. Click "Allocate Elastic IP" — this gives it a static public IP. Create. Wait 60–90 seconds.',tip:'A NAT Gateway allows instances in the PRIVATE subnet to make outbound calls to the internet (e.g. yum update, pip install) WITHOUT being reachable inbound. Traffic flow: private instance → private subnet → NAT Gateway (in public subnet) → IGW → internet.'},
+          {n:6,text:'Once NAT Gateway is available: Edit lab-private-rt routes → Add 0.0.0.0/0 → target: the NAT Gateway. Save. Private subnet can now reach the internet outbound only.'},
+          {n:7,text:'Create two security groups in lab-vpc:\n- lab-web-sg: allow inbound HTTP (80) from 0.0.0.0/0 and SSH (22) from My IP\n- lab-db-sg: allow inbound MySQL/Aurora (3306) from Source = lab-web-sg (the SG ID, not 0.0.0.0/0)',tip:'Referencing another security group as the source is powerful: only instances in lab-web-sg can reach the database on 3306. IP ranges are fragile; SG references scale automatically as web servers are added or removed.'},
+        ]
+      },
+      {
+        id:'teardown',
+        name:'Teardown — NAT Gateway Costs ~$32/month. Delete It First.',
+        type:'teardown',
+        examConcept:'NAT Gateway is billed per hour ($0.045/hr = ~$32/month) plus per GB processed. It is the most common accidental cost in demo labs. Always delete it first.',
+        steps:[
+          {n:1,text:'VPC → NAT Gateways → select lab-nat → Actions → Delete NAT gateway. Wait for state "deleted" (~1 minute).'},
+          {n:2,text:'VPC → Elastic IPs → find the IP that was associated with the NAT Gateway (state: "unassociated") → Actions → Release Elastic IP address. Unassociated EIPs also have a small hourly charge.'},
+          {n:3,text:'VPC → Internet Gateways → select lab-igw → Actions → Detach from VPC → then Actions → Delete internet gateway.'},
+          {n:4,text:'VPC → Subnets → delete lab-public-1a and lab-private-1a.'},
+          {n:5,text:'VPC → Route Tables → delete lab-public-rt and lab-private-rt.'},
+          {n:6,text:'VPC → Security Groups → delete lab-web-sg and lab-db-sg.'},
+          {n:7,text:'VPC → Your VPCs → select lab-vpc → Actions → Delete VPC. Confirm. You are clean.'},
+        ]
+      }
+    ]
+  },
+];
+
 const ARCH_PRINCIPLES=[
   {
     id:'p1',title:'Constraints are the design',
@@ -1451,6 +1619,7 @@ const NAV=[
   {id:'leaderboard',icon:'◆',label:'Leaderboard',group:'exam'},
   {id:'settings',icon:'⚙',label:'Settings',group:'exam'},
   {id:'architect',icon:'⬟',label:"Architect Mind",group:'arch'},
+  {id:'labs',icon:'⬡',label:"Console Labs",group:'arch'},
 ];
 
 function Sidebar({active,setActive,streak}){
@@ -3304,6 +3473,180 @@ function History({quizHistory,examHistory}){
   );
 }
 
+// ── Console Labs ─────────────────────────────────────────────────────────────
+function ConsoleLabs(){
+  const[selected,setSelected]=useState(null);
+  const[openPhase,setOpenPhase]=useState(0);
+  const[checked,setChecked]=useStore('labs_checked',{});
+  const[done,setDone]=useStore('labs_done',[]);
+
+  const phaseColor={wrong:'#ef4444',fix:'#10b981',teardown:'#f97316'};
+  const phaseBg={wrong:'bg-red-50 border-red-200',fix:'bg-emerald-50 border-emerald-200',teardown:'bg-orange-50 border-orange-200'};
+  const phaseLabel={wrong:'⚠ Wrong Way First',fix:'✓ Fix It Properly',teardown:'🧹 Teardown'};
+
+  const toggleStep=(labId,phaseId,stepN)=>{
+    const key=`${labId}_${phaseId}_${stepN}`;
+    setChecked(c=>({...c,[key]:!c[key]}));
+  };
+
+  const phaseProgress=(lab,phase)=>{
+    const total=phase.steps.length;
+    const done=phase.steps.filter(s=>checked[`${lab.id}_${phase.id}_${s.n}`]).length;
+    return{done,total};
+  };
+
+  const labProgress=(lab)=>{
+    const allSteps=lab.phases.flatMap(p=>p.steps.map(s=>`${lab.id}_${p.id}_${s.n}`));
+    const doneCount=allSteps.filter(k=>checked[k]).length;
+    return{done:doneCount,total:allSteps.length};
+  };
+
+  if(selected){
+    const lab=CONSOLE_LABS.find(l=>l.id===selected);
+    const prog=labProgress(lab);
+    const allDone=prog.done===prog.total;
+    return(
+      <div className="p-4 md:p-6 max-w-3xl">
+        <button onClick={()=>{setSelected(null);setOpenPhase(0);}} className="text-slate-400 hover:text-slate-600 text-sm mb-4 flex items-center gap-1">← Back to Labs</button>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white bg-indigo-500">{lab.tag}</span>
+          {lab.services.map(s=><span key={s} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{s}</span>)}
+          <span className="text-xs text-slate-400 ml-auto">{lab.timeEstimate}</span>
+        </div>
+        <h2 className="text-slate-900 text-xl font-bold mb-3 leading-snug">{lab.title}</h2>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">The Scenario</div>
+          <p className="text-slate-700 text-sm leading-relaxed">{lab.businessContext}</p>
+        </div>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 bg-slate-200 rounded-full h-2">
+            <div className="bg-indigo-500 h-2 rounded-full transition-all" style={{width:`${prog.total?Math.round(prog.done/prog.total*100):0}%`}}/>
+          </div>
+          <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">{prog.done}/{prog.total} steps</span>
+          {allDone&&!done.includes(lab.id)&&(
+            <button onClick={()=>setDone(d=>[...d,lab.id])} className="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg font-semibold">Mark Complete</button>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          {lab.phases.map((phase,pi)=>{
+            const pp=phaseProgress(lab,phase);
+            const isOpen=openPhase===pi;
+            return(
+              <div key={phase.id} className={`border rounded-xl overflow-hidden ${phaseBg[phase.type]}`}>
+                <button onClick={()=>setOpenPhase(isOpen?-1:pi)}
+                  className="w-full flex items-center justify-between p-4 text-left">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{color:phaseColor[phase.type]}}>{phaseLabel[phase.type]}</div>
+                    <div className="font-semibold text-slate-800 text-sm">{phase.name}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <span className="text-xs text-slate-500 font-medium">{pp.done}/{pp.total}</span>
+                    <span className="text-slate-400 text-xs">{isOpen?'▲':'▼'}</span>
+                  </div>
+                </button>
+                {isOpen&&(
+                  <div className="px-4 pb-4 pt-0">
+                    <div className={`text-xs rounded-lg p-3 mb-4 border font-medium leading-relaxed`}
+                      style={{background:'#f5f3ff',borderColor:'#c4b5fd',color:'#5b21b6'}}>
+                      <span className="font-bold uppercase tracking-wide text-xs block mb-1">📋 Exam Concept This Phase Teaches</span>
+                      {phase.examConcept}
+                    </div>
+                    <div className="space-y-2">
+                      {phase.steps.map(step=>{
+                        const key=`${lab.id}_${phase.id}_${step.n}`;
+                        const isChecked=!!checked[key];
+                        return(
+                          <div key={step.n} className={`rounded-lg border p-3 transition-all ${isChecked?'opacity-60 bg-white border-slate-200':'bg-white border-slate-200'}`}>
+                            <div className="flex gap-3">
+                              <button onClick={()=>toggleStep(lab.id,phase.id,step.n)}
+                                className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${isChecked?'bg-indigo-600 border-indigo-600 text-white':'border-slate-300 hover:border-indigo-400'}`}>
+                                {isChecked&&<span className="text-xs font-bold">✓</span>}
+                              </button>
+                              <div className="flex-1">
+                                <div className="text-xs font-bold text-slate-400 mb-0.5">Step {step.n}</div>
+                                <p className={`text-sm leading-relaxed whitespace-pre-line ${isChecked?'line-through text-slate-400':'text-slate-700'}`}>{step.text}</p>
+                                {step.warn&&(
+                                  <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5">
+                                    <span className="text-xs font-bold text-red-600 block mb-0.5">⚠ Why This Is Wrong</span>
+                                    <p className="text-xs text-red-700 leading-relaxed">{step.warn}</p>
+                                  </div>
+                                )}
+                                {step.tip&&(
+                                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                                    <span className="text-xs font-bold text-blue-600 block mb-0.5">💡 Production Note</span>
+                                    <p className="text-xs text-blue-700 leading-relaxed">{step.tip}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="p-4 md:p-6 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-slate-900 text-2xl font-bold mb-1">Console Labs</h1>
+        <p className="text-slate-500 text-sm">Hands-on walkthroughs. Build it wrong first — then fix it the production way. Every lab ends with a teardown so you don't get billed.</p>
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-xs text-amber-800 leading-relaxed">
+        <span className="font-bold">Before you start:</span> Use an AWS account you control. These labs use free-tier services where possible, but the teardown step is not optional — always complete it to avoid surprise charges.
+      </div>
+      <div className="text-xs text-slate-400 mb-3">{done.length}/{CONSOLE_LABS.length} labs completed</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {CONSOLE_LABS.map(lab=>{
+          const prog=labProgress(lab);
+          const isDone=done.includes(lab.id);
+          const pct=prog.total?Math.round(prog.done/prog.total*100):0;
+          return(
+            <div key={lab.id} onClick={()=>setSelected(lab.id)}
+              className="bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:shadow-md transition-all hover:border-indigo-200 group">
+              <div className="flex items-start justify-between mb-2">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white bg-indigo-500">{lab.tag}</span>
+                <div className="flex items-center gap-2">
+                  {isDone&&<span className="text-emerald-500 text-xs font-bold">✓ Done</span>}
+                  <span className="text-slate-400 text-xs">{lab.timeEstimate}</span>
+                </div>
+              </div>
+              <h3 className="text-slate-800 text-sm font-semibold leading-snug mb-2 group-hover:text-indigo-700 transition-colors">{lab.title}</h3>
+              <div className="flex flex-wrap gap-1 mb-3">
+                {lab.services.map(s=><span key={s} className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{s}</span>)}
+              </div>
+              {pct>0&&(
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+                    <div className="bg-indigo-500 h-1.5 rounded-full" style={{width:`${pct}%`}}/>
+                  </div>
+                  <span className="text-xs text-slate-400">{pct}%</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  {'⬡⬡⬡⬡⬡'.split('').slice(0,5).map((_,i)=>(
+                    <span key={i} className={`text-xs ${i<lab.difficulty?'text-indigo-500':'text-slate-200'}`}>⬡</span>
+                  ))}
+                </div>
+                <div className="text-indigo-500 text-xs font-semibold">{isDone?'Review →':'Start lab →'}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const[active,setActive]=useState('home');
@@ -3336,6 +3679,7 @@ function App(){
       case'home':return<Welcome setActive={setActive}/>;
       case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
       case'architect':return<ArchitectMind/>;
+      case'labs':return<ConsoleLabs/>;
       case'learn':return<Learn/>;
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
