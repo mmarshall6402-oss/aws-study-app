@@ -3650,29 +3650,33 @@ function ConsoleLabs(){
                         const key=`${lab.id}_${phase.id}_${step.n}`;
                         const isChecked=!!checked[key];
                         return(
-                          <div key={step.n} className={`rounded-lg border p-3 transition-all ${isChecked?'opacity-60 bg-white border-slate-200':'bg-white border-slate-200'}`}>
-                            <div className="flex gap-3">
-                              <button onClick={()=>toggleStep(lab.id,phase.id,step.n)}
-                                className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${isChecked?'bg-indigo-600 border-indigo-600 text-white':'border-slate-300 hover:border-indigo-400'}`}>
-                                {isChecked&&<span className="text-sm font-bold">✓</span>}
-                              </button>
-                              <div className="flex-1">
+                          <div key={step.n} className={`rounded-xl border transition-all ${isChecked?'opacity-60 bg-slate-50 border-slate-200':'bg-white border-slate-200'}`}>
+                            <button onClick={()=>toggleStep(lab.id,phase.id,step.n)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${isChecked?'':'hover:bg-slate-50'}`}>
+                              <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isChecked?'bg-indigo-600 border-indigo-600':'border-slate-300'}`}>
+                                {isChecked&&<svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                              </div>
+                              <div className="flex-1 min-w-0">
                                 <div className="text-xs font-bold text-slate-400 mb-0.5">Step {step.n}</div>
                                 <p className={`text-sm leading-relaxed whitespace-pre-line ${isChecked?'line-through text-slate-400':'text-slate-700'}`}>{step.text}</p>
+                              </div>
+                            </button>
+                            {(step.warn||step.tip)&&(
+                              <div className="px-4 pb-3 space-y-2">
                                 {step.warn&&(
-                                  <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5">
+                                  <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
                                     <span className="text-xs font-bold text-red-600 block mb-0.5">⚠ Why This Is Wrong</span>
                                     <p className="text-xs text-red-700 leading-relaxed">{step.warn}</p>
                                   </div>
                                 )}
                                 {step.tip&&(
-                                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
                                     <span className="text-xs font-bold text-blue-600 block mb-0.5">💡 Production Note</span>
                                     <p className="text-xs text-blue-700 leading-relaxed">{step.tip}</p>
                                   </div>
                                 )}
                               </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })}
