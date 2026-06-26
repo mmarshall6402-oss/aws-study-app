@@ -1656,6 +1656,20 @@ const dayOfYear=()=>{const n=new Date();return Math.floor((n-new Date(n.getFullY
 const shuffle=arr=>[...arr].sort(()=>Math.random()-.5);
 const pct=(a,b)=>b===0?0:Math.round(a/b*100);
 
+// ── SM-2 Spaced Repetition ────────────────────────────────────────────────────
+function sm2Update(prev={},rating){
+  // rating: 0=nope, 1=sorta, 2=know
+  const ease=Math.max(1.3,(prev.ease||2.5)+(0.1-(2-rating)*(0.08+(2-rating)*0.02)));
+  const reps=rating>=1?(prev.reps||0)+1:0;
+  let interval=prev.interval||1;
+  if(rating<1){interval=1;}
+  else if(reps<=1){interval=1;}
+  else if(reps===2){interval=6;}
+  else{interval=Math.round((prev.interval||1)*ease);}
+  const next=new Date();next.setDate(next.getDate()+interval);
+  return{ease,reps,interval,nextReview:next.toISOString().slice(0,10)};
+}
+
 // ── Components ────────────────────────────────────────────────────────────────
 
 function Tag({domain,small}){
@@ -1687,6 +1701,7 @@ function ProgressBar({value,max,domain,className=''}){
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 const NAV=[
+  {id:'assessment',icon:'◎',label:'Gap Assessment',group:'exam'},
   {id:'dashboard',icon:'⬡',label:'Dashboard',group:'exam'},
   {id:'learn',icon:'▦',label:'Learn',group:'exam'},
   {id:'lesson',icon:'◈',label:'Daily Lesson',group:'exam'},
@@ -1966,6 +1981,19 @@ function Welcome({setActive}){
           <p className="text-slate-500 text-base">What do you want to work on today?</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
+          <button onClick={()=>setActive('assessment')}
+            className="group bg-white rounded-2xl p-6 border-2 border-indigo-200 hover:border-indigo-400 hover:shadow-xl transition-all text-left shadow-sm bg-gradient-to-br from-white to-indigo-50/50">
+            <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-2xl mb-4 text-white shadow-sm">◎</div>
+            <div className="font-bold text-slate-900 text-lg mb-1">Gap Assessment <span className="text-xs font-semibold bg-indigo-600 text-white px-2 py-0.5 rounded-full ml-1">Start here</span></div>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">15-question diagnostic across all 4 SAA-C03 domains. Get a personalized gap report showing exactly what to study first.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['Gap Report','Domain Analysis','Readiness Score','Targeted Practice'].map(t=>(
+                <span key={t} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
+              ))}
+            </div>
+            <div className="mt-4 text-indigo-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Take assessment →</div>
+          </button>
+
           <button onClick={()=>setActive('dashboard')}
             className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all text-left shadow-sm">
             <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-2xl mb-4 group-hover:bg-indigo-200 transition-colors">◉</div>
@@ -2313,21 +2341,30 @@ function Lesson(){
 }
 
 // ── Quiz ──────────────────────────────────────────────────────────────────────
-function Quiz({onAnswer}){
-  const[domain,setDomain]=useState('all');
+function Quiz({onAnswer,startDomain}){
+  const[domain,setDomain]=useState(startDomain||'all');
   const[session,setSession]=useState(null);
   const[idx,setIdx]=useState(0);
   const[selected,setSelected]=useState(null);
   const[showExp,setShowExp]=useState(false);
   const[sessionResults,setSessionResults]=useState([]);
+  const[recalled,setRecalled]=useState(false);
+  const[timer,setTimer]=useState(30);
 
   const sessionIdRef=useRef(null);
+
+  useEffect(()=>{
+    if(!session||session==='done'||recalled||selected!==null)return;
+    setTimer(30);
+    const iv=setInterval(()=>setTimer(t=>{if(t<=1){clearInterval(iv);setRecalled(true);return 0;}return t-1;}),1000);
+    return()=>clearInterval(iv);
+  },[idx,recalled,session,selected]);
 
   const startQuiz=()=>{
     sessionIdRef.current='q_'+Date.now();
     const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
     setSession(shuffle(pool).slice(0,10));
-    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);
+    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);setRecalled(false);setTimer(30);
   };
 
   const isCorrectOpt=(q,i)=>Array.isArray(q.ans)?q.ans.includes(i):i===q.ans;
@@ -2344,14 +2381,14 @@ function Quiz({onAnswer}){
 
   const handleDontKnow=()=>{
     if(selected!==null)return;
-    setSelected('dk');setShowExp(true);
+    setSelected('dk');setShowExp(true);setRecalled(true);
     const q=session[idx];
     onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:'dk'});
     setSessionResults(r=>[...r,{correct:false,dontKnow:true,domain:q.domain,sub:q.sub,qtext:q.q,ans:correctLabel(q)}]);
   };
 
   const next=()=>{
-    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);}
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);setRecalled(false);setTimer(30);}
     else setSession('done');
   };
 
@@ -2449,50 +2486,301 @@ function Quiz({onAnswer}){
   return(
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-3">
-        <h1 className="text-slate-900 text-xl font-bold">Quiz</h1>
-        <span className="text-slate-400 text-sm font-medium">{idx+1} / {session.length}</span>
+        <div>
+          <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-0.5">{d.label} · {q.sub}</div>
+          <h1 className="text-slate-900 text-lg font-bold">Question {idx+1} / {session.length}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {!recalled&&selected===null&&(
+            <div className={`w-11 h-11 rounded-full flex items-center justify-center font-mono font-bold text-sm border-2 transition-colors ${timer<=10?'border-red-400 text-red-500 bg-red-50':'border-indigo-300 text-indigo-600 bg-indigo-50'}`}>{timer}</div>
+          )}
+        </div>
       </div>
       <ProgressBar value={idx+1} max={session.length} domain={q.domain} className="mb-5"/>
-      <div className={`bg-white border-l-4 border border-slate-200 rounded-xl p-5 mb-4 shadow-sm`}>
+      <div className="bg-white border-l-4 border border-slate-200 rounded-xl p-5 mb-4 shadow-sm" style={{borderLeftColor:q.domain==='secure'?'#10b981':q.domain==='resilient'?'#0ea5e9':q.domain==='performing'?'#f59e0b':'#8b5cf6'}}>
         <div className="flex items-center gap-2 mb-3">
           <Tag domain={q.domain}/><span className="text-slate-400 text-xs font-medium uppercase tracking-wide">{q.sub}</span>
         </div>
         <p className="text-slate-800 text-sm leading-relaxed font-medium">{q.q}</p>
       </div>
+      {!recalled&&selected===null?(
+        <div className="space-y-3">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-center">
+            <div className="text-indigo-700 font-bold text-sm mb-1">Active Recall</div>
+            <div className="text-slate-500 text-xs leading-relaxed">Try to retrieve the answer from memory before revealing the options. The timer pushes you to commit.</div>
+          </div>
+          <button onClick={()=>setRecalled(true)} className="w-full bg-indigo-600 text-white font-bold text-sm py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+            I've recalled it — Reveal Options
+          </button>
+          <button onClick={handleDontKnow} className="w-full text-sm px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+            I don't know this one
+          </button>
+        </div>
+      ):(
+        <>
+          <div className="space-y-2 mb-3">
+            {q.opts.map((opt,i)=>{
+              let cls='border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40';
+              let letterCls='bg-slate-100 text-slate-500';
+              if(selected!==null){
+                if(isCorrectOpt(q,i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';letterCls='bg-emerald-400 text-white';}
+                else if(i===selected&&!isCorrectOpt(q,i)&&selected!=='dk'){cls='border-red-400 bg-red-50 text-red-700';letterCls='bg-red-400 text-white';}
+                else{cls='border-slate-100 bg-slate-50 text-slate-400';letterCls='bg-slate-200 text-slate-400';}
+              }
+              return(
+                <button key={i} onClick={()=>handleSelect(i)}
+                  className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start gap-0 ${cls}`}>
+                  <span className={`opt-letter ${letterCls}`}>{String.fromCharCode(65+i)}</span>
+                  <span className="flex-1 leading-snug pt-0.5">{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+          {selected===null&&(
+            <button onClick={handleDontKnow}
+              className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors mb-4">
+              I don't know this one
+            </button>
+          )}
+          {showExp&&(
+            <div className={`rounded-xl p-4 mb-4 ${selected==='dk'?'bg-amber-50 border-2 border-amber-200':'bg-indigo-50 border-2 border-indigo-100'}`}>
+              {selected==='dk'&&<div className="text-amber-700 text-xs font-semibold mb-2">✓ Correct: {correctLabel(q)}</div>}
+              <div className={`text-xs font-semibold mb-1.5 ${selected==='dk'?'text-amber-600':'text-indigo-600'}`}>Explanation</div>
+              <p className="text-slate-700 text-sm leading-relaxed">{q.exp}</p>
+            </div>
+          )}
+          {selected!==null&&(
+            <button onClick={next} className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+              {idx<session.length-1?'Next Question →':'View Results'}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Gap Assessment ────────────────────────────────────────────────────────────
+function GapAssessment({onAnswer,setActive}){
+  const[session]=useState(()=>{
+    const byDomain=Object.keys(DOMAINS).map(d=>shuffle(QUESTIONS.filter(q=>q.domain===d)).slice(0,4));
+    return shuffle(byDomain.flat()).slice(0,15);
+  });
+  const[idx,setIdx]=useState(0);
+  const[selected,setSelected]=useState(null);
+  const[results,setResults]=useState([]);
+  const[phase,setPhase]=useState('quiz');
+  const[loadStep,setLoadStep]=useState(0);
+  const sessionIdRef=useRef('gap_'+Date.now());
+
+  const q=session[idx];
+  const isCorrect=(i)=>Array.isArray(q?.ans)?q.ans.includes(i):i===q?.ans;
+
+  const handleSelect=(i)=>{
+    if(selected!==null)return;
+    setSelected(i);
+    const correct=isCorrect(i);
+    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:i});
+    setResults(r=>[...r,{domain:q.domain,correct}]);
+  };
+
+  const handleDK=()=>{
+    if(selected!==null)return;
+    setSelected('dk');
+    onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:'dk'});
+    setResults(r=>[...r,{domain:q.domain,correct:false}]);
+  };
+
+  const handleNext=()=>{
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);}
+    else{
+      setPhase('loading');
+      [0,1,2,3,4,5].forEach((s,i)=>setTimeout(()=>setLoadStep(s),i*600+200));
+      setTimeout(()=>setPhase('report'),6*600+600);
+    }
+  };
+
+  if(phase==='loading'){
+    const steps=['Scoring '+session.length+' answers','Mapping 4 domains','Weighting your exam blueprint','Reading your confidence','Identifying top gaps','Compiling report'];
+    return(
+      <div className="flex items-center justify-center min-h-[70vh] p-6">
+        <div className="max-w-xs w-full">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">BUILDING</div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1 text-center">Preparing your <span className="text-indigo-600 italic">gap report.</span></h2>
+          <p className="text-slate-400 text-sm mb-6 text-center">A few seconds.</p>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 mb-6 overflow-hidden">
+            <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style={{width:`${Math.round((loadStep/steps.length)*100)}%`}}/>
+          </div>
+          <div className="space-y-3">
+            {steps.map((s,i)=>(
+              <div key={i} className="flex items-center gap-3">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all ${i<loadStep?'bg-indigo-600 text-white':i===loadStep?'border-2 border-indigo-400':' border-2 border-slate-200'}`}>
+                  {i<loadStep?'✓':''}
+                </div>
+                <span className={`text-sm transition-colors ${i<loadStep?'text-slate-800 font-medium':i===loadStep?'text-indigo-600':'text-slate-300'}`}>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if(phase==='report'){
+    const dWeights={secure:0.30,resilient:0.26,performing:0.24,cost:0.20};
+    const domainScores={};
+    Object.keys(DOMAINS).forEach(d=>{
+      const dr=results.filter(r=>r.domain===d);
+      domainScores[d]=dr.length>0?Math.round(dr.filter(r=>r.correct).length/dr.length*100):null;
+    });
+    const totalScore=Math.round(Object.entries(dWeights).reduce((sum,[d,w])=>{
+      const s=domainScores[d];return s!==null?sum+s*w:sum;
+    },0));
+    const passing=70;
+    const isReady=totalScore>=passing;
+    const sorted=Object.entries(domainScores).filter(([,v])=>v!==null).sort(([,a],[,b])=>a-b);
+    const worst=sorted[0];
+    const secondWorst=sorted[1];
+    return(
+      <div className="p-4 md:p-6 max-w-4xl">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-5 flex items-center gap-2">
+          <span className="text-indigo-500">✓</span>
+          <span className="text-indigo-700 text-sm font-medium">You're in. Here's your full gap report.</span>
+          <span className="text-indigo-400 text-xs ml-auto hidden sm:block">Fix your top gap when you're ready</span>
+        </div>
+        <div className="flex flex-col md:flex-row gap-5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isReady?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-600'}`}>● {isReady?'Ready':'Not ready'}</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Assessment Verdict</span>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 leading-tight">
+              If you sat the exam today,<br/>you'd likely <span className={`italic ${isReady?'text-emerald-600':'text-red-500'}`}>{isReady?'pass.':'not pass.'}</span>
+            </h2>
+            <p className="text-slate-500 text-sm mb-1">Below is what's dragging your score down, and how to close it.</p>
+            <div className="flex items-center gap-3 text-xs text-slate-400 mb-5">
+              <span>Based on <strong className="text-slate-600">{session.length} questions</strong></span>
+              <span>·</span><span>Exam <strong className="text-slate-600">SAA-C03</strong></span>
+            </div>
+            {(worst||secondWorst)&&(
+              <div className="mb-5">
+                <h3 className="text-slate-800 font-bold mb-3 text-sm">What's dragging your score down</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[worst,secondWorst].filter(Boolean).map(([d,s],i)=>(
+                    <div key={d} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-400">{i===0?'01 MOST COSTLY':'02 SECOND BIGGEST'}</span>
+                        <span className="text-xs font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">● Critical</span>
+                      </div>
+                      <div className="font-semibold text-slate-800 text-sm mb-2">{DOMAINS[d].label}</div>
+                      <div className="text-xs text-slate-400 mb-0.5">YOU</div>
+                      <div className="text-3xl font-black text-slate-900">{s}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <span className="font-bold text-slate-800 text-sm">Against the exam blueprint</span>
+                <span className="text-xs text-slate-400">{Object.keys(DOMAINS).length} domains · passing {passing}%</span>
+              </div>
+              <div className="px-4 py-2 grid grid-cols-4 text-xs text-slate-400 font-semibold uppercase tracking-wide border-b border-slate-50">
+                <span>Domain</span><span>Weight</span><span className="col-span-2">Your Score · Status</span>
+              </div>
+              {Object.entries(DOMAINS).map(([d,meta])=>{
+                const score=domainScores[d];
+                const weight=Math.round(dWeights[d]*100);
+                const ok=score!==null&&score>=passing;
+                return(
+                  <div key={d} className="grid grid-cols-4 px-4 py-3 items-center border-b border-slate-50 last:border-0">
+                    <span className="text-slate-700 text-sm font-medium">{meta.label}</span>
+                    <span className="text-slate-500 text-sm">{weight}%</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-14 bg-slate-100 rounded-full h-1.5 hidden sm:block">
+                        <div className={`h-1.5 rounded-full ${ok?'bg-emerald-500':'bg-red-400'}`} style={{width:`${score||0}%`}}/>
+                      </div>
+                      <span className="text-sm font-bold text-slate-700">{score!==null?score+'%':'—'}</span>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full w-fit ${ok?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-600'}`}>
+                      ● {score===null?'—':ok?'Good':'Critical'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="md:w-60 flex-shrink-0 space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Your Readiness</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isReady?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-600'}`}>● {isReady?'Ready':'Not ready'}</span>
+              </div>
+              <div className={`text-6xl font-black leading-none mb-1 ${isReady?'text-emerald-500':totalScore>=50?'text-amber-500':'text-red-500'}`}>{totalScore}<span className="text-2xl font-bold text-slate-400">%</span></div>
+              <p className="text-slate-500 text-xs mb-4">{passing-totalScore>0?`${passing-totalScore}% short of pass threshold — close your top domain first.`:'You meet the pass threshold!'}</p>
+              <div className="relative bg-slate-100 rounded-full h-3 mb-1 overflow-hidden">
+                <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${isReady?'bg-emerald-500':totalScore>=50?'bg-amber-400':'bg-red-400'}`} style={{width:`${Math.min(totalScore,100)}%`}}/>
+                <div className="absolute top-0 bottom-0 w-0.5 bg-white/80" style={{left:`${passing}%`}}/>
+              </div>
+              <div className="flex justify-between text-[10px] text-slate-400 mb-4"><span>0</span><span>{passing}% pass</span><span>100%</span></div>
+              <div className="text-xs text-slate-500 border-t border-slate-100 pt-3 flex justify-between">
+                <span>Real exam</span><span className="font-semibold text-slate-700">Pass at 720/1000</span>
+              </div>
+            </div>
+            {worst&&(
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Next Step</div>
+                <h3 className="font-bold text-slate-800 mb-2">Fix your top gap now</h3>
+                <p className="text-slate-500 text-xs mb-4">Your first targeted session focuses on <strong>{DOMAINS[worst[0]].label}</strong> — your weakest domain.</p>
+                <button onClick={()=>setActive('quiz')} className="w-full bg-indigo-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+                  Start first session →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if(!q)return null;
+  const d=DOMAINS[q.domain];
+  return(
+    <div className="p-4 md:p-6 max-w-2xl">
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-xs text-slate-400 font-semibold uppercase tracking-widest">{d.label}</div>
+        <span className="text-slate-400 text-sm">Question {idx+1} / {session.length}</span>
+      </div>
+      <ProgressBar value={idx+1} max={session.length} domain={q.domain} className="mb-5"/>
+      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3"><Tag domain={q.domain}/><span className="text-slate-400 text-xs uppercase tracking-wide">{q.sub}</span></div>
+        <p className="text-slate-800 font-medium text-sm leading-relaxed">{q.q}</p>
+      </div>
       <div className="space-y-2 mb-3">
         {q.opts.map((opt,i)=>{
           let cls='border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40';
-          let letterCls='bg-slate-100 text-slate-500';
+          let lc='bg-slate-100 text-slate-500';
           if(selected!==null){
-            if(isCorrectOpt(q,i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';letterCls='bg-emerald-400 text-white';}
-            else if(i===selected&&!isCorrectOpt(q,i)&&selected!=='dk'){cls='border-red-400 bg-red-50 text-red-700';letterCls='bg-red-400 text-white';}
-            else{cls='border-slate-100 bg-slate-50 text-slate-400';letterCls='bg-slate-200 text-slate-400';}
+            if(isCorrect(i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';lc='bg-emerald-400 text-white';}
+            else if(i===selected){cls='border-red-400 bg-red-50 text-red-700';lc='bg-red-400 text-white';}
+            else{cls='border-slate-100 bg-slate-50 text-slate-400';lc='bg-slate-200 text-slate-400';}
           }
           return(
-            <button key={i} onClick={()=>handleSelect(i)}
-              className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start gap-0 ${cls}`}>
-              <span className={`opt-letter ${letterCls}`}>{String.fromCharCode(65+i)}</span>
+            <button key={i} onClick={()=>handleSelect(i)} className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start ${cls}`}>
+              <span className={`opt-letter ${lc}`}>{String.fromCharCode(65+i)}</span>
               <span className="flex-1 leading-snug pt-0.5">{opt}</span>
             </button>
           );
         })}
       </div>
       {selected===null&&(
-        <button onClick={handleDontKnow}
-          className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors mb-4">
-          I don't know this one
+        <button onClick={handleDK} className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors mb-4">
+          I do not know
         </button>
       )}
-      {showExp&&(
-        <div className={`rounded-xl p-4 mb-4 ${selected==='dk'?'bg-amber-50 border-2 border-amber-200':'bg-indigo-50 border-2 border-indigo-100'}`}>
-          {selected==='dk'&&<div className="text-amber-700 text-xs font-semibold mb-2 flex items-center gap-1">✓ Correct: {correctLabel(q)}</div>}
-          <div className={`text-xs font-semibold mb-1.5 ${selected==='dk'?'text-amber-600':'text-indigo-600'}`}>Explanation</div>
-          <p className="text-slate-700 text-sm leading-relaxed">{q.exp}</p>
-        </div>
-      )}
       {selected!==null&&(
-        <button onClick={next} className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-          {idx<session.length-1?'Next Question →':'View Results'}
+        <button onClick={handleNext} className="bg-indigo-600 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+          {idx<session.length-1?'Submit answer →':'View Gap Report →'}
         </button>
       )}
     </div>
@@ -2536,20 +2824,29 @@ function Flashcards(){
   const[showAll,setShowAll]=useState(false);
   const[shuffleOn,setShuffleOn]=useState(false);
   const[shuffleSeed,setShuffleSeed]=useState(0);
+  const[srMode,setSrMode]=useState(false);
+
+  const todayStr=today();
+  const dueToday=useMemo(()=>ALL_FLASH.filter(c=>{
+    const cv=conf.find(x=>x.id===c.id);
+    return !cv||!cv.nextReview||cv.nextReview<=todayStr;
+  }),[conf,todayStr]);
 
   const cards=useMemo(()=>{
-    let c=ALL_FLASH;
-    if(source!=='all')c=c.filter(x=>x.source===source);
-    if(domain!=='all')c=c.filter(x=>x.domain===domain);
-    if(confFilter!=='all'){
-      c=c.filter(x=>{
-        const cv=conf.find(y=>y.id===x.id);
-        return confFilter==='new'?!cv:cv?.conf===confFilter;
-      });
+    let c=srMode?dueToday:ALL_FLASH;
+    if(!srMode){
+      if(source!=='all')c=c.filter(x=>x.source===source);
+      if(domain!=='all')c=c.filter(x=>x.domain===domain);
+      if(confFilter!=='all'){
+        c=c.filter(x=>{
+          const cv=conf.find(y=>y.id===x.id);
+          return confFilter==='new'?!cv:cv?.conf===confFilter;
+        });
+      }
     }
     if(shuffleOn)c=shuffle(c);
     return c;
-  },[domain,source,confFilter,conf,shuffleOn,shuffleSeed]);
+  },[domain,source,confFilter,conf,shuffleOn,shuffleSeed,srMode,dueToday]);
 
   const toggleShuffle=()=>{
     setShuffleOn(s=>!s);
@@ -2562,7 +2859,11 @@ function Flashcards(){
   const cardConf=conf.find(c=>c.id===card?.id);
 
   const setCardConf=(level)=>{
-    setConf(c=>{const filtered=c.filter(x=>x.id!==card.id);return[...filtered,{id:card.id,conf:level}]});
+    const rating=level==='know'?2:level==='sorta'?1:0;
+    const prev=conf.find(x=>x.id===card.id)||{};
+    const sr=sm2Update(prev,rating);
+    setConf(c=>{const filtered=c.filter(x=>x.id!==card.id);return[...filtered,{id:card.id,conf:level,...sr}]});
+    if(srMode)setTimeout(()=>go(1),350);
   };
 
   const go=(dir)=>{setIdx(i=>(i+dir+cards.length)%cards.length);setFlipped(false)};
@@ -2617,51 +2918,67 @@ function Flashcards(){
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-slate-800 text-xl font-semibold">Flashcards</h1>
-        <div className="flex items-center gap-3 text-xs">
-          <button onClick={shuffleOn?reshuffle:toggleShuffle} title={shuffleOn?'Click to re-shuffle':'Shuffle card order'}
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <button onClick={()=>{setSrMode(s=>!s);setIdx(0);setFlipped(false)}}
+            className={`border px-2 py-1 rounded transition-colors font-medium ${srMode?'border-violet-400 text-violet-700 bg-violet-50':'border-slate-200 text-slate-500 hover:text-slate-700'}`}>
+            📅 SR {srMode?`(${cards.length} due)`:`(${dueToday.length})`}
+          </button>
+          {!srMode&&<button onClick={shuffleOn?reshuffle:toggleShuffle}
             className={`border px-2 py-1 rounded transition-colors ${shuffleOn?'border-indigo-400 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             🔀 {shuffleOn?'Shuffled':'Shuffle'}
-          </button>
-          {shuffleOn&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
+          </button>}
+          {shuffleOn&&!srMode&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
           <button onClick={()=>setShowAll(true)} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">All</button>
         </div>
       </div>
 
-      {/* Source tabs */}
-      <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
-        {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
-          <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
-            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {srMode&&(
+        <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-violet-700 font-bold text-sm">Spaced Repetition Mode</div>
+            <div className="text-violet-500 text-xs">{dueToday.length} card{dueToday.length!==1?'s':''} due today · Rate each card to schedule its next review</div>
+          </div>
+          <button onClick={()=>{setSrMode(false);setIdx(0);setFlipped(false)}} className="text-violet-400 hover:text-violet-600 text-xs border border-violet-200 px-2 py-1 rounded">Exit</button>
+        </div>
+      )}
 
-      {/* Domain filter */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
-          <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
-            {d.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Confidence filter — focus on cards by how well you know them */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {[
-          {k:'new',label:`New ${stats.new}`,cls:'border-slate-300 text-slate-500',activeCls:'border-slate-500 text-slate-700 bg-slate-100'},
-          {k:'nope',label:`✗ Nope ${stats.nope}`,cls:'border-red-200 text-red-400',activeCls:'border-red-400 text-red-600 bg-red-50'},
-          {k:'sorta',label:`~ Sorta ${stats.sorta}`,cls:'border-amber-200 text-amber-500',activeCls:'border-amber-400 text-amber-700 bg-amber-50'},
-          {k:'know',label:`✓ Know ${stats.know}`,cls:'border-emerald-200 text-emerald-500',activeCls:'border-emerald-400 text-emerald-700 bg-emerald-50'},
-        ].map(f=>(
-          <button key={f.k} onClick={()=>setFilter(f.k)}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${confFilter===f.k?f.activeCls+' font-semibold':f.cls+' hover:border-slate-400'}`}>
-            {f.label}
-          </button>
-        ))}
-        {confFilter!=='all'&&<button onClick={()=>setFilter('all')} className="text-xs px-2.5 py-1 rounded border border-slate-200 text-slate-400 hover:text-slate-600">✕ Clear filter</button>}
-      </div>
+      {!srMode&&(
+        <>
+          {/* Source tabs */}
+          <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
+            {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
+              <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {/* Domain filter */}
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
+              <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
+                className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          {/* Confidence filter */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {[
+              {k:'new',label:`New ${stats.new}`,cls:'border-slate-300 text-slate-500',activeCls:'border-slate-500 text-slate-700 bg-slate-100'},
+              {k:'nope',label:`✗ Nope ${stats.nope}`,cls:'border-red-200 text-red-400',activeCls:'border-red-400 text-red-600 bg-red-50'},
+              {k:'sorta',label:`~ Sorta ${stats.sorta}`,cls:'border-amber-200 text-amber-500',activeCls:'border-amber-400 text-amber-700 bg-amber-50'},
+              {k:'know',label:`✓ Know ${stats.know}`,cls:'border-emerald-200 text-emerald-500',activeCls:'border-emerald-400 text-emerald-700 bg-emerald-50'},
+            ].map(f=>(
+              <button key={f.k} onClick={()=>setFilter(f.k)}
+                className={`text-xs px-2.5 py-1 rounded border transition-colors ${confFilter===f.k?f.activeCls+' font-semibold':f.cls+' hover:border-slate-400'}`}>
+                {f.label}
+              </button>
+            ))}
+            {confFilter!=='all'&&<button onClick={()=>setFilter('all')} className="text-xs px-2.5 py-1 rounded border border-slate-200 text-slate-400 hover:text-slate-600">✕ Clear filter</button>}
+          </div>
+        </>
+      )}
 
       {cards.length===0?(
         <div className="text-center py-16 text-slate-400">
@@ -2733,6 +3050,12 @@ function Flashcards(){
             </div>
             <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
           </div>
+          {cardConf?.nextReview&&(
+            <div className="text-center text-xs text-slate-400 mt-2">
+              Next review: <span className="font-semibold text-slate-600">{cardConf.nextReview===todayStr?'Today':cardConf.nextReview}</span>
+              {cardConf.interval&&<span className="text-slate-300"> · interval {cardConf.interval}d</span>}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -3774,6 +4097,7 @@ function App(){
   const renderPage=()=>{
     switch(active){
       case'home':return<Welcome setActive={setActive}/>;
+      case'assessment':return<GapAssessment onAnswer={a=>setQuizHistory(h=>[...h,a])} setActive={setActive}/>;
       case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
       case'architect':return<ArchitectMind/>;
       case'labs':return<ConsoleLabs/>;
