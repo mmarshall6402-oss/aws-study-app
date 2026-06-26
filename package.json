@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "build": "tailwindcss -i input.css -o assets/tailwind.css",
+    "watch": "tailwindcss -i input.css -o assets/tailwind.css --watch"
+  },
   "dependencies": {
     "@babel/standalone": "^7.29.7",
     "@tailwindcss/cli": "^4.3.0",
