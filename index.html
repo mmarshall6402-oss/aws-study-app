@@ -12,7 +12,7 @@
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:local('IBM Plex Mono'),local('IBMPlexMono')}
 *{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif;box-sizing:border-box}
 code,kbd,pre,.mono{font-family:'IBM Plex Mono','Fira Code',Consolas,monospace!important}
-body{background:#f1f5f9}
+body{background:#f5f3ff}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 textarea:focus{outline:none}
 input:focus{outline:none}
@@ -73,9 +73,10 @@ const QUESTIONS=[
 {id:15,domain:'secure',sub:'Network',q:'An application needs protection against infrastructure-layer DDoS attacks at no extra cost. Which service provides this automatically?',opts:['AWS WAF','AWS Shield Standard','AWS Shield Advanced','AWS Firewall Manager'],ans:1,exp:'Shield Standard is automatically enabled for all AWS accounts at no cost and protects against common Layer 3/4 DDoS attacks.'},
 {id:16,domain:'secure',sub:'Encryption',q:'Which service provides dedicated hardware security modules (HSMs) under your exclusive control for regulatory requirements?',opts:['AWS KMS','AWS CloudHSM','AWS Secrets Manager','AWS Certificate Manager'],ans:1,exp:'CloudHSM provides FIPS 140-2 Level 3 validated HSMs in a single-tenant environment. KMS is multi-tenant. CloudHSM gives you full key control.'},
 {id:17,domain:'secure',sub:'IAM',q:'A role has a permission boundary that allows S3:* and EC2:*. The role\'s identity policy allows S3:*, EC2:*, and RDS:*. What can the role do?',opts:['S3, EC2, and RDS — identity policy wins','S3 and EC2 only — intersection of both policies','Nothing — conflicting policies cancel out','RDS only — most restrictive wins'],ans:1,exp:'Permission boundaries set the maximum permissions. The effective permission is the intersection: what both the identity policy AND boundary allow. RDS is outside the boundary.'},
-{id:18,domain:'secure',sub:'S3',q:'How should you ensure all objects uploaded to S3 are encrypted at rest, even if the uploader forgets to specify encryption?',opts:['Enable bucket versioning','Set default encryption on the bucket','Use a bucket policy that denies unencrypted uploads','Both B and C'],ans:3,exp:'Default bucket encryption auto-encrypts objects missing encryption headers. A deny policy for s3:x-amz-server-side-encryption ensures clients can\'t bypass it.'},
+{id:18,domain:'secure',sub:'S3',q:'How should you ensure all objects uploaded to S3 are encrypted at rest, even if the uploader forgets to specify encryption?',opts:['Enable bucket versioning','Set default encryption on the bucket','Use a bucket policy that denies unencrypted uploads','Both B and C'],ans:3,exp:'IAM controls who can access your data, but encryption protects the data itself if access controls are ever bypassed. Default bucket encryption (B) auto-encrypts any object whose PUT request is missing an encryption header — zero developer action required. But default encryption alone can be worked around if a client explicitly sends unencrypted data. A bucket policy denying requests without s3:x-amz-server-side-encryption (C) closes that gap. Together they guarantee encryption at rest regardless of what the uploader does.'},
 {id:19,domain:'secure',sub:'Network',q:'A company runs a web app behind an ALB. They want to block SQL injection attacks. What should they implement?',opts:['Security Groups with deep packet inspection','AWS WAF with SQL injection match rules','Network ACLs with payload filtering','AWS Shield Advanced'],ans:1,exp:'WAF operates at Layer 7 and can inspect HTTP request bodies, headers, and query strings for SQL injection patterns. Security groups and NACLs are Layer 3/4 only.'},
 {id:20,domain:'secure',sub:'IAM',q:'Which IAM feature lets you test what actions a principal can perform without actually making API calls?',opts:['IAM Access Analyzer','IAM Policy Simulator','AWS Trusted Advisor','CloudTrail Insights'],ans:1,exp:'IAM Policy Simulator lets you test the effect of IAM policies against specific actions and resources before applying them to production.'},
+{id:20.1,domain:'secure',sub:'Encryption',q:'A security architect tells her team: "Even with perfect IAM configuration, we still need S3 encryption at rest." What specific threat does encryption at rest protect against that IAM controls cannot?',opts:['Unauthorized API calls from external attackers brute-forcing credentials','Someone gaining physical access to the underlying storage hardware and reading raw data directly','Accidental public bucket policies exposing objects to the internet','Cross-account access from a misconfigured resource-based policy'],ans:1,exp:'IAM controls logical access — it governs who can call AWS APIs. But your S3 data is physically written to hard drives in an AWS data center. If someone gains physical access to that hardware (a malicious insider, a stolen drive, a rogue data center employee), your IAM policy is irrelevant — they\'re not going through the API. Encryption at rest means the raw bytes on disk are unreadable ciphertext. Without the KMS key, the data is worthless even if you have the physical drive. This is why defense in depth requires both layers: access controls AND encryption.'},
 
 // ── RESILIENT (17) ──
 {id:21,domain:'resilient',sub:'Multi-AZ',q:'An RDS MySQL instance fails. What happens with Multi-AZ enabled?',opts:['AWS sends an alert; manual failover required','Automatic failover to standby in same AZ','Automatic failover to standby in different AZ within ~1-2 min','Read replica is promoted automatically'],ans:2,exp:'RDS Multi-AZ maintains a synchronous standby in a different AZ. Failover is automatic, typically completing in 1-2 minutes with no data loss.'},
@@ -344,7 +345,14 @@ Mental model: every applicable "fence" (SCP, permission boundary, session policy
 - SCPs never GRANT anything; they only cap what can be allowed — you still need an identity or resource policy to actually grant access
 - A permission boundary that "allows" S3 access does nothing on its own — boundaries restrict, they never substitute for an identity policy's grant
 - Inline policies live and die with the single identity they're attached to; managed policies are reusable, independently versioned, and shareable across many identities`},
-  {day:2,domain:'secure',title:'S3 Security & Encryption',content:`**Encryption at rest — know all four and when to use each:**
+  {day:2,domain:'secure',title:'S3 Security & Encryption',content:`**Why encryption exists alongside IAM — not instead of it:**
+- IAM answers: "Who is allowed to call AWS APIs?" — it controls logical access at the software layer
+- Encryption answers: "What happens if access controls are bypassed?" — it protects the data at the physical layer
+- Imagine your S3 bucket has a perfectly configured IAM policy: only authorized roles can read it. But that data is sitting on a physical hard drive in an AWS data center. If someone with physical access to that hardware acts maliciously — or credentials are stolen, or there's an insider threat at the infrastructure level — unencrypted data is fully readable by anyone who gets their hands on it
+- Encryption means the raw bytes on disk are unreadable ciphertext. Without the key, the data is worthless even if you have the physical drive
+- This is defense in depth: never rely on a single security layer. Access controls + encryption = compromising one layer doesn't expose data
+
+**Encryption at rest — know all four and when to use each:**
 - SSE-S3 (SSE-AES256): AWS owns and manages the keys; simplest option, encryption is automatic and free
 - SSE-KMS (SSE-KMS / aws:kms): keys live in AWS KMS — gives you an audit trail in CloudTrail, key rotation, and fine-grained key policies; can hit KMS request-rate quotas under heavy load
 - SSE-C: you supply your own encryption key with every request; S3 performs the encryption but never stores your key — you must keep track of it yourself or lose access permanently
@@ -1722,34 +1730,36 @@ function Sidebar({active,setActive,streak}){
   const examNav=NAV.filter(n=>n.group==='exam');
   const archNav=NAV.filter(n=>n.group==='arch');
   return(
-    <div className="hidden md:flex w-56 bg-white border-r border-slate-200 flex-col h-screen sticky top-0 shadow-sm">
-      <button onClick={()=>setActive('home')} className="p-4 border-b border-slate-100 text-left hover:bg-slate-50 transition-colors group">
-        <div className="text-indigo-600 font-bold text-base tracking-tight group-hover:text-indigo-700">AWS SAA-C03</div>
-        <div className="text-slate-400 text-xs mt-0.5 font-medium">Study Hub · Home</div>
+    <div className="hidden md:flex w-56 flex-col h-screen sticky top-0" style={{background:'#0f0a1e',borderRight:'1px solid rgba(139,92,246,0.15)'}}>
+      <button onClick={()=>setActive('home')} className="p-4 text-left transition-colors group" style={{borderBottom:'1px solid rgba(139,92,246,0.12)'}}>
+        <div className="font-bold text-base tracking-tight" style={{color:'#a78bfa'}}>AWS SAA-C03</div>
+        <div className="text-xs mt-0.5 font-medium" style={{color:'rgba(167,139,250,0.5)'}}>Study Hub · Home</div>
       </button>
       <nav className="flex-1 p-2 overflow-y-auto">
-        <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 pt-2 pb-1">SAA-C03 Exam</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest px-3 pt-2 pb-1" style={{color:'rgba(167,139,250,0.35)'}}>SAA-C03 Exam</div>
         <div className="space-y-0.5 mb-3">
           {examNav.map(n=>(
             <button key={n.id} onClick={()=>setActive(n.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-50 text-indigo-700 font-semibold shadow-sm':'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-              <span className={`text-sm ${active===n.id?'opacity-100':'opacity-50'}`}>{n.icon}</span>{n.label}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all"
+              style={active===n.id?{background:'rgba(139,92,246,0.2)',color:'#c4b5fd',fontWeight:600}:{color:'rgba(167,139,250,0.55)'}}>
+              <span className="text-sm" style={{opacity:active===n.id?1:0.6}}>{n.icon}</span>{n.label}
             </button>
           ))}
         </div>
-        <div className="border-t border-slate-100 pt-3">
-          <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest px-3 pb-1">Architect Mind</div>
+        <div className="pt-3" style={{borderTop:'1px solid rgba(139,92,246,0.12)'}}>
+          <div className="text-[10px] font-bold uppercase tracking-widest px-3 pb-1" style={{color:'rgba(52,211,153,0.4)'}}>Architect Mind</div>
           {archNav.map(n=>(
             <button key={n.id} onClick={()=>setActive(n.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-600 text-white font-semibold shadow-sm':'text-indigo-500 hover:text-indigo-800 hover:bg-indigo-50'}`}>
-              <span className={`text-sm ${active===n.id?'opacity-100':'opacity-60'}`}>{n.icon}</span>{n.label}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all"
+              style={active===n.id?{background:'rgba(52,211,153,0.15)',color:'#6ee7b7',fontWeight:600}:{color:'rgba(52,211,153,0.5)'}}>
+              <span className="text-sm" style={{opacity:active===n.id?1:0.6}}>{n.icon}</span>{n.label}
             </button>
           ))}
         </div>
       </nav>
-      <div className="p-4 border-t border-slate-100">
-        <div className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Streak</div>
-        <div className="text-slate-800 text-lg font-bold">{streak} <span className="text-base">🔥</span></div>
+      <div className="p-4" style={{borderTop:'1px solid rgba(139,92,246,0.12)'}}>
+        <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{color:'rgba(167,139,250,0.4)'}}>Streak</div>
+        <div className="text-lg font-bold" style={{color:'#c4b5fd'}}>{streak} <span className="text-base">🔥</span></div>
       </div>
     </div>
   );
@@ -1892,9 +1902,11 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}){
+function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,startTargeted}){
   const r=useMemo(()=>calcReadiness(quizHistory,examHistory,flashConf),[quizHistory,examHistory,flashConf]);
   const[lessonsRead]=useStore('lesson_read',[]);
+  const todayStr=today();
+
   const domainScores=useMemo(()=>{
     const scores={};
     Object.keys(DOMAINS).forEach(d=>{
@@ -1904,12 +1916,67 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
     return scores;
   },[quizHistory]);
 
+  const todayPlan=useMemo(()=>{
+    // Find weakest domain with enough data
+    const ranked=Object.entries(domainScores)
+      .filter(([,s])=>s.total>=3)
+      .map(([d,s])=>([d,pct(s.correct,s.total)]))
+      .sort(([,a],[,b])=>a-b);
+    const targetDomain=ranked[0]?ranked[0][0]:null;
+    const dueFlash=ALL_FLASH.filter(c=>{
+      const cv=(flashConf||[]).find(x=>x.id===c.id);
+      return !cv||!cv.nextReview||cv.nextReview<=todayStr;
+    }).length;
+    return{targetDomain,dueFlash};
+  },[domainScores,flashConf,todayStr]);
+
+  const hour=new Date().getHours();
+  const greeting=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+
   return(
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="pb-2">
-        <div className="text-slate-400 text-xs mb-1">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
-        <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'22ch'}}>AWS SAA-C03 Hub</h1>
-        <p className="text-slate-500 text-sm mt-1">Keep the streak going. You've got this.</p>
+    <div className="p-4 md:p-6 space-y-5">
+      {/* Today's Session */}
+      <div style={{background:'linear-gradient(135deg,#4f46e5,#7c3aed)',borderRadius:20,padding:20,color:'white',boxShadow:'0 8px 32px rgba(79,70,229,0.35)'}}>
+        <div className="flex items-start justify-between" style={{marginBottom:12}}>
+          <div>
+            <div style={{color:'rgba(199,210,254,0.8)',fontSize:11,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div>
+            <div style={{fontSize:20,fontWeight:800,color:'white'}}>{greeting}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.15)',borderRadius:12,padding:'6px 12px'}}>
+            <span style={{fontSize:18}}>🔥</span>
+            <span style={{fontWeight:800,fontSize:15}}>{streak}</span>
+            <span style={{color:'rgba(199,210,254,0.8)',fontSize:11}}>day streak</span>
+          </div>
+        </div>
+        <div style={{background:'rgba(255,255,255,0.12)',borderRadius:14,padding:16,marginBottom:14}}>
+          <div style={{color:'rgba(199,210,254,0.9)',fontSize:10,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Today's Session</div>
+          {todayPlan.targetDomain?(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'white'}}>
+                <span style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>1</span>
+                <span><strong>10 questions</strong> · {DOMAINS[todayPlan.targetDomain].label} <span style={{color:'rgba(199,210,254,0.7)'}}>(your weakest)</span></span>
+              </div>
+              {todayPlan.dueFlash>0&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'white'}}>
+                  <span style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>2</span>
+                  <span><strong>{Math.min(todayPlan.dueFlash,20)} flashcards</strong> <span style={{color:'rgba(199,210,254,0.7)'}}>· due for review</span></span>
+                </div>
+              )}
+              <div style={{color:'rgba(199,210,254,0.65)',fontSize:11,marginTop:2}}>~{todayPlan.dueFlash>0?'15':'8'} min total</div>
+            </div>
+          ):(
+            <div style={{fontSize:13,color:'white'}}>
+              {quizHistory.length===0
+                ?<span>Start with the <strong>gap assessment</strong> to build your plan</span>
+                :<span><strong>10 questions</strong> across all domains · ~8 min</span>}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={()=>todayPlan.targetDomain?startTargeted(todayPlan.targetDomain):setActive(quizHistory.length===0?'assessment':'quiz')}
+          style={{width:'100%',background:'white',color:'#4338ca',fontWeight:800,fontSize:14,padding:'12px 0',borderRadius:14,border:'none',cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>
+          {todayPlan.targetDomain?`Start: ${DOMAINS[todayPlan.targetDomain].label} session →`:"Start today's session →"}
+        </button>
       </div>
 
       <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate}/>
@@ -2350,6 +2417,7 @@ function Quiz({onAnswer,startDomain}){
   const[sessionResults,setSessionResults]=useState([]);
   const[recalled,setRecalled]=useState(false);
   const[timer,setTimer]=useState(30);
+  const[typed,setTyped]=useState('');
 
   const sessionIdRef=useRef(null);
 
@@ -2364,7 +2432,7 @@ function Quiz({onAnswer,startDomain}){
     sessionIdRef.current='q_'+Date.now();
     const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
     setSession(shuffle(pool).slice(0,10));
-    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);setRecalled(false);setTimer(30);
+    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);setRecalled(false);setTimer(30);setTyped('');
   };
 
   const isCorrectOpt=(q,i)=>Array.isArray(q.ans)?q.ans.includes(i):i===q.ans;
@@ -2388,7 +2456,7 @@ function Quiz({onAnswer,startDomain}){
   };
 
   const next=()=>{
-    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);setRecalled(false);setTimer(30);}
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);setRecalled(false);setTimer(30);setTyped('');}
     else setSession('done');
   };
 
@@ -2505,19 +2573,39 @@ function Quiz({onAnswer,startDomain}){
       </div>
       {!recalled&&selected===null?(
         <div className="space-y-3">
-          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-center">
-            <div className="text-indigo-700 font-bold text-sm mb-1">Active Recall</div>
-            <div className="text-slate-500 text-xs leading-relaxed">Try to retrieve the answer from memory before revealing the options. The timer pushes you to commit.</div>
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-3">
+            <div className="text-indigo-500 text-lg leading-none mt-0.5">✏</div>
+            <div>
+              <div className="text-indigo-700 font-bold text-sm mb-0.5">Write your answer first</div>
+              <div className="text-indigo-500 text-xs">Commit something before you see the options — even a few words. This is the recall.</div>
+            </div>
           </div>
-          <button onClick={()=>setRecalled(true)} className="w-full bg-indigo-600 text-white font-bold text-sm py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
-            I've recalled it — Reveal Options
+          <textarea
+            value={typed}
+            onChange={e=>setTyped(e.target.value)}
+            placeholder="Type your answer here..."
+            rows={3}
+            autoFocus
+            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 resize-none focus:border-indigo-400 focus:bg-indigo-50/30 transition-colors placeholder-slate-300"
+          />
+          <button
+            onClick={()=>setRecalled(true)}
+            disabled={typed.trim().length===0}
+            className={`w-full font-bold text-sm py-3.5 rounded-xl transition-colors shadow-sm ${typed.trim().length>0?'bg-indigo-600 text-white hover:bg-indigo-700':'bg-slate-100 text-slate-300 cursor-not-allowed'}`}>
+            Reveal Options →
           </button>
-          <button onClick={handleDontKnow} className="w-full text-sm px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+          <button onClick={handleDontKnow} className="w-full text-sm px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors">
             I don't know this one
           </button>
         </div>
       ):(
         <>
+          {typed&&selected===null&&(
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-3 flex items-start gap-2">
+              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wide mt-0.5 shrink-0">Your recall</span>
+              <span className="text-slate-600 text-sm italic leading-snug">{typed}</span>
+            </div>
+          )}
           <div className="space-y-2 mb-3">
             {q.opts.map((opt,i)=>{
               let cls='border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40';
@@ -2561,7 +2649,7 @@ function Quiz({onAnswer,startDomain}){
 }
 
 // ── Gap Assessment ────────────────────────────────────────────────────────────
-function GapAssessment({onAnswer,setActive}){
+function GapAssessment({onAnswer,setActive,startTargeted}){
   const[session]=useState(()=>{
     const byDomain=Object.keys(DOMAINS).map(d=>shuffle(QUESTIONS.filter(q=>q.domain===d)).slice(0,4));
     return shuffle(byDomain.flat()).slice(0,15);
@@ -2732,7 +2820,7 @@ function GapAssessment({onAnswer,setActive}){
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Next Step</div>
                 <h3 className="font-bold text-slate-800 mb-2">Fix your top gap now</h3>
                 <p className="text-slate-500 text-xs mb-4">Your first targeted session focuses on <strong>{DOMAINS[worst[0]].label}</strong> — your weakest domain.</p>
-                <button onClick={()=>setActive('quiz')} className="w-full bg-indigo-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+                <button onClick={()=>startTargeted?startTargeted(worst[0]):setActive('quiz')} className="w-full bg-indigo-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
                   Start first session →
                 </button>
               </div>
@@ -4076,6 +4164,9 @@ function App(){
   const[settings,setSettings]=useStore('settings',{targetDate:'',studyReminders:false,showExplanations:true,adaptiveQuiz:true});
   const[streak,setStreak]=useStore('streak',0);
   const[lastStudy,setLastStudy]=useStore('last_study','');
+  const[quizDomain,setQuizDomain]=useState('all');
+
+  const startTargeted=(domain)=>{setQuizDomain(domain||'all');setActive('quiz');};
 
   // Streak logic
   useEffect(()=>{
@@ -4097,13 +4188,13 @@ function App(){
   const renderPage=()=>{
     switch(active){
       case'home':return<Welcome setActive={setActive}/>;
-      case'assessment':return<GapAssessment onAnswer={a=>setQuizHistory(h=>[...h,a])} setActive={setActive}/>;
-      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
+      case'assessment':return<GapAssessment onAnswer={a=>setQuizHistory(h=>[...h,a])} setActive={setActive} startTargeted={startTargeted}/>;
+      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings} startTargeted={startTargeted}/>;
       case'architect':return<ArchitectMind/>;
       case'labs':return<ConsoleLabs/>;
       case'learn':return<Learn/>;
       case'lesson':return<Lesson/>;
-      case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
+      case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])} startDomain={quizDomain}/>;
       case'flashcards':return<Flashcards/>;
       case'vocab':return<Vocab/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
