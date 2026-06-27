@@ -1911,11 +1911,14 @@ function calcReadiness(quizHistory,examHistory,flashConf){
   return{total,examPct,quizPct,flashPct,covPct,byDomain,hasExam,avgExam,known,tried};
 }
 
-function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
+function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate,readinessHistory}){
   const col=r.total>=80?'#10b981':r.total>=65?'#6366f1':r.total>=40?'#f59e0b':'#94a3b8';
   const msg=r.total>=80?'Ready to book!':r.total>=65?'Almost there':r.total>=40?'Keep going':'Just getting started';
   let days=null;
   if(targetDate){const d=Math.ceil((new Date(targetDate)-new Date())/86400000);if(d>0)days=d;}
+  const snaps=readinessHistory||[];
+  const lastSnap=snaps.length>=2?snaps[snaps.length-2]:null;
+  const trend=lastSnap!==null?r.total-lastSnap.total:null;
   const weakest=Object.entries(r.byDomain).filter(([,v])=>v.total>=5).sort(([,a],[,b])=>(a.pct??100)-(b.pct??100))[0];
   const tiles=[
     {lbl:'Practice Exams',val:r.hasExam?`${r.examPct}%`:'—',sub:r.hasExam?`avg ${r.avgExam}% · last ${Math.min(5,examHistory.length)} exam${Math.min(5,examHistory.length)>1?'s':''}`:'Take one to unlock score',id:'exam',good:r.examPct>=75},
@@ -1934,7 +1937,17 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
       <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:12}}>
         <span style={{fontSize:52,fontWeight:900,lineHeight:1,letterSpacing:'-0.04em',color:col}}>{r.total}</span>
         <div style={{marginBottom:6}}>
-          <span style={{fontSize:18,fontWeight:700,color:'#3f3f46'}}>%</span>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:18,fontWeight:700,color:'#3f3f46'}}>%</span>
+            {trend!==null&&trend!==0&&(
+              <span style={{fontSize:11,fontWeight:700,color:trend>0?'#22c55e':'#ef4444',letterSpacing:'0.02em'}}>
+                {trend>0?`↑${trend}%`:`↓${Math.abs(trend)}%`}
+              </span>
+            )}
+            {trend===0&&snaps.length>=2&&(
+              <span style={{fontSize:10,fontWeight:600,color:'#3f3f46'}}>→ no change</span>
+            )}
+          </div>
           <div style={{fontSize:11,color:'#52525b',fontWeight:500,marginTop:2}}>{msg}</div>
         </div>
       </div>
@@ -1979,7 +1992,7 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,startTargeted,gapReport}){
+function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,startTargeted,gapReport,readinessHistory}){
   const r=useMemo(()=>calcReadiness(quizHistory,examHistory,flashConf),[quizHistory,examHistory,flashConf]);
   const[lessonsRead]=useStore('lesson_read',[]);
   const todayStr=today();
@@ -2063,7 +2076,7 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,
         </button>
       </div>
 
-      <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate}/>
+      <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate} readinessHistory={readinessHistory}/>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderTop:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',marginBottom:0}}>
         {[
@@ -2506,7 +2519,7 @@ function Lesson(){
 }
 
 // ── Quiz ──────────────────────────────────────────────────────────────────────
-function Quiz({onAnswer,startDomain}){
+function Quiz({onAnswer,startDomain,quizHistory,examHistory,flashConf,skillMap,onSessionComplete}){
   const[domain,setDomain]=useState(startDomain||'all');
   const[session,setSession]=useState(null);
   const[idx,setIdx]=useState(0);
@@ -2518,6 +2531,7 @@ function Quiz({onAnswer,startDomain}){
   const[typed,setTyped]=useState('');
 
   const sessionIdRef=useRef(null);
+  const preReadinessRef=useRef(null);
 
   useEffect(()=>{
     if(!session||session==='done'||recalled||selected!==null)return;
@@ -2526,10 +2540,27 @@ function Quiz({onAnswer,startDomain}){
     return()=>clearInterval(iv);
   },[idx,recalled,session,selected]);
 
+  // Snapshot readiness when session completes
+  useEffect(()=>{
+    if(session!=='done'||!onSessionComplete)return;
+    const postR=calcReadiness(quizHistory||[],examHistory||[],flashConf||[]);
+    onSessionComplete({date:today(),ts:Date.now(),total:postR.total,byDomain:postR.byDomain,preTotal:preReadinessRef.current});
+  },[session]);
+
   const startQuiz=()=>{
     sessionIdRef.current='q_'+Date.now();
-    const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
-    setSession(shuffle(pool).slice(0,10));
+    // Capture readiness before this session's answers land
+    preReadinessRef.current=calcReadiness(quizHistory||[],examHistory||[],flashConf||[]).total;
+    // Adaptive pool: weight toward unseen + wrong questions
+    const rawPool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
+    const sm=skillMap||{};
+    const scored=rawPool.map(q=>{
+      const sk=sm[q.id];
+      if(!sk||!sk.lastSeen)return{q,score:50};
+      return{q,score:(sk.wrong||0)*3-(sk.correct||0)*1.5};
+    }).sort((a,b)=>b.score-a.score);
+    const top=scored.slice(0,Math.min(20,scored.length)).map(x=>x.q);
+    setSession(shuffle(top).slice(0,10));
     setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);setRecalled(false);setTimer(30);setTyped('');
   };
 
@@ -2590,7 +2621,6 @@ function Quiz({onAnswer,startDomain}){
   if(session==='done'){
     const correct=sessionResults.filter(r=>r.correct).length;
     const missed=sessionResults.filter(r=>!r.correct);
-    // Group missed by subtopic
     const bySubtopic={};
     missed.forEach(r=>{
       const key=`${r.sub}||${r.domain}`;
@@ -2599,12 +2629,31 @@ function Quiz({onAnswer,startDomain}){
     });
     const acc=correct>=7?'#22c55e':correct>=5?'#f59e0b':'#ef4444';
     const dAcc={secure:'#22c55e',resilient:'#38bdf8',performing:'#f59e0b',cost:'#a78bfa'};
+    const postR=calcReadiness(quizHistory||[],examHistory||[],flashConf||[]);
+    const preTotal=preReadinessRef.current;
+    const rDelta=preTotal!==null?postR.total-preTotal:null;
+    const toPass=Math.max(0,72-postR.total);
     return(
       <div style={{padding:'24px',maxWidth:580}}>
         <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:16,letterSpacing:'-0.01em'}}>Results</h1>
         <div style={{background:'#111113',border:`1px solid ${acc}33`,borderRadius:10,padding:24,marginBottom:12,textAlign:'center'}}>
           <div style={{fontSize:52,fontWeight:900,color:acc,letterSpacing:'-0.04em',lineHeight:1}}>{correct}/10</div>
-          <div style={{fontSize:13,color:acc,fontWeight:600,marginTop:6,marginBottom:16}}>{pct(correct,10)}% · {correct>=7?'Great work! 🎉':correct>=5?'Getting there 💪':'Keep studying 📚'}</div>
+          <div style={{fontSize:13,color:acc,fontWeight:600,marginTop:6,marginBottom:12}}>{pct(correct,10)}% · {correct>=7?'Great work!':correct>=5?'Getting there':'Keep studying'}</div>
+          {rDelta!==null&&(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:14,padding:'10px 16px',background:'rgba(255,255,255,0.03)',borderRadius:6,flexWrap:'wrap'}}>
+              <span style={{fontSize:10,color:'#52525b',fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase'}}>Exam Readiness</span>
+              <span style={{fontSize:13,fontWeight:800,color:'#71717a'}}>{preTotal}%</span>
+              <span style={{fontSize:11,color:'#3f3f46'}}>→</span>
+              <span style={{fontSize:13,fontWeight:800,color:postR.total>=(preTotal||0)?'#22c55e':'#ef4444'}}>{postR.total}%</span>
+              <span style={{fontSize:11,fontWeight:700,color:rDelta>0?'#22c55e':rDelta<0?'#ef4444':'#52525b'}}>
+                {rDelta>0?`+${rDelta}%`:rDelta<0?`${rDelta}%`:'no change'}
+              </span>
+              <span style={{fontSize:10,color:'#3f3f46'}}>·</span>
+              <span style={{fontSize:10,color:toPass===0?'#22c55e':'#52525b',fontWeight:600}}>
+                {toPass===0?'Goal reached! ✓':`${toPass}% to pass (72% goal)`}
+              </span>
+            </div>
+          )}
           <div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:8,marginBottom:18}}>
             {Object.keys(DOMAINS).map(d=>{
               const dr=sessionResults.filter(r=>r.domain===d);
@@ -4264,8 +4313,22 @@ function App(){
   const[lastStudy,setLastStudy]=useStore('last_study','');
   const[quizDomain,setQuizDomain]=useState('all');
   const[gapReport,setGapReport]=useStore('gap_report',null);
+  const[skillMap,setSkillMap]=useStore('skill_map',{});
+  const[readinessHistory,setReadinessHistory]=useStore('readiness_history',[]);
 
   const startTargeted=(domain)=>{setQuizDomain(domain||'all');setActive('quiz');};
+
+  // Updates both quizHistory and per-question skillMap on every answer
+  const handleQuizAnswer=(a)=>{
+    setQuizHistory(h=>[...h,a]);
+    setSkillMap(m=>{
+      const p=m[a.qid]||{correct:0,wrong:0,streak:0,lastResult:null,lastSeen:0};
+      const s=a.correct?(p.streak>0?p.streak+1:1):(p.streak<0?p.streak-1:-1);
+      return{...m,[a.qid]:{correct:p.correct+(a.correct?1:0),wrong:p.wrong+(a.correct?0:1),lastResult:a.correct,lastSeen:a.ts,streak:s}};
+    });
+  };
+  // Saves a readiness snapshot after each quiz session
+  const handleSessionComplete=(snap)=>{setReadinessHistory(h=>[...h,snap])};
 
   // Streak logic
   useEffect(()=>{
@@ -4278,22 +4341,22 @@ function App(){
   },[]);
 
   const handleReset=()=>{
-    ['quiz_history','exam_history','flash_conf','notes','lesson_read','gap_report'].forEach(k=>{
+    ['quiz_history','exam_history','flash_conf','notes','lesson_read','gap_report','skill_map','readiness_history'].forEach(k=>{
       window.storage?window.storage.setItem(k,'null'):localStorage.setItem(k,'null');
     });
-    setQuizHistory([]);setExamHistory([]);setStreak(0);setGapReport(null);
+    setQuizHistory([]);setExamHistory([]);setStreak(0);setGapReport(null);setSkillMap({});setReadinessHistory([]);
   };
 
   const renderPage=()=>{
     switch(active){
       case'home':return<Welcome setActive={setActive}/>;
-      case'assessment':return<GapAssessment onAnswer={a=>setQuizHistory(h=>[...h,a])} setActive={setActive} startTargeted={startTargeted} setGapReport={setGapReport}/>;
-      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings} startTargeted={startTargeted} gapReport={gapReport}/>;
+      case'assessment':return<GapAssessment onAnswer={handleQuizAnswer} setActive={setActive} startTargeted={startTargeted} setGapReport={setGapReport}/>;
+      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings} startTargeted={startTargeted} gapReport={gapReport} readinessHistory={readinessHistory}/>;
       case'architect':return<ArchitectMind/>;
       case'labs':return<ConsoleLabs/>;
       case'learn':return<Learn/>;
       case'lesson':return<Lesson/>;
-      case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])} startDomain={quizDomain}/>;
+      case'quiz':return<Quiz onAnswer={handleQuizAnswer} startDomain={quizDomain} quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} skillMap={skillMap} onSessionComplete={handleSessionComplete}/>;
       case'flashcards':return<Flashcards/>;
       case'vocab':return<Vocab/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
