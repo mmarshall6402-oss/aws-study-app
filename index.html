@@ -12,7 +12,7 @@
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:local('IBM Plex Mono'),local('IBMPlexMono')}
 *{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif;box-sizing:border-box}
 code,kbd,pre,.mono{font-family:'IBM Plex Mono','Fira Code',Consolas,monospace!important}
-body{background:#f1f5f9}
+body{background:#f5f3ff}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 textarea:focus{outline:none}
 input:focus{outline:none}
@@ -73,9 +73,10 @@ const QUESTIONS=[
 {id:15,domain:'secure',sub:'Network',q:'An application needs protection against infrastructure-layer DDoS attacks at no extra cost. Which service provides this automatically?',opts:['AWS WAF','AWS Shield Standard','AWS Shield Advanced','AWS Firewall Manager'],ans:1,exp:'Shield Standard is automatically enabled for all AWS accounts at no cost and protects against common Layer 3/4 DDoS attacks.'},
 {id:16,domain:'secure',sub:'Encryption',q:'Which service provides dedicated hardware security modules (HSMs) under your exclusive control for regulatory requirements?',opts:['AWS KMS','AWS CloudHSM','AWS Secrets Manager','AWS Certificate Manager'],ans:1,exp:'CloudHSM provides FIPS 140-2 Level 3 validated HSMs in a single-tenant environment. KMS is multi-tenant. CloudHSM gives you full key control.'},
 {id:17,domain:'secure',sub:'IAM',q:'A role has a permission boundary that allows S3:* and EC2:*. The role\'s identity policy allows S3:*, EC2:*, and RDS:*. What can the role do?',opts:['S3, EC2, and RDS — identity policy wins','S3 and EC2 only — intersection of both policies','Nothing — conflicting policies cancel out','RDS only — most restrictive wins'],ans:1,exp:'Permission boundaries set the maximum permissions. The effective permission is the intersection: what both the identity policy AND boundary allow. RDS is outside the boundary.'},
-{id:18,domain:'secure',sub:'S3',q:'How should you ensure all objects uploaded to S3 are encrypted at rest, even if the uploader forgets to specify encryption?',opts:['Enable bucket versioning','Set default encryption on the bucket','Use a bucket policy that denies unencrypted uploads','Both B and C'],ans:3,exp:'Default bucket encryption auto-encrypts objects missing encryption headers. A deny policy for s3:x-amz-server-side-encryption ensures clients can\'t bypass it.'},
+{id:18,domain:'secure',sub:'S3',q:'How should you ensure all objects uploaded to S3 are encrypted at rest, even if the uploader forgets to specify encryption?',opts:['Enable bucket versioning','Set default encryption on the bucket','Use a bucket policy that denies unencrypted uploads','Both B and C'],ans:3,exp:'IAM controls who can access your data, but encryption protects the data itself if access controls are ever bypassed. Default bucket encryption (B) auto-encrypts any object whose PUT request is missing an encryption header — zero developer action required. But default encryption alone can be worked around if a client explicitly sends unencrypted data. A bucket policy denying requests without s3:x-amz-server-side-encryption (C) closes that gap. Together they guarantee encryption at rest regardless of what the uploader does.'},
 {id:19,domain:'secure',sub:'Network',q:'A company runs a web app behind an ALB. They want to block SQL injection attacks. What should they implement?',opts:['Security Groups with deep packet inspection','AWS WAF with SQL injection match rules','Network ACLs with payload filtering','AWS Shield Advanced'],ans:1,exp:'WAF operates at Layer 7 and can inspect HTTP request bodies, headers, and query strings for SQL injection patterns. Security groups and NACLs are Layer 3/4 only.'},
 {id:20,domain:'secure',sub:'IAM',q:'Which IAM feature lets you test what actions a principal can perform without actually making API calls?',opts:['IAM Access Analyzer','IAM Policy Simulator','AWS Trusted Advisor','CloudTrail Insights'],ans:1,exp:'IAM Policy Simulator lets you test the effect of IAM policies against specific actions and resources before applying them to production.'},
+{id:20.1,domain:'secure',sub:'Encryption',q:'A security architect tells her team: "Even with perfect IAM configuration, we still need S3 encryption at rest." What specific threat does encryption at rest protect against that IAM controls cannot?',opts:['Unauthorized API calls from external attackers brute-forcing credentials','Someone gaining physical access to the underlying storage hardware and reading raw data directly','Accidental public bucket policies exposing objects to the internet','Cross-account access from a misconfigured resource-based policy'],ans:1,exp:'IAM controls logical access — it governs who can call AWS APIs. But your S3 data is physically written to hard drives in an AWS data center. If someone gains physical access to that hardware (a malicious insider, a stolen drive, a rogue data center employee), your IAM policy is irrelevant — they\'re not going through the API. Encryption at rest means the raw bytes on disk are unreadable ciphertext. Without the KMS key, the data is worthless even if you have the physical drive. This is why defense in depth requires both layers: access controls AND encryption.'},
 
 // ── RESILIENT (17) ──
 {id:21,domain:'resilient',sub:'Multi-AZ',q:'An RDS MySQL instance fails. What happens with Multi-AZ enabled?',opts:['AWS sends an alert; manual failover required','Automatic failover to standby in same AZ','Automatic failover to standby in different AZ within ~1-2 min','Read replica is promoted automatically'],ans:2,exp:'RDS Multi-AZ maintains a synchronous standby in a different AZ. Failover is automatic, typically completing in 1-2 minutes with no data loss.'},
@@ -344,7 +345,14 @@ Mental model: every applicable "fence" (SCP, permission boundary, session policy
 - SCPs never GRANT anything; they only cap what can be allowed — you still need an identity or resource policy to actually grant access
 - A permission boundary that "allows" S3 access does nothing on its own — boundaries restrict, they never substitute for an identity policy's grant
 - Inline policies live and die with the single identity they're attached to; managed policies are reusable, independently versioned, and shareable across many identities`},
-  {day:2,domain:'secure',title:'S3 Security & Encryption',content:`**Encryption at rest — know all four and when to use each:**
+  {day:2,domain:'secure',title:'S3 Security & Encryption',content:`**Why encryption exists alongside IAM — not instead of it:**
+- IAM answers: "Who is allowed to call AWS APIs?" — it controls logical access at the software layer
+- Encryption answers: "What happens if access controls are bypassed?" — it protects the data at the physical layer
+- Imagine your S3 bucket has a perfectly configured IAM policy: only authorized roles can read it. But that data is sitting on a physical hard drive in an AWS data center. If someone with physical access to that hardware acts maliciously — or credentials are stolen, or there's an insider threat at the infrastructure level — unencrypted data is fully readable by anyone who gets their hands on it
+- Encryption means the raw bytes on disk are unreadable ciphertext. Without the key, the data is worthless even if you have the physical drive
+- This is defense in depth: never rely on a single security layer. Access controls + encryption = compromising one layer doesn't expose data
+
+**Encryption at rest — know all four and when to use each:**
 - SSE-S3 (SSE-AES256): AWS owns and manages the keys; simplest option, encryption is automatic and free
 - SSE-KMS (SSE-KMS / aws:kms): keys live in AWS KMS — gives you an audit trail in CloudTrail, key rotation, and fine-grained key policies; can hit KMS request-rate quotas under heavy load
 - SSE-C: you supply your own encryption key with every request; S3 performs the encryption but never stores your key — you must keep track of it yourself or lose access permanently
@@ -1232,6 +1240,255 @@ const ARCH_SCENARIOS=[
   },
 ];
 
+// ── Console Labs Data ─────────────────────────────────────────────────────────
+const CONSOLE_LABS=[
+  {
+    id:'cl1',
+    tag:'Startup',
+    title:'Host a Static Marketing Site (and break it first)',
+    difficulty:1,
+    services:['S3','CloudFront','OAC'],
+    timeEstimate:'60–75 min',
+    businessContext:"RetailCo just hired you as their first cloud engineer. The marketing team needs their static site live by Monday — it's just HTML, CSS, and a logo. Your manager says 'just put it on S3 and make it public.' You'll do exactly that. Then you'll show them why it's a security mistake and fix it the right way with CloudFront + OAC. By the end, the bucket will be 100% private and the site will still be live.",
+    phases:[
+      {
+        id:'p0',
+        name:'Before You Touch Anything — Billing Alarm',
+        type:'fix',
+        examConcept:'CloudWatch Billing alarms are a foundational account hygiene step. The exam does not test this directly, but every real-world cloud job expects it. AWS bills you even for accidental resources left running.',
+        steps:[
+          {n:1,text:'Top-right corner of the console → click your account name → Billing and Cost Management.'},
+          {n:2,text:'Left sidebar → Budgets → Create budget.'},
+          {n:3,text:'Choose "Use a template" → select "Zero spend budget". This alerts you the moment ANY charge appears. Click Next → Next → Create budget.'},
+          {n:4,text:'You will get an email alert the first time AWS charges you even one cent. This is your safety net for this entire lab series.',tip:'Alternatively set a $5 Monthly cost budget if you plan to use resources regularly. Either is fine — the point is you have a warning before a surprise bill.'},
+        ]
+      },
+      {
+        id:'p1',
+        name:'Phase 1 — Lock In Your Region',
+        type:'fix',
+        examConcept:'S3 is a global service but buckets are regional. CloudFront is always global. Working from a single region (us-east-1) prevents the #1 beginner confusion: "why can\'t I see my bucket?" — because you are in the wrong region.',
+        steps:[
+          {n:1,text:'Top-right of the console — the region dropdown. Set it to US East (N. Virginia) — us-east-1. Leave it here for every lab unless told otherwise.'},
+          {n:2,text:'Bookmark the S3 console URL: https://s3.console.aws.amazon.com/s3/home. S3 is global so region does not appear in this URL — that is normal.'},
+        ]
+      },
+      {
+        id:'p2',
+        name:'Phase 2 — Create the Bucket and Upload Your File',
+        type:'wrong',
+        examConcept:'S3 bucket names are globally unique across all AWS accounts worldwide. If "retailco-site" exists anywhere on AWS, you cannot use it. Bucket names also cannot be changed after creation — get the name right. The exam tests bucket naming rules (lowercase, no underscores, 3–63 chars).',
+        steps:[
+          {n:1,text:'S3 console → orange "Create bucket" button.'},
+          {n:2,text:'Bucket name: yourname-retailco-site (e.g. jsmith-retailco-site). Must be globally unique — add your initials or a random number if needed. All lowercase, no underscores.'},
+          {n:3,text:'AWS Region: US East (us-east-1). Leave this as-is.'},
+          {n:4,text:'Scroll to "Block Public Access settings for this bucket." You will see 4 checkboxes, all checked by default. LEAVE THEM ALL CHECKED for now. Do not touch them yet.'},
+          {n:5,text:'Leave all other settings as default. Scroll to the bottom → "Create bucket". You should see a green success banner.'},
+          {n:6,text:'Create a file on your computer called index.html. Open Notepad or any text editor. Paste exactly this:\n<!DOCTYPE html>\n<html>\n<body>\n<h1>RetailCo is live</h1>\n</body>\n</html>\nSave it as index.html.'},
+          {n:7,text:'Click your new bucket name in the S3 list. Click "Upload" → "Add files" → select your index.html → "Upload". Wait for the green "Upload succeeded" banner.'},
+          {n:8,text:'Click the index.html filename to open its details. Click the "Object URL" — a link that looks like https://s3.amazonaws.com/yourbucket/index.html. Open it in a new tab.',warn:'You will get "Access Denied." This is correct and expected. The object is private by default. Screenshot this error — you will compare it to the result after Phase 3 and Phase 4. This is what S3 looks like when it is working safely.'},
+        ]
+      },
+      {
+        id:'p3',
+        name:'Phase 3 — The Wrong Way: Make It Public',
+        type:'wrong',
+        examConcept:'Principal: * in a bucket policy means every human, bot, and scraper on the internet can read every object. "Block Public Access" is a guardrail that prevents this. Turning it off is permanent until you turn it back on — and it applies to ALL objects, not just index.html. The exam loves testing what happens when you forget to re-enable it.',
+        steps:[
+          {n:1,text:'Click your bucket → Properties tab → scroll all the way down to "Static website hosting" → Edit.'},
+          {n:2,text:'Enable → set Index document to: index.html → Save changes. A new "Bucket website endpoint" URL will appear at the bottom of the Static website hosting section. Copy it. Do NOT visit it yet.'},
+          {n:3,text:'Permissions tab → "Block public access" → Edit. Uncheck "Block all public access." A warning box appears — check the "I acknowledge" checkbox → Save changes → type "confirm" → Confirm.'},
+          {n:4,text:'Permissions tab → "Bucket policy" → Edit. Paste the following (replace YOUR-BUCKET-NAME with your actual bucket name):\n{\n  "Version": "2012-10-17",\n  "Statement": [\n    {\n      "Effect": "Allow",\n      "Principal": "*",\n      "Action": "s3:GetObject",\n      "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*"\n    }\n  ]\n}\nClick Save changes.',warn:'Read that policy out loud: "Allow anyone (*) to GetObject on everything in this bucket." That includes any file you ever upload here — env files, config backups, credentials you accidentally drag in. This is how real data leaks happen. The site works, but it is not production-safe.'},
+          {n:5,text:'Now visit the Bucket website endpoint URL you copied in step 2. Your site loads. This is what your manager asked for.'},
+          {n:6,text:'Try appending /index.html to the Object URL (the s3.amazonaws.com one). That also loads now. You have exposed every object.'},
+          {n:7,text:'Stop here. Before moving on, say out loud: "Principal star means anyone. This bucket has no door." Then continue to Phase 4.'},
+        ]
+      },
+      {
+        id:'p4',
+        name:'Phase 4 — Fix It: CloudFront + Origin Access Control',
+        type:'fix',
+        examConcept:'Origin Access Control (OAC) replaced the legacy Origin Access Identity (OAI) in 2022. OAC uses SigV4 signing — CloudFront authenticates itself to S3 on every request. The bucket stays PRIVATE. The exam will show you OAI questions (it still appears) — know that OAC is the current recommended approach and OAI is legacy.',
+        steps:[
+          {n:1,text:'First, lock the bucket back down. S3 → your bucket → Permissions → Block Public Access → Edit. Check "Block all public access" → Save → type confirm → Confirm.'},
+          {n:2,text:'Permissions → Bucket policy → Edit → select all the policy text → delete it → Save changes. Bucket is now fully private again. The website endpoint is broken. Good.'},
+          {n:3,text:'Open the CloudFront console (search "CloudFront" in the top search bar). Click "Create a CloudFront distribution."'},
+          {n:4,text:'Origin domain: click the text field — a dropdown appears with your S3 buckets. Select your bucket (it will look like yourbucket.s3.amazonaws.com). Do NOT type the static website endpoint URL — use the bucket origin, not the website endpoint.'},
+          {n:5,text:'Origin access: select "Origin access control settings (recommended)." A new field appears. Click "Create new OAC." In the popup: name it (default is fine), leave Signing behavior as "Sign requests." Click Create.'},
+          {n:6,text:'A yellow banner appears at the top: "You must update the S3 bucket policy." Click "Copy policy." Open a Notepad and paste it so you can read it — notice it has a Condition on aws:SourceArn that ties this permission to THIS specific CloudFront distribution. That is the security difference from Principal *.'},
+          {n:7,text:'Keep the CloudFront tab open. New tab → S3 → your bucket → Permissions → Bucket policy → Edit → paste the policy you just copied → Save changes.'},
+          {n:8,text:'Back in CloudFront. Scroll down to "Default root object." Type: index.html. This is what CloudFront serves when someone hits the root URL with no path.'},
+          {n:9,text:'Viewer protocol policy: select "Redirect HTTP to HTTPS." This means anyone who types http:// gets silently upgraded to https://. Production-correct.'},
+          {n:10,text:'Leave everything else as default. Scroll to the bottom → "Create distribution." Status shows "Deploying." Wait 3–5 minutes.'},
+          {n:11,text:'Once status shows a date instead of "Deploying," copy the Distribution domain name (format: xxxxxxxxxxxx.cloudfront.net). Open it in a browser.'},
+          {n:12,text:'Your site loads over HTTPS through CloudFront.',tip:'Now test the proof: visit the old S3 website endpoint URL → you should see 403 Forbidden (bucket is private). Visit the direct object URL → 403 Forbidden. Only the CloudFront URL works. The bucket has one and only one reader: your CloudFront distribution.'},
+        ]
+      },
+      {
+        id:'teardown',
+        name:'Teardown — Do This Before You Close the Tab',
+        type:'teardown',
+        examConcept:'CloudFront charges per request and per GB transferred. A distribution sitting idle with low traffic costs very little, but any distribution you forget about adds up. Free tier: 1TB transfer + 10M requests/month for the first 12 months.',
+        steps:[
+          {n:1,text:'CloudFront console → Distributions → select your distribution → click "Disable." Confirm. Status changes to "Disabling" then "Disabled." Takes 2–5 minutes.'},
+          {n:2,text:'Once Disabled: select it again → Delete → confirm. Distribution is gone.'},
+          {n:3,text:'S3 console → click your bucket → check the checkbox next to index.html → Delete → type "permanently delete" → Delete objects.'},
+          {n:4,text:'Back to bucket list → check the checkbox next to your bucket → Delete → type your bucket name → Delete bucket.'},
+          {n:5,text:'Confirm: CloudFront console shows no distributions. S3 console shows no buckets (or just buckets you created before this lab). You owe AWS nothing for this lab.'},
+        ]
+      }
+    ]
+  },
+  {
+    id:'cl2',
+    tag:'Startup',
+    title:'Launch an EC2 Web Server (and expose it too broadly first)',
+    difficulty:1,
+    services:['EC2','Security Groups','IAM','SSM'],
+    timeEstimate:'45–60 min',
+    businessContext:"DevCo needs a web server for an internal demo this week. You are going to launch an EC2 instance, install a web server, and serve a page. First you will do it the lazy way — a security group open to the entire internet. Then you will fix it. By the end you will understand exactly why 'open security group' is the #1 finding in every cloud security audit.",
+    phases:[
+      {
+        id:'p0',
+        name:'Before You Start — Understand the Default VPC',
+        type:'fix',
+        examConcept:'AWS creates a default VPC in every region with public subnets, an Internet Gateway, and a default route table pre-configured. It exists so beginners can launch EC2 without understanding networking. The exam tests that you know it exists and that production workloads should use custom VPCs — but for this lab the default VPC is fine.',
+        steps:[
+          {n:1,text:'VPC console → Your VPCs. You will see a VPC named "—" with a checkmark in the "Default VPC" column. That is the default VPC. Note its CIDR: 172.31.0.0/16.'},
+          {n:2,text:'Subnets — filter by the default VPC. You will see one subnet per Availability Zone (usually 3–6 subnets). Each one already has "Auto-assign public IPv4 address" enabled — that is why EC2 instances launched here automatically get a public IP.'},
+          {n:3,text:'You do not need to touch any of this. The default VPC is ready. Knowing it is there and what it contains is the point.'},
+        ]
+      },
+      {
+        id:'p1',
+        name:'Phase 1 — The Wrong Way: Launch with an Open Security Group',
+        type:'wrong',
+        examConcept:'Security groups are STATEFUL — if you allow inbound port 80, the return traffic is automatically allowed without needing an outbound rule. They are allow-only — you cannot write an explicit Deny. The exam distinguishes this from NACLs (stateless, can Deny, applied at subnet level). Open-to-all (0.0.0.0/0) on port 22 is the single most common finding in cloud security audits.',
+        steps:[
+          {n:1,text:'EC2 console → orange "Launch instance" button.'},
+          {n:2,text:'Name: demo-web-server'},
+          {n:3,text:'Application and OS Images: "Amazon Linux" should already be selected (orange logo). Make sure "Amazon Linux 2023 AMI" is chosen — it says "Free tier eligible."'},
+          {n:4,text:'Instance type: t2.micro (Free tier eligible). If t2.micro is not available in your region, use t3.micro — still free tier.'},
+          {n:5,text:'Key pair: "Create new key pair." Name: demo-key. Key pair type: RSA. Private key file format: .pem (for Mac/Linux) or .ppk (for PuTTY on Windows). Click "Create key pair." It downloads automatically. Note where it saved — you cannot download it again ever.'},
+          {n:6,text:'Network settings → click "Edit." VPC: default. Subnet: pick any one that says "Default subnet." Auto-assign public IP: Enable.'},
+          {n:7,text:'Firewall (security groups) → "Create security group." Name: demo-sg-wrong. Description: open for demo.',warn:'Add an inbound rule: Type = All traffic, Source type = Anywhere, Source = 0.0.0.0/0. This opens every port (0–65535) from every IP on the internet to this instance. This is the pattern seen in compromised accounts. Do it intentionally so you know what it looks like — then you will fix it.'},
+          {n:8,text:'Configure storage: leave at 8 GiB gp3. Do not change anything.'},
+          {n:9,text:'Click "Launch instance." Green success banner. Click the instance ID link.'},
+          {n:10,text:'Wait for Instance state = "Running" and Status checks = "2/2 checks passed." This takes 60–90 seconds. Refresh the page.'},
+          {n:11,text:'Note the Public IPv4 address (format: 3.x.x.x or 54.x.x.x). Copy it.'},
+          {n:12,text:'Open your terminal (Mac: Terminal app, Windows: PowerShell or Git Bash). Run:\nchmod 400 ~/Downloads/demo-key.pem\nssh -i ~/Downloads/demo-key.pem ec2-user@YOUR-PUBLIC-IP\nType "yes" when asked about the fingerprint. You are now inside the EC2 instance.'},
+          {n:13,text:'Install Apache web server:\nsudo dnf install -y httpd\nsudo systemctl start httpd\nsudo systemctl enable httpd\necho "<h1>DevCo Demo Server</h1>" | sudo tee /var/www/html/index.html'},
+          {n:14,text:'Open a browser and go to http://YOUR-PUBLIC-IP (HTTP, not HTTPS). You should see "DevCo Demo Server." HTTP works because your security group allows all traffic on all ports.'},
+        ]
+      },
+      {
+        id:'p2',
+        name:'Phase 2 — Fix It: Least Privilege Security Group + Instance Role',
+        type:'fix',
+        examConcept:'Least privilege at the network layer: port 22 (SSH) should only be reachable from your IP, not 0.0.0.0/0. Port 80 is intentionally public for a web server. An EC2 instance role (attached via IAM) gives the instance AWS permissions without hardcoding access keys anywhere — this is the exam\'s preferred pattern over storing credentials on the instance.',
+        steps:[
+          {n:1,text:'EC2 console → Instances → select your instance → Security tab → click the security group name (demo-sg-wrong). This opens the security group.'},
+          {n:2,text:'Inbound rules tab → Edit inbound rules.'},
+          {n:3,text:'Delete the "All traffic / 0.0.0.0/0" rule by clicking the X on the right.'},
+          {n:4,text:'Add rule: Type = HTTP, Protocol = TCP, Port = 80, Source = Anywhere-IPv4 (0.0.0.0/0). This allows the web server to be publicly reachable — intentional for a demo web server.'},
+          {n:5,text:'Add rule: Type = SSH, Protocol = TCP, Port = 22, Source = My IP. AWS will auto-fill your current public IP address. This locks SSH to only your machine — if someone else tries to SSH from a different IP, they get a connection timeout.',tip:'In a real production environment you would go further: delete the SSH rule entirely and use AWS Systems Manager Session Manager for shell access. No port 22, no key pair needed, every command logged in CloudTrail. You will set this up next.'},
+          {n:6,text:'Save rules. Verify: visit http://YOUR-PUBLIC-IP — still loads. Try connecting to any other port (e.g. telnet YOUR-PUBLIC-IP 3306 from another machine) — connection refused. The blast radius is contained.'},
+          {n:7,text:'Now create an instance role. IAM console → Roles → Create role.'},
+          {n:8,text:'Trusted entity type: AWS service. Use case: EC2. Click Next.'},
+          {n:9,text:'Search for and check the policy named "AmazonSSMManagedInstanceCore." Click Next.'},
+          {n:10,text:'Role name: ec2-ssm-role. Click Create role.'},
+          {n:11,text:'Back in EC2 → select your instance → Actions → Security → Modify IAM role → select ec2-ssm-role → Update IAM role.',tip:'Now this instance can be managed by AWS Systems Manager without any open ports. In a future lab you would remove the SSH rule entirely and connect only via SSM Session Manager. This is the zero-trust access model the exam expects for production EC2.'},
+        ]
+      },
+      {
+        id:'teardown',
+        name:'Teardown — Terminate, Not Stop',
+        type:'teardown',
+        examConcept:'Stopped EC2 instances do NOT incur compute charges but DO still incur EBS storage charges (~$0.08/GB/month). Terminated instances release all attached EBS volumes (if "Delete on termination" is checked, which is the default). Always Terminate test instances, not Stop.',
+        steps:[
+          {n:1,text:'EC2 console → Instances → select demo-web-server → Instance state → Terminate instance. Type "terminate" in the confirmation box → Terminate. State changes to "Shutting down" then "Terminated."'},
+          {n:2,text:'Wait 2 minutes. Then: Security Groups → select demo-sg-wrong → Actions → Delete security groups. (If it fails, the instance has not fully terminated yet — wait 60 more seconds.)'},
+          {n:3,text:'Key Pairs → select demo-key → Actions → Delete. Confirm. Then delete the .pem file from your Downloads folder — it is useless without the matching instance.'},
+          {n:4,text:'IAM console → Roles → search "ec2-ssm-role" → select it → Delete → type the role name → Delete.'},
+          {n:5,text:'EC2 console → Instances → confirm only "terminated" instances are visible (terminated instances disappear from the list after ~1 hour, which is normal). You are clean.'},
+        ]
+      }
+    ]
+  },
+  {
+    id:'cl3',
+    tag:'Startup',
+    title:'VPC From Scratch: Public + Private Subnets',
+    difficulty:2,
+    services:['VPC','Subnets','Route Tables','IGW','NAT Gateway','Security Groups'],
+    timeEstimate:'75–90 min',
+    businessContext:"Every production AWS workload lives in a VPC you design. DevCo is building a two-tier app: a public web server that users reach from the internet, and a private database that must never be reachable from the internet directly. You will build this network from scratch — not the default VPC — so you understand exactly what every component does and why it is there.",
+    phases:[
+      {
+        id:'p1',
+        name:'Phase 1 — Create the VPC and Subnets',
+        type:'fix',
+        examConcept:'A VPC is your private network inside AWS. The CIDR block (e.g. 10.0.0.0/16) defines the pool of private IP addresses available. Subnets carve that pool into smaller ranges — one per Availability Zone. A subnet is just an IP range; what makes it "public" or "private" is the route table attached to it, not anything on the subnet itself.',
+        steps:[
+          {n:1,text:'VPC console → Your VPCs → Create VPC. Select "VPC only" (not the VPC wizard — you are building manually so you understand each piece).'},
+          {n:2,text:'Name tag: lab-vpc. IPv4 CIDR block: 10.0.0.0/16. Leave everything else default. Create VPC.'},
+          {n:3,text:'Left sidebar → Subnets → Create subnet. VPC ID: select lab-vpc.'},
+          {n:4,text:'Subnet 1 — Name: lab-public-1a. Availability Zone: us-east-1a. IPv4 CIDR: 10.0.1.0/24. Click "Add new subnet."'},
+          {n:5,text:'Subnet 2 — Name: lab-private-1a. Availability Zone: us-east-1a. IPv4 CIDR: 10.0.2.0/24. Click "Create subnet."'},
+          {n:6,text:'You now have two subnets with the same AZ and adjacent CIDR ranges. Neither is public or private yet — that is determined by the route table, which you will configure next.'},
+        ]
+      },
+      {
+        id:'p2',
+        name:'Phase 2 — The Wrong Way: One Route Table for Everything',
+        type:'wrong',
+        examConcept:'Every VPC has a "main route table" that applies to any subnet not explicitly associated with another route table. Beginners add internet access to the main route table — which makes ALL subnets public by default, including the database subnet. The exam tests this exact scenario. The fix is explicit route table associations per subnet.',
+        steps:[
+          {n:1,text:'Internet Gateways → Create internet gateway. Name: lab-igw. Create. Then Actions → Attach to VPC → select lab-vpc → Attach. The IGW is now the door to the internet for your VPC.'},
+          {n:2,text:'Route Tables → find the route table that says "Main: Yes" and VPC: lab-vpc. Click its Route table ID.'},
+          {n:3,text:'Routes tab → Edit routes → Add route. Destination: 0.0.0.0/0. Target: Internet Gateway → lab-igw. Save changes.',warn:'You just made BOTH subnets public. Because this is the main route table and neither subnet has its own explicit association, the IGW route applies to lab-public-1a AND lab-private-1a. Your "private" database subnet now has a path to the internet. This is wrong — and it is exactly the misconfiguration that causes database breaches. You will fix it in Phase 3.'},
+          {n:4,text:'To confirm the mistake: Subnets → select lab-private-1a → Route table tab. It shows the main route table with the 0.0.0.0/0 → igw route. A database launched here would be internet-reachable if the security group allowed it.'},
+        ]
+      },
+      {
+        id:'p3',
+        name:'Phase 3 — Fix It: Explicit Route Tables per Tier',
+        type:'fix',
+        examConcept:'The correct pattern: create a separate route table for each tier. The public route table gets 0.0.0.0/0 → IGW. The private route table gets 0.0.0.0/0 → NAT Gateway (outbound-only internet) or no internet route at all. Each route table is explicitly associated with its subnet. The main route table is left with only the local route — a safe default.',
+        steps:[
+          {n:1,text:'First, remove the IGW route from the main route table. Route Tables → main route table for lab-vpc → Routes → Edit routes → delete the 0.0.0.0/0 row → Save. Main route table now only has the local route (10.0.0.0/16 → local). Both subnets are now completely isolated.'},
+          {n:2,text:'Create the public route table: Route Tables → Create route table. Name: lab-public-rt. VPC: lab-vpc. Create.'},
+          {n:3,text:'Select lab-public-rt → Routes tab → Edit routes → Add route: Destination 0.0.0.0/0, Target: Internet Gateway → lab-igw. Save.'},
+          {n:4,text:'lab-public-rt → Subnet associations tab → Edit subnet associations → check lab-public-1a → Save. Now only the public subnet routes to the internet through the IGW.'},
+          {n:5,text:'Create a NAT Gateway so the private subnet can reach the internet outbound-only (for things like package installs). VPC → NAT Gateways → Create NAT Gateway. Name: lab-nat. Subnet: lab-public-1a. Connectivity: Public. Click "Allocate Elastic IP." Create NAT gateway.',tip:'NAT Gateway must be in the PUBLIC subnet — it has a public IP and routes through the IGW to the internet. Private subnet instances route to the NAT Gateway, which proxies their outbound traffic. Inbound from the internet cannot reach the private subnet because NAT is one-directional.'},
+          {n:6,text:'Wait ~60 seconds for NAT Gateway state to show "Available."'},
+          {n:7,text:'Create the private route table: Route Tables → Create route table. Name: lab-private-rt. VPC: lab-vpc. Create.'},
+          {n:8,text:'lab-private-rt → Routes → Edit routes → Add route: Destination 0.0.0.0/0, Target: NAT Gateway → lab-nat. Save.'},
+          {n:9,text:'lab-private-rt → Subnet associations → Edit subnet associations → check lab-private-1a → Save.'},
+          {n:10,text:'Verify: Subnets → lab-private-1a → Route table tab. It now shows lab-private-rt with 0.0.0.0/0 → nat-xxxxxxx. The private subnet can reach the internet outbound only — not reachable inbound.'},
+          {n:11,text:'Create security groups. VPC → Security Groups → Create security group.\nName: lab-web-sg. VPC: lab-vpc.\nInbound rules: HTTP (80) from 0.0.0.0/0, SSH (22) from My IP.\nCreate.'},
+          {n:12,text:'Create security group.\nName: lab-db-sg. VPC: lab-vpc.\nInbound rules: MySQL/Aurora (3306), Source type: Custom, Source: start typing "lab-web-sg" and select its security group ID from the dropdown.\nCreate.',tip:'You just used a security group as the source for another security group. Only instances that belong to lab-web-sg can reach the database on port 3306. This automatically covers any new web servers added to the group — no IP address management required. This is the production-correct pattern.'},
+        ]
+      },
+      {
+        id:'teardown',
+        name:'Teardown — NAT Gateway First. Every Time.',
+        type:'teardown',
+        examConcept:'NAT Gateway costs $0.045/hr = ~$32/month plus $0.045/GB processed. It has no free tier. An Elastic IP that is allocated but not attached costs $0.005/hr. Always delete NAT Gateway and release the Elastic IP before anything else.',
+        steps:[
+          {n:1,text:'VPC → NAT Gateways → select lab-nat → Actions → Delete NAT gateway → confirm. Wait for state "Deleted" (~1 min).'},
+          {n:2,text:'VPC → Elastic IPs → find the EIP with Association status "Unassociated" → select it → Actions → Release Elastic IP addresses → Release.'},
+          {n:3,text:'VPC → Internet Gateways → select lab-igw → Actions → Detach from VPC → Detach. Then Actions → Delete internet gateway → Delete.'},
+          {n:4,text:'VPC → Route Tables → select lab-public-rt → Actions → Delete route table. Repeat for lab-private-rt. (Cannot delete a route table that is still the main route table or has subnet associations — check Subnet associations tab first and remove them if needed.)'},
+          {n:5,text:'VPC → Subnets → select lab-public-1a → Actions → Delete subnet. Repeat for lab-private-1a.'},
+          {n:6,text:'VPC → Security Groups → select lab-web-sg → Delete. Repeat for lab-db-sg.'},
+          {n:7,text:'VPC → Your VPCs → select lab-vpc → Actions → Delete VPC → type "delete" → Delete. Done.'},
+        ]
+      }
+    ]
+  },
+];
+
 const ARCH_PRINCIPLES=[
   {
     id:'p1',title:'Constraints are the design',
@@ -1407,6 +1664,20 @@ const dayOfYear=()=>{const n=new Date();return Math.floor((n-new Date(n.getFullY
 const shuffle=arr=>[...arr].sort(()=>Math.random()-.5);
 const pct=(a,b)=>b===0?0:Math.round(a/b*100);
 
+// ── SM-2 Spaced Repetition ────────────────────────────────────────────────────
+function sm2Update(prev={},rating){
+  // rating: 0=nope, 1=sorta, 2=know
+  const ease=Math.max(1.3,(prev.ease||2.5)+(0.1-(2-rating)*(0.08+(2-rating)*0.02)));
+  const reps=rating>=1?(prev.reps||0)+1:0;
+  let interval=prev.interval||1;
+  if(rating<1){interval=1;}
+  else if(reps<=1){interval=1;}
+  else if(reps===2){interval=6;}
+  else{interval=Math.round((prev.interval||1)*ease);}
+  const next=new Date();next.setDate(next.getDate()+interval);
+  return{ease,reps,interval,nextReview:next.toISOString().slice(0,10)};
+}
+
 // ── Components ────────────────────────────────────────────────────────────────
 
 function Tag({domain,small}){
@@ -1438,6 +1709,7 @@ function ProgressBar({value,max,domain,className=''}){
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 const NAV=[
+  {id:'assessment',icon:'◎',label:'Gap Assessment',group:'exam'},
   {id:'dashboard',icon:'⬡',label:'Dashboard',group:'exam'},
   {id:'learn',icon:'▦',label:'Learn',group:'exam'},
   {id:'lesson',icon:'◈',label:'Daily Lesson',group:'exam'},
@@ -1451,40 +1723,43 @@ const NAV=[
   {id:'leaderboard',icon:'◆',label:'Leaderboard',group:'exam'},
   {id:'settings',icon:'⚙',label:'Settings',group:'exam'},
   {id:'architect',icon:'⬟',label:"Architect Mind",group:'arch'},
+  {id:'labs',icon:'⬡',label:"Console Labs",group:'arch'},
 ];
 
 function Sidebar({active,setActive,streak}){
   const examNav=NAV.filter(n=>n.group==='exam');
   const archNav=NAV.filter(n=>n.group==='arch');
   return(
-    <div className="hidden md:flex w-56 bg-white border-r border-slate-200 flex-col h-screen sticky top-0 shadow-sm">
-      <button onClick={()=>setActive('home')} className="p-4 border-b border-slate-100 text-left hover:bg-slate-50 transition-colors group">
-        <div className="text-indigo-600 font-bold text-base tracking-tight group-hover:text-indigo-700">AWS SAA-C03</div>
-        <div className="text-slate-400 text-xs mt-0.5 font-medium">Study Hub · Home</div>
+    <div className="hidden md:flex w-56 flex-col h-screen sticky top-0" style={{background:'#0f0a1e',borderRight:'1px solid rgba(139,92,246,0.15)'}}>
+      <button onClick={()=>setActive('home')} className="p-4 text-left transition-colors group" style={{borderBottom:'1px solid rgba(139,92,246,0.12)'}}>
+        <div className="font-bold text-base tracking-tight" style={{color:'#a78bfa'}}>AWS SAA-C03</div>
+        <div className="text-xs mt-0.5 font-medium" style={{color:'rgba(167,139,250,0.5)'}}>Study Hub · Home</div>
       </button>
       <nav className="flex-1 p-2 overflow-y-auto">
-        <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 pt-2 pb-1">SAA-C03 Exam</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest px-3 pt-2 pb-1" style={{color:'rgba(167,139,250,0.35)'}}>SAA-C03 Exam</div>
         <div className="space-y-0.5 mb-3">
           {examNav.map(n=>(
             <button key={n.id} onClick={()=>setActive(n.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-50 text-indigo-700 font-semibold shadow-sm':'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-              <span className={`text-sm ${active===n.id?'opacity-100':'opacity-50'}`}>{n.icon}</span>{n.label}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all"
+              style={active===n.id?{background:'rgba(139,92,246,0.2)',color:'#c4b5fd',fontWeight:600}:{color:'rgba(167,139,250,0.55)'}}>
+              <span className="text-sm" style={{opacity:active===n.id?1:0.6}}>{n.icon}</span>{n.label}
             </button>
           ))}
         </div>
-        <div className="border-t border-slate-100 pt-3">
-          <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest px-3 pb-1">Architect Mind</div>
+        <div className="pt-3" style={{borderTop:'1px solid rgba(139,92,246,0.12)'}}>
+          <div className="text-[10px] font-bold uppercase tracking-widest px-3 pb-1" style={{color:'rgba(52,211,153,0.4)'}}>Architect Mind</div>
           {archNav.map(n=>(
             <button key={n.id} onClick={()=>setActive(n.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all ${active===n.id?'bg-indigo-600 text-white font-semibold shadow-sm':'text-indigo-500 hover:text-indigo-800 hover:bg-indigo-50'}`}>
-              <span className={`text-sm ${active===n.id?'opacity-100':'opacity-60'}`}>{n.icon}</span>{n.label}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all"
+              style={active===n.id?{background:'rgba(52,211,153,0.15)',color:'#6ee7b7',fontWeight:600}:{color:'rgba(52,211,153,0.5)'}}>
+              <span className="text-sm" style={{opacity:active===n.id?1:0.6}}>{n.icon}</span>{n.label}
             </button>
           ))}
         </div>
       </nav>
-      <div className="p-4 border-t border-slate-100">
-        <div className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Streak</div>
-        <div className="text-slate-800 text-lg font-bold">{streak} <span className="text-base">🔥</span></div>
+      <div className="p-4" style={{borderTop:'1px solid rgba(139,92,246,0.12)'}}>
+        <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{color:'rgba(167,139,250,0.4)'}}>Streak</div>
+        <div className="text-lg font-bold" style={{color:'#c4b5fd'}}>{streak} <span className="text-base">🔥</span></div>
       </div>
     </div>
   );
@@ -1627,9 +1902,11 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}){
+function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,startTargeted}){
   const r=useMemo(()=>calcReadiness(quizHistory,examHistory,flashConf),[quizHistory,examHistory,flashConf]);
   const[lessonsRead]=useStore('lesson_read',[]);
+  const todayStr=today();
+
   const domainScores=useMemo(()=>{
     const scores={};
     Object.keys(DOMAINS).forEach(d=>{
@@ -1639,12 +1916,67 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings}
     return scores;
   },[quizHistory]);
 
+  const todayPlan=useMemo(()=>{
+    // Find weakest domain with enough data
+    const ranked=Object.entries(domainScores)
+      .filter(([,s])=>s.total>=3)
+      .map(([d,s])=>([d,pct(s.correct,s.total)]))
+      .sort(([,a],[,b])=>a-b);
+    const targetDomain=ranked[0]?ranked[0][0]:null;
+    const dueFlash=ALL_FLASH.filter(c=>{
+      const cv=(flashConf||[]).find(x=>x.id===c.id);
+      return !cv||!cv.nextReview||cv.nextReview<=todayStr;
+    }).length;
+    return{targetDomain,dueFlash};
+  },[domainScores,flashConf,todayStr]);
+
+  const hour=new Date().getHours();
+  const greeting=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+
   return(
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="pb-2">
-        <div className="text-slate-400 text-xs mb-1">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
-        <h1 className="text-slate-900 text-2xl font-bold typewriter" style={{maxWidth:'22ch'}}>AWS SAA-C03 Hub</h1>
-        <p className="text-slate-500 text-sm mt-1">Keep the streak going. You've got this.</p>
+    <div className="p-4 md:p-6 space-y-5">
+      {/* Today's Session */}
+      <div style={{background:'linear-gradient(135deg,#4f46e5,#7c3aed)',borderRadius:20,padding:20,color:'white',boxShadow:'0 8px 32px rgba(79,70,229,0.35)'}}>
+        <div className="flex items-start justify-between" style={{marginBottom:12}}>
+          <div>
+            <div style={{color:'rgba(199,210,254,0.8)',fontSize:11,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div>
+            <div style={{fontSize:20,fontWeight:800,color:'white'}}>{greeting}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.15)',borderRadius:12,padding:'6px 12px'}}>
+            <span style={{fontSize:18}}>🔥</span>
+            <span style={{fontWeight:800,fontSize:15}}>{streak}</span>
+            <span style={{color:'rgba(199,210,254,0.8)',fontSize:11}}>day streak</span>
+          </div>
+        </div>
+        <div style={{background:'rgba(255,255,255,0.12)',borderRadius:14,padding:16,marginBottom:14}}>
+          <div style={{color:'rgba(199,210,254,0.9)',fontSize:10,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Today's Session</div>
+          {todayPlan.targetDomain?(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'white'}}>
+                <span style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>1</span>
+                <span><strong>10 questions</strong> · {DOMAINS[todayPlan.targetDomain].label} <span style={{color:'rgba(199,210,254,0.7)'}}>(your weakest)</span></span>
+              </div>
+              {todayPlan.dueFlash>0&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'white'}}>
+                  <span style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>2</span>
+                  <span><strong>{Math.min(todayPlan.dueFlash,20)} flashcards</strong> <span style={{color:'rgba(199,210,254,0.7)'}}>· due for review</span></span>
+                </div>
+              )}
+              <div style={{color:'rgba(199,210,254,0.65)',fontSize:11,marginTop:2}}>~{todayPlan.dueFlash>0?'15':'8'} min total</div>
+            </div>
+          ):(
+            <div style={{fontSize:13,color:'white'}}>
+              {quizHistory.length===0
+                ?<span>Start with the <strong>gap assessment</strong> to build your plan</span>
+                :<span><strong>10 questions</strong> across all domains · ~8 min</span>}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={()=>todayPlan.targetDomain?startTargeted(todayPlan.targetDomain):setActive(quizHistory.length===0?'assessment':'quiz')}
+          style={{width:'100%',background:'white',color:'#4338ca',fontWeight:800,fontSize:14,padding:'12px 0',borderRadius:14,border:'none',cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>
+          {todayPlan.targetDomain?`Start: ${DOMAINS[todayPlan.targetDomain].label} session →`:"Start today's session →"}
+        </button>
       </div>
 
       <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate}/>
@@ -1716,6 +2048,19 @@ function Welcome({setActive}){
           <p className="text-slate-500 text-base">What do you want to work on today?</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
+          <button onClick={()=>setActive('assessment')}
+            className="group bg-white rounded-2xl p-6 border-2 border-indigo-200 hover:border-indigo-400 hover:shadow-xl transition-all text-left shadow-sm bg-gradient-to-br from-white to-indigo-50/50">
+            <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-2xl mb-4 text-white shadow-sm">◎</div>
+            <div className="font-bold text-slate-900 text-lg mb-1">Gap Assessment <span className="text-xs font-semibold bg-indigo-600 text-white px-2 py-0.5 rounded-full ml-1">Start here</span></div>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">15-question diagnostic across all 4 SAA-C03 domains. Get a personalized gap report showing exactly what to study first.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['Gap Report','Domain Analysis','Readiness Score','Targeted Practice'].map(t=>(
+                <span key={t} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
+              ))}
+            </div>
+            <div className="mt-4 text-indigo-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Take assessment →</div>
+          </button>
+
           <button onClick={()=>setActive('dashboard')}
             className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all text-left shadow-sm">
             <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-2xl mb-4 group-hover:bg-indigo-200 transition-colors">◉</div>
@@ -2063,21 +2408,31 @@ function Lesson(){
 }
 
 // ── Quiz ──────────────────────────────────────────────────────────────────────
-function Quiz({onAnswer}){
-  const[domain,setDomain]=useState('all');
+function Quiz({onAnswer,startDomain}){
+  const[domain,setDomain]=useState(startDomain||'all');
   const[session,setSession]=useState(null);
   const[idx,setIdx]=useState(0);
   const[selected,setSelected]=useState(null);
   const[showExp,setShowExp]=useState(false);
   const[sessionResults,setSessionResults]=useState([]);
+  const[recalled,setRecalled]=useState(false);
+  const[timer,setTimer]=useState(30);
+  const[typed,setTyped]=useState('');
 
   const sessionIdRef=useRef(null);
+
+  useEffect(()=>{
+    if(!session||session==='done'||recalled||selected!==null)return;
+    setTimer(30);
+    const iv=setInterval(()=>setTimer(t=>{if(t<=1){clearInterval(iv);setRecalled(true);return 0;}return t-1;}),1000);
+    return()=>clearInterval(iv);
+  },[idx,recalled,session,selected]);
 
   const startQuiz=()=>{
     sessionIdRef.current='q_'+Date.now();
     const pool=domain==='all'?QUESTIONS:QUESTIONS.filter(q=>q.domain===domain);
     setSession(shuffle(pool).slice(0,10));
-    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);
+    setIdx(0);setSelected(null);setShowExp(false);setSessionResults([]);setRecalled(false);setTimer(30);setTyped('');
   };
 
   const isCorrectOpt=(q,i)=>Array.isArray(q.ans)?q.ans.includes(i):i===q.ans;
@@ -2094,14 +2449,14 @@ function Quiz({onAnswer}){
 
   const handleDontKnow=()=>{
     if(selected!==null)return;
-    setSelected('dk');setShowExp(true);
+    setSelected('dk');setShowExp(true);setRecalled(true);
     const q=session[idx];
     onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:'dk'});
     setSessionResults(r=>[...r,{correct:false,dontKnow:true,domain:q.domain,sub:q.sub,qtext:q.q,ans:correctLabel(q)}]);
   };
 
   const next=()=>{
-    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);}
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);setShowExp(false);setRecalled(false);setTimer(30);setTyped('');}
     else setSession('done');
   };
 
@@ -2199,50 +2554,321 @@ function Quiz({onAnswer}){
   return(
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-3">
-        <h1 className="text-slate-900 text-xl font-bold">Quiz</h1>
-        <span className="text-slate-400 text-sm font-medium">{idx+1} / {session.length}</span>
+        <div>
+          <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-0.5">{d.label} · {q.sub}</div>
+          <h1 className="text-slate-900 text-lg font-bold">Question {idx+1} / {session.length}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {!recalled&&selected===null&&(
+            <div className={`w-11 h-11 rounded-full flex items-center justify-center font-mono font-bold text-sm border-2 transition-colors ${timer<=10?'border-red-400 text-red-500 bg-red-50':'border-indigo-300 text-indigo-600 bg-indigo-50'}`}>{timer}</div>
+          )}
+        </div>
       </div>
       <ProgressBar value={idx+1} max={session.length} domain={q.domain} className="mb-5"/>
-      <div className={`bg-white border-l-4 border border-slate-200 rounded-xl p-5 mb-4 shadow-sm`}>
+      <div className="bg-white border-l-4 border border-slate-200 rounded-xl p-5 mb-4 shadow-sm" style={{borderLeftColor:q.domain==='secure'?'#10b981':q.domain==='resilient'?'#0ea5e9':q.domain==='performing'?'#f59e0b':'#8b5cf6'}}>
         <div className="flex items-center gap-2 mb-3">
           <Tag domain={q.domain}/><span className="text-slate-400 text-xs font-medium uppercase tracking-wide">{q.sub}</span>
         </div>
         <p className="text-slate-800 text-sm leading-relaxed font-medium">{q.q}</p>
       </div>
+      {!recalled&&selected===null?(
+        <div className="space-y-3">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-3">
+            <div className="text-indigo-500 text-lg leading-none mt-0.5">✏</div>
+            <div>
+              <div className="text-indigo-700 font-bold text-sm mb-0.5">Write your answer first</div>
+              <div className="text-indigo-500 text-xs">Commit something before you see the options — even a few words. This is the recall.</div>
+            </div>
+          </div>
+          <textarea
+            value={typed}
+            onChange={e=>setTyped(e.target.value)}
+            placeholder="Type your answer here..."
+            rows={3}
+            autoFocus
+            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 resize-none focus:border-indigo-400 focus:bg-indigo-50/30 transition-colors placeholder-slate-300"
+          />
+          <button
+            onClick={()=>setRecalled(true)}
+            disabled={typed.trim().length===0}
+            className={`w-full font-bold text-sm py-3.5 rounded-xl transition-colors shadow-sm ${typed.trim().length>0?'bg-indigo-600 text-white hover:bg-indigo-700':'bg-slate-100 text-slate-300 cursor-not-allowed'}`}>
+            Reveal Options →
+          </button>
+          <button onClick={handleDontKnow} className="w-full text-sm px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+            I don't know this one
+          </button>
+        </div>
+      ):(
+        <>
+          {typed&&selected===null&&(
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-3 flex items-start gap-2">
+              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wide mt-0.5 shrink-0">Your recall</span>
+              <span className="text-slate-600 text-sm italic leading-snug">{typed}</span>
+            </div>
+          )}
+          <div className="space-y-2 mb-3">
+            {q.opts.map((opt,i)=>{
+              let cls='border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40';
+              let letterCls='bg-slate-100 text-slate-500';
+              if(selected!==null){
+                if(isCorrectOpt(q,i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';letterCls='bg-emerald-400 text-white';}
+                else if(i===selected&&!isCorrectOpt(q,i)&&selected!=='dk'){cls='border-red-400 bg-red-50 text-red-700';letterCls='bg-red-400 text-white';}
+                else{cls='border-slate-100 bg-slate-50 text-slate-400';letterCls='bg-slate-200 text-slate-400';}
+              }
+              return(
+                <button key={i} onClick={()=>handleSelect(i)}
+                  className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start gap-0 ${cls}`}>
+                  <span className={`opt-letter ${letterCls}`}>{String.fromCharCode(65+i)}</span>
+                  <span className="flex-1 leading-snug pt-0.5">{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+          {selected===null&&(
+            <button onClick={handleDontKnow}
+              className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors mb-4">
+              I don't know this one
+            </button>
+          )}
+          {showExp&&(
+            <div className={`rounded-xl p-4 mb-4 ${selected==='dk'?'bg-amber-50 border-2 border-amber-200':'bg-indigo-50 border-2 border-indigo-100'}`}>
+              {selected==='dk'&&<div className="text-amber-700 text-xs font-semibold mb-2">✓ Correct: {correctLabel(q)}</div>}
+              <div className={`text-xs font-semibold mb-1.5 ${selected==='dk'?'text-amber-600':'text-indigo-600'}`}>Explanation</div>
+              <p className="text-slate-700 text-sm leading-relaxed">{q.exp}</p>
+            </div>
+          )}
+          {selected!==null&&(
+            <button onClick={next} className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+              {idx<session.length-1?'Next Question →':'View Results'}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Gap Assessment ────────────────────────────────────────────────────────────
+function GapAssessment({onAnswer,setActive,startTargeted}){
+  const[session]=useState(()=>{
+    const byDomain=Object.keys(DOMAINS).map(d=>shuffle(QUESTIONS.filter(q=>q.domain===d)).slice(0,4));
+    return shuffle(byDomain.flat()).slice(0,15);
+  });
+  const[idx,setIdx]=useState(0);
+  const[selected,setSelected]=useState(null);
+  const[results,setResults]=useState([]);
+  const[phase,setPhase]=useState('quiz');
+  const[loadStep,setLoadStep]=useState(0);
+  const sessionIdRef=useRef('gap_'+Date.now());
+
+  const q=session[idx];
+  const isCorrect=(i)=>Array.isArray(q?.ans)?q.ans.includes(i):i===q?.ans;
+
+  const handleSelect=(i)=>{
+    if(selected!==null)return;
+    setSelected(i);
+    const correct=isCorrect(i);
+    onAnswer({domain:q.domain,sub:q.sub,correct,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:i});
+    setResults(r=>[...r,{domain:q.domain,correct}]);
+  };
+
+  const handleDK=()=>{
+    if(selected!==null)return;
+    setSelected('dk');
+    onAnswer({domain:q.domain,sub:q.sub,correct:false,dontKnow:true,qid:q.id,ts:Date.now(),sessionId:sessionIdRef.current,userAns:'dk'});
+    setResults(r=>[...r,{domain:q.domain,correct:false}]);
+  };
+
+  const handleNext=()=>{
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);}
+    else{
+      setPhase('loading');
+      [0,1,2,3,4,5].forEach((s,i)=>setTimeout(()=>setLoadStep(s),i*600+200));
+      setTimeout(()=>setPhase('report'),6*600+600);
+    }
+  };
+
+  if(phase==='loading'){
+    const steps=['Scoring '+session.length+' answers','Mapping 4 domains','Weighting your exam blueprint','Reading your confidence','Identifying top gaps','Compiling report'];
+    return(
+      <div className="flex items-center justify-center min-h-[70vh] p-6">
+        <div className="max-w-xs w-full">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">BUILDING</div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1 text-center">Preparing your <span className="text-indigo-600 italic">gap report.</span></h2>
+          <p className="text-slate-400 text-sm mb-6 text-center">A few seconds.</p>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 mb-6 overflow-hidden">
+            <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style={{width:`${Math.round((loadStep/steps.length)*100)}%`}}/>
+          </div>
+          <div className="space-y-3">
+            {steps.map((s,i)=>(
+              <div key={i} className="flex items-center gap-3">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all ${i<loadStep?'bg-indigo-600 text-white':i===loadStep?'border-2 border-indigo-400':' border-2 border-slate-200'}`}>
+                  {i<loadStep?'✓':''}
+                </div>
+                <span className={`text-sm transition-colors ${i<loadStep?'text-slate-800 font-medium':i===loadStep?'text-indigo-600':'text-slate-300'}`}>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if(phase==='report'){
+    const dWeights={secure:0.30,resilient:0.26,performing:0.24,cost:0.20};
+    const domainScores={};
+    Object.keys(DOMAINS).forEach(d=>{
+      const dr=results.filter(r=>r.domain===d);
+      domainScores[d]=dr.length>0?Math.round(dr.filter(r=>r.correct).length/dr.length*100):null;
+    });
+    const totalScore=Math.round(Object.entries(dWeights).reduce((sum,[d,w])=>{
+      const s=domainScores[d];return s!==null?sum+s*w:sum;
+    },0));
+    const passing=70;
+    const isReady=totalScore>=passing;
+    const sorted=Object.entries(domainScores).filter(([,v])=>v!==null).sort(([,a],[,b])=>a-b);
+    const worst=sorted[0];
+    const secondWorst=sorted[1];
+    return(
+      <div className="p-4 md:p-6 max-w-4xl">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-5 flex items-center gap-2">
+          <span className="text-indigo-500">✓</span>
+          <span className="text-indigo-700 text-sm font-medium">You're in. Here's your full gap report.</span>
+          <span className="text-indigo-400 text-xs ml-auto hidden sm:block">Fix your top gap when you're ready</span>
+        </div>
+        <div className="flex flex-col md:flex-row gap-5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isReady?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-600'}`}>● {isReady?'Ready':'Not ready'}</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Assessment Verdict</span>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 leading-tight">
+              If you sat the exam today,<br/>you'd likely <span className={`italic ${isReady?'text-emerald-600':'text-red-500'}`}>{isReady?'pass.':'not pass.'}</span>
+            </h2>
+            <p className="text-slate-500 text-sm mb-1">Below is what's dragging your score down, and how to close it.</p>
+            <div className="flex items-center gap-3 text-xs text-slate-400 mb-5">
+              <span>Based on <strong className="text-slate-600">{session.length} questions</strong></span>
+              <span>·</span><span>Exam <strong className="text-slate-600">SAA-C03</strong></span>
+            </div>
+            {(worst||secondWorst)&&(
+              <div className="mb-5">
+                <h3 className="text-slate-800 font-bold mb-3 text-sm">What's dragging your score down</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[worst,secondWorst].filter(Boolean).map(([d,s],i)=>(
+                    <div key={d} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-400">{i===0?'01 MOST COSTLY':'02 SECOND BIGGEST'}</span>
+                        <span className="text-xs font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">● Critical</span>
+                      </div>
+                      <div className="font-semibold text-slate-800 text-sm mb-2">{DOMAINS[d].label}</div>
+                      <div className="text-xs text-slate-400 mb-0.5">YOU</div>
+                      <div className="text-3xl font-black text-slate-900">{s}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <span className="font-bold text-slate-800 text-sm">Against the exam blueprint</span>
+                <span className="text-xs text-slate-400">{Object.keys(DOMAINS).length} domains · passing {passing}%</span>
+              </div>
+              <div className="px-4 py-2 grid grid-cols-4 text-xs text-slate-400 font-semibold uppercase tracking-wide border-b border-slate-50">
+                <span>Domain</span><span>Weight</span><span className="col-span-2">Your Score · Status</span>
+              </div>
+              {Object.entries(DOMAINS).map(([d,meta])=>{
+                const score=domainScores[d];
+                const weight=Math.round(dWeights[d]*100);
+                const ok=score!==null&&score>=passing;
+                return(
+                  <div key={d} className="grid grid-cols-4 px-4 py-3 items-center border-b border-slate-50 last:border-0">
+                    <span className="text-slate-700 text-sm font-medium">{meta.label}</span>
+                    <span className="text-slate-500 text-sm">{weight}%</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-14 bg-slate-100 rounded-full h-1.5 hidden sm:block">
+                        <div className={`h-1.5 rounded-full ${ok?'bg-emerald-500':'bg-red-400'}`} style={{width:`${score||0}%`}}/>
+                      </div>
+                      <span className="text-sm font-bold text-slate-700">{score!==null?score+'%':'—'}</span>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full w-fit ${ok?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-600'}`}>
+                      ● {score===null?'—':ok?'Good':'Critical'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="md:w-60 flex-shrink-0 space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Your Readiness</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isReady?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-600'}`}>● {isReady?'Ready':'Not ready'}</span>
+              </div>
+              <div className={`text-6xl font-black leading-none mb-1 ${isReady?'text-emerald-500':totalScore>=50?'text-amber-500':'text-red-500'}`}>{totalScore}<span className="text-2xl font-bold text-slate-400">%</span></div>
+              <p className="text-slate-500 text-xs mb-4">{passing-totalScore>0?`${passing-totalScore}% short of pass threshold — close your top domain first.`:'You meet the pass threshold!'}</p>
+              <div className="relative bg-slate-100 rounded-full h-3 mb-1 overflow-hidden">
+                <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${isReady?'bg-emerald-500':totalScore>=50?'bg-amber-400':'bg-red-400'}`} style={{width:`${Math.min(totalScore,100)}%`}}/>
+                <div className="absolute top-0 bottom-0 w-0.5 bg-white/80" style={{left:`${passing}%`}}/>
+              </div>
+              <div className="flex justify-between text-[10px] text-slate-400 mb-4"><span>0</span><span>{passing}% pass</span><span>100%</span></div>
+              <div className="text-xs text-slate-500 border-t border-slate-100 pt-3 flex justify-between">
+                <span>Real exam</span><span className="font-semibold text-slate-700">Pass at 720/1000</span>
+              </div>
+            </div>
+            {worst&&(
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Next Step</div>
+                <h3 className="font-bold text-slate-800 mb-2">Fix your top gap now</h3>
+                <p className="text-slate-500 text-xs mb-4">Your first targeted session focuses on <strong>{DOMAINS[worst[0]].label}</strong> — your weakest domain.</p>
+                <button onClick={()=>startTargeted?startTargeted(worst[0]):setActive('quiz')} className="w-full bg-indigo-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+                  Start first session →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if(!q)return null;
+  const d=DOMAINS[q.domain];
+  return(
+    <div className="p-4 md:p-6 max-w-2xl">
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-xs text-slate-400 font-semibold uppercase tracking-widest">{d.label}</div>
+        <span className="text-slate-400 text-sm">Question {idx+1} / {session.length}</span>
+      </div>
+      <ProgressBar value={idx+1} max={session.length} domain={q.domain} className="mb-5"/>
+      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3"><Tag domain={q.domain}/><span className="text-slate-400 text-xs uppercase tracking-wide">{q.sub}</span></div>
+        <p className="text-slate-800 font-medium text-sm leading-relaxed">{q.q}</p>
+      </div>
       <div className="space-y-2 mb-3">
         {q.opts.map((opt,i)=>{
           let cls='border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40';
-          let letterCls='bg-slate-100 text-slate-500';
+          let lc='bg-slate-100 text-slate-500';
           if(selected!==null){
-            if(isCorrectOpt(q,i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';letterCls='bg-emerald-400 text-white';}
-            else if(i===selected&&!isCorrectOpt(q,i)&&selected!=='dk'){cls='border-red-400 bg-red-50 text-red-700';letterCls='bg-red-400 text-white';}
-            else{cls='border-slate-100 bg-slate-50 text-slate-400';letterCls='bg-slate-200 text-slate-400';}
+            if(isCorrect(i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';lc='bg-emerald-400 text-white';}
+            else if(i===selected){cls='border-red-400 bg-red-50 text-red-700';lc='bg-red-400 text-white';}
+            else{cls='border-slate-100 bg-slate-50 text-slate-400';lc='bg-slate-200 text-slate-400';}
           }
           return(
-            <button key={i} onClick={()=>handleSelect(i)}
-              className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start gap-0 ${cls}`}>
-              <span className={`opt-letter ${letterCls}`}>{String.fromCharCode(65+i)}</span>
+            <button key={i} onClick={()=>handleSelect(i)} className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start ${cls}`}>
+              <span className={`opt-letter ${lc}`}>{String.fromCharCode(65+i)}</span>
               <span className="flex-1 leading-snug pt-0.5">{opt}</span>
             </button>
           );
         })}
       </div>
       {selected===null&&(
-        <button onClick={handleDontKnow}
-          className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors mb-4">
-          I don't know this one
+        <button onClick={handleDK} className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors mb-4">
+          I do not know
         </button>
       )}
-      {showExp&&(
-        <div className={`rounded-xl p-4 mb-4 ${selected==='dk'?'bg-amber-50 border-2 border-amber-200':'bg-indigo-50 border-2 border-indigo-100'}`}>
-          {selected==='dk'&&<div className="text-amber-700 text-xs font-semibold mb-2 flex items-center gap-1">✓ Correct: {correctLabel(q)}</div>}
-          <div className={`text-xs font-semibold mb-1.5 ${selected==='dk'?'text-amber-600':'text-indigo-600'}`}>Explanation</div>
-          <p className="text-slate-700 text-sm leading-relaxed">{q.exp}</p>
-        </div>
-      )}
       {selected!==null&&(
-        <button onClick={next} className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-          {idx<session.length-1?'Next Question →':'View Results'}
+        <button onClick={handleNext} className="bg-indigo-600 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+          {idx<session.length-1?'Submit answer →':'View Gap Report →'}
         </button>
       )}
     </div>
@@ -2286,20 +2912,29 @@ function Flashcards(){
   const[showAll,setShowAll]=useState(false);
   const[shuffleOn,setShuffleOn]=useState(false);
   const[shuffleSeed,setShuffleSeed]=useState(0);
+  const[srMode,setSrMode]=useState(false);
+
+  const todayStr=today();
+  const dueToday=useMemo(()=>ALL_FLASH.filter(c=>{
+    const cv=conf.find(x=>x.id===c.id);
+    return !cv||!cv.nextReview||cv.nextReview<=todayStr;
+  }),[conf,todayStr]);
 
   const cards=useMemo(()=>{
-    let c=ALL_FLASH;
-    if(source!=='all')c=c.filter(x=>x.source===source);
-    if(domain!=='all')c=c.filter(x=>x.domain===domain);
-    if(confFilter!=='all'){
-      c=c.filter(x=>{
-        const cv=conf.find(y=>y.id===x.id);
-        return confFilter==='new'?!cv:cv?.conf===confFilter;
-      });
+    let c=srMode?dueToday:ALL_FLASH;
+    if(!srMode){
+      if(source!=='all')c=c.filter(x=>x.source===source);
+      if(domain!=='all')c=c.filter(x=>x.domain===domain);
+      if(confFilter!=='all'){
+        c=c.filter(x=>{
+          const cv=conf.find(y=>y.id===x.id);
+          return confFilter==='new'?!cv:cv?.conf===confFilter;
+        });
+      }
     }
     if(shuffleOn)c=shuffle(c);
     return c;
-  },[domain,source,confFilter,conf,shuffleOn,shuffleSeed]);
+  },[domain,source,confFilter,conf,shuffleOn,shuffleSeed,srMode,dueToday]);
 
   const toggleShuffle=()=>{
     setShuffleOn(s=>!s);
@@ -2312,7 +2947,11 @@ function Flashcards(){
   const cardConf=conf.find(c=>c.id===card?.id);
 
   const setCardConf=(level)=>{
-    setConf(c=>{const filtered=c.filter(x=>x.id!==card.id);return[...filtered,{id:card.id,conf:level}]});
+    const rating=level==='know'?2:level==='sorta'?1:0;
+    const prev=conf.find(x=>x.id===card.id)||{};
+    const sr=sm2Update(prev,rating);
+    setConf(c=>{const filtered=c.filter(x=>x.id!==card.id);return[...filtered,{id:card.id,conf:level,...sr}]});
+    if(srMode)setTimeout(()=>go(1),350);
   };
 
   const go=(dir)=>{setIdx(i=>(i+dir+cards.length)%cards.length);setFlipped(false)};
@@ -2367,51 +3006,67 @@ function Flashcards(){
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-slate-800 text-xl font-semibold">Flashcards</h1>
-        <div className="flex items-center gap-3 text-xs">
-          <button onClick={shuffleOn?reshuffle:toggleShuffle} title={shuffleOn?'Click to re-shuffle':'Shuffle card order'}
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <button onClick={()=>{setSrMode(s=>!s);setIdx(0);setFlipped(false)}}
+            className={`border px-2 py-1 rounded transition-colors font-medium ${srMode?'border-violet-400 text-violet-700 bg-violet-50':'border-slate-200 text-slate-500 hover:text-slate-700'}`}>
+            📅 SR {srMode?`(${cards.length} due)`:`(${dueToday.length})`}
+          </button>
+          {!srMode&&<button onClick={shuffleOn?reshuffle:toggleShuffle}
             className={`border px-2 py-1 rounded transition-colors ${shuffleOn?'border-indigo-400 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             🔀 {shuffleOn?'Shuffled':'Shuffle'}
-          </button>
-          {shuffleOn&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
+          </button>}
+          {shuffleOn&&!srMode&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
           <button onClick={()=>setShowAll(true)} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">All</button>
         </div>
       </div>
 
-      {/* Source tabs */}
-      <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
-        {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
-          <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
-            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {srMode&&(
+        <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-violet-700 font-bold text-sm">Spaced Repetition Mode</div>
+            <div className="text-violet-500 text-xs">{dueToday.length} card{dueToday.length!==1?'s':''} due today · Rate each card to schedule its next review</div>
+          </div>
+          <button onClick={()=>{setSrMode(false);setIdx(0);setFlipped(false)}} className="text-violet-400 hover:text-violet-600 text-xs border border-violet-200 px-2 py-1 rounded">Exit</button>
+        </div>
+      )}
 
-      {/* Domain filter */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
-          <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
-            {d.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Confidence filter — focus on cards by how well you know them */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {[
-          {k:'new',label:`New ${stats.new}`,cls:'border-slate-300 text-slate-500',activeCls:'border-slate-500 text-slate-700 bg-slate-100'},
-          {k:'nope',label:`✗ Nope ${stats.nope}`,cls:'border-red-200 text-red-400',activeCls:'border-red-400 text-red-600 bg-red-50'},
-          {k:'sorta',label:`~ Sorta ${stats.sorta}`,cls:'border-amber-200 text-amber-500',activeCls:'border-amber-400 text-amber-700 bg-amber-50'},
-          {k:'know',label:`✓ Know ${stats.know}`,cls:'border-emerald-200 text-emerald-500',activeCls:'border-emerald-400 text-emerald-700 bg-emerald-50'},
-        ].map(f=>(
-          <button key={f.k} onClick={()=>setFilter(f.k)}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${confFilter===f.k?f.activeCls+' font-semibold':f.cls+' hover:border-slate-400'}`}>
-            {f.label}
-          </button>
-        ))}
-        {confFilter!=='all'&&<button onClick={()=>setFilter('all')} className="text-xs px-2.5 py-1 rounded border border-slate-200 text-slate-400 hover:text-slate-600">✕ Clear filter</button>}
-      </div>
+      {!srMode&&(
+        <>
+          {/* Source tabs */}
+          <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
+            {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
+              <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {/* Domain filter */}
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
+              <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
+                className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          {/* Confidence filter */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {[
+              {k:'new',label:`New ${stats.new}`,cls:'border-slate-300 text-slate-500',activeCls:'border-slate-500 text-slate-700 bg-slate-100'},
+              {k:'nope',label:`✗ Nope ${stats.nope}`,cls:'border-red-200 text-red-400',activeCls:'border-red-400 text-red-600 bg-red-50'},
+              {k:'sorta',label:`~ Sorta ${stats.sorta}`,cls:'border-amber-200 text-amber-500',activeCls:'border-amber-400 text-amber-700 bg-amber-50'},
+              {k:'know',label:`✓ Know ${stats.know}`,cls:'border-emerald-200 text-emerald-500',activeCls:'border-emerald-400 text-emerald-700 bg-emerald-50'},
+            ].map(f=>(
+              <button key={f.k} onClick={()=>setFilter(f.k)}
+                className={`text-xs px-2.5 py-1 rounded border transition-colors ${confFilter===f.k?f.activeCls+' font-semibold':f.cls+' hover:border-slate-400'}`}>
+                {f.label}
+              </button>
+            ))}
+            {confFilter!=='all'&&<button onClick={()=>setFilter('all')} className="text-xs px-2.5 py-1 rounded border border-slate-200 text-slate-400 hover:text-slate-600">✕ Clear filter</button>}
+          </div>
+        </>
+      )}
 
       {cards.length===0?(
         <div className="text-center py-16 text-slate-400">
@@ -2483,6 +3138,12 @@ function Flashcards(){
             </div>
             <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
           </div>
+          {cardConf?.nextReview&&(
+            <div className="text-center text-xs text-slate-400 mt-2">
+              Next review: <span className="font-semibold text-slate-600">{cardConf.nextReview===todayStr?'Today':cardConf.nextReview}</span>
+              {cardConf.interval&&<span className="text-slate-300"> · interval {cardConf.interval}d</span>}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -3304,6 +3965,196 @@ function History({quizHistory,examHistory}){
   );
 }
 
+// ── Console Labs ─────────────────────────────────────────────────────────────
+function ConsoleLabs(){
+  const[selected,setSelected]=useState(null);
+  const[openPhase,setOpenPhase]=useState(0);
+  const[checked,setChecked]=useStore('labs_checked',{});
+  const[done,setDone]=useStore('labs_done',[]);
+
+  const phaseColor={wrong:'#ef4444',fix:'#10b981',teardown:'#f97316'};
+  const phaseBg={wrong:'bg-red-50 border-red-200',fix:'bg-emerald-50 border-emerald-200',teardown:'bg-orange-50 border-orange-200'};
+  const phaseLabel={wrong:'⚠ Wrong Way First',fix:'✓ Fix It Properly',teardown:'🧹 Teardown'};
+
+  const toggleStep=(labId,phaseId,stepN)=>{
+    const key=`${labId}_${phaseId}_${stepN}`;
+    setChecked(c=>({...c,[key]:!c[key]}));
+  };
+
+  const phaseProgress=(lab,phase)=>{
+    const total=phase.steps.length;
+    const done=phase.steps.filter(s=>checked[`${lab.id}_${phase.id}_${s.n}`]).length;
+    return{done,total};
+  };
+
+  const labProgress=(lab)=>{
+    const allSteps=lab.phases.flatMap(p=>p.steps.map(s=>`${lab.id}_${p.id}_${s.n}`));
+    const doneCount=allSteps.filter(k=>checked[k]).length;
+    return{done:doneCount,total:allSteps.length};
+  };
+
+  if(selected){
+    const lab=CONSOLE_LABS.find(l=>l.id===selected);
+    const prog=labProgress(lab);
+    const allDone=prog.done===prog.total;
+    return(
+      <div className="p-4 md:p-6 max-w-3xl">
+        <button onClick={()=>{setSelected(null);setOpenPhase(0);}} className="text-slate-400 hover:text-slate-600 text-sm mb-4 flex items-center gap-1">← Back to Labs</button>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white bg-indigo-500">{lab.tag}</span>
+          {lab.services.map(s=><span key={s} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{s}</span>)}
+          <span className="text-xs text-slate-400 ml-auto">{lab.timeEstimate}</span>
+        </div>
+        <h2 className="text-slate-900 text-xl font-bold mb-3 leading-snug">{lab.title}</h2>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">The Scenario</div>
+          <p className="text-slate-700 text-sm leading-relaxed">{lab.businessContext}</p>
+        </div>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 bg-slate-200 rounded-full h-2">
+            <div className="bg-indigo-500 h-2 rounded-full transition-all" style={{width:`${prog.total?Math.round(prog.done/prog.total*100):0}%`}}/>
+          </div>
+          <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">{prog.done}/{prog.total} steps</span>
+          {allDone&&!done.includes(lab.id)&&(
+            <button onClick={()=>setDone(d=>[...d,lab.id])} className="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg font-semibold">Mark Complete</button>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          {lab.phases.map((phase,pi)=>{
+            const pp=phaseProgress(lab,phase);
+            const isOpen=openPhase===pi;
+            return(
+              <div key={phase.id} className={`border rounded-xl overflow-hidden ${phaseBg[phase.type]}`}>
+                <button onClick={()=>setOpenPhase(isOpen?-1:pi)}
+                  className="w-full flex items-center justify-between p-4 text-left">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{color:phaseColor[phase.type]}}>{phaseLabel[phase.type]}</div>
+                    <div className="font-semibold text-slate-800 text-sm">{phase.name}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <span className="text-xs text-slate-500 font-medium">{pp.done}/{pp.total}</span>
+                    <span className="text-slate-400 text-xs">{isOpen?'▲':'▼'}</span>
+                  </div>
+                </button>
+                {isOpen&&(
+                  <div className="px-4 pb-4 pt-0">
+                    <div className={`text-xs rounded-lg p-3 mb-4 border font-medium leading-relaxed`}
+                      style={{background:'#f5f3ff',borderColor:'#c4b5fd',color:'#5b21b6'}}>
+                      <span className="font-bold uppercase tracking-wide text-xs block mb-1">📋 Exam Concept This Phase Teaches</span>
+                      {phase.examConcept}
+                    </div>
+                    <div className="flex justify-end mb-2">
+                      <button onClick={()=>{
+                        const allChecked=phase.steps.every(s=>checked[`${lab.id}_${phase.id}_${s.n}`]);
+                        setChecked(c=>{
+                          const next={...c};
+                          phase.steps.forEach(s=>{next[`${lab.id}_${phase.id}_${s.n}`]=!allChecked;});
+                          return next;
+                        });
+                      }} className="text-xs text-indigo-500 hover:text-indigo-700 font-semibold border border-indigo-200 hover:border-indigo-400 px-3 py-1 rounded-lg transition-all">
+                        {phase.steps.every(s=>checked[`${lab.id}_${phase.id}_${s.n}`])?'Uncheck all':'Check all'}
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {phase.steps.map(step=>{
+                        const key=`${lab.id}_${phase.id}_${step.n}`;
+                        const isChecked=!!checked[key];
+                        return(
+                          <div key={step.n} className={`rounded-xl border transition-all ${isChecked?'opacity-60 bg-slate-50 border-slate-200':'bg-white border-slate-200'}`}>
+                            <button onClick={()=>toggleStep(lab.id,phase.id,step.n)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${isChecked?'':'hover:bg-slate-50'}`}>
+                              <div className={`w-10 h-10 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isChecked?'bg-indigo-600 border-indigo-600':'border-slate-400 bg-white'}`}>
+                                {isChecked&&<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-slate-400 mb-0.5">Step {step.n}</div>
+                                <p className={`text-sm leading-relaxed whitespace-pre-line ${isChecked?'line-through text-slate-400':'text-slate-700'}`}>{step.text}</p>
+                              </div>
+                            </button>
+                            {(step.warn||step.tip)&&(
+                              <div className="px-4 pb-3 space-y-2">
+                                {step.warn&&(
+                                  <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
+                                    <span className="text-xs font-bold text-red-600 block mb-0.5">⚠ Why This Is Wrong</span>
+                                    <p className="text-xs text-red-700 leading-relaxed">{step.warn}</p>
+                                  </div>
+                                )}
+                                {step.tip&&(
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                                    <span className="text-xs font-bold text-blue-600 block mb-0.5">💡 Production Note</span>
+                                    <p className="text-xs text-blue-700 leading-relaxed">{step.tip}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="p-4 md:p-6 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-slate-900 text-2xl font-bold mb-1">Console Labs</h1>
+        <p className="text-slate-500 text-sm">Hands-on walkthroughs. Build it wrong first — then fix it the production way. Every lab ends with a teardown so you don't get billed.</p>
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-xs text-amber-800 leading-relaxed">
+        <span className="font-bold">Before you start:</span> Use an AWS account you control. These labs use free-tier services where possible, but the teardown step is not optional — always complete it to avoid surprise charges.
+      </div>
+      <div className="text-xs text-slate-400 mb-3">{done.length}/{CONSOLE_LABS.length} labs completed</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {CONSOLE_LABS.map(lab=>{
+          const prog=labProgress(lab);
+          const isDone=done.includes(lab.id);
+          const pct=prog.total?Math.round(prog.done/prog.total*100):0;
+          return(
+            <div key={lab.id} onClick={()=>setSelected(lab.id)}
+              className="bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:shadow-md transition-all hover:border-indigo-200 group">
+              <div className="flex items-start justify-between mb-2">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white bg-indigo-500">{lab.tag}</span>
+                <div className="flex items-center gap-2">
+                  {isDone&&<span className="text-emerald-500 text-xs font-bold">✓ Done</span>}
+                  <span className="text-slate-400 text-xs">{lab.timeEstimate}</span>
+                </div>
+              </div>
+              <h3 className="text-slate-800 text-sm font-semibold leading-snug mb-2 group-hover:text-indigo-700 transition-colors">{lab.title}</h3>
+              <div className="flex flex-wrap gap-1 mb-3">
+                {lab.services.map(s=><span key={s} className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{s}</span>)}
+              </div>
+              {pct>0&&(
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+                    <div className="bg-indigo-500 h-1.5 rounded-full" style={{width:`${pct}%`}}/>
+                  </div>
+                  <span className="text-xs text-slate-400">{pct}%</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  {'⬡⬡⬡⬡⬡'.split('').slice(0,5).map((_,i)=>(
+                    <span key={i} className={`text-xs ${i<lab.difficulty?'text-indigo-500':'text-slate-200'}`}>⬡</span>
+                  ))}
+                </div>
+                <div className="text-indigo-500 text-xs font-semibold">{isDone?'Review →':'Start lab →'}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const[active,setActive]=useState('home');
@@ -3313,6 +4164,9 @@ function App(){
   const[settings,setSettings]=useStore('settings',{targetDate:'',studyReminders:false,showExplanations:true,adaptiveQuiz:true});
   const[streak,setStreak]=useStore('streak',0);
   const[lastStudy,setLastStudy]=useStore('last_study','');
+  const[quizDomain,setQuizDomain]=useState('all');
+
+  const startTargeted=(domain)=>{setQuizDomain(domain||'all');setActive('quiz');};
 
   // Streak logic
   useEffect(()=>{
@@ -3334,11 +4188,13 @@ function App(){
   const renderPage=()=>{
     switch(active){
       case'home':return<Welcome setActive={setActive}/>;
-      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings}/>;
+      case'assessment':return<GapAssessment onAnswer={a=>setQuizHistory(h=>[...h,a])} setActive={setActive} startTargeted={startTargeted}/>;
+      case'dashboard':return<Dashboard quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} streak={streak} setActive={setActive} settings={settings} startTargeted={startTargeted}/>;
       case'architect':return<ArchitectMind/>;
+      case'labs':return<ConsoleLabs/>;
       case'learn':return<Learn/>;
       case'lesson':return<Lesson/>;
-      case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])}/>;
+      case'quiz':return<Quiz onAnswer={a=>setQuizHistory(h=>[...h,a])} startDomain={quizDomain}/>;
       case'flashcards':return<Flashcards/>;
       case'vocab':return<Vocab/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
