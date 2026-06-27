@@ -12,24 +12,96 @@
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:local('IBM Plex Mono'),local('IBMPlexMono')}
 *{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif;box-sizing:border-box}
 code,kbd,pre,.mono{font-family:'IBM Plex Mono','Fira Code',Consolas,monospace!important}
-body{background:#f5f3ff}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+body{background:#09090b;color:#e4e4e7}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.09);border-radius:2px}
 textarea:focus{outline:none}
 input:focus{outline:none}
-/* Typewriter effect */
+
+/* ── Global dark + flat ── */
+*{border-radius:0!important}
+.bg-white{background:#0d0d0f!important}
+.bg-slate-50,.bg-gradient-to-br{background:#0a0a0c!important}
+.bg-slate-100{background:#111114!important}
+.bg-slate-200{background:#161618!important}
+.text-slate-900{color:#f0f0f1!important}
+.text-slate-800{color:#e2e2e4!important}
+.text-slate-700{color:#c4c4c8!important}
+.text-slate-600{color:#8c8c94!important}
+.text-slate-500{color:#5a5a64!important}
+.text-slate-400{color:#404048!important}
+.text-slate-300{color:#2e2e36!important}
+.border-slate-200{border-color:rgba(255,255,255,0.07)!important}
+.border-slate-100{border-color:rgba(255,255,255,0.04)!important}
+.border-slate-300{border-color:rgba(255,255,255,0.09)!important}
+.shadow-sm,.shadow-md,.shadow-lg,.shadow-xl,.shadow{box-shadow:none!important}
+/* Domain colors on dark */
+.bg-emerald-50{background:rgba(16,185,129,0.05)!important}
+.bg-sky-50{background:rgba(14,165,233,0.05)!important}
+.bg-amber-50{background:rgba(245,158,11,0.05)!important}
+.bg-violet-50{background:rgba(139,92,246,0.05)!important}
+.bg-indigo-50{background:rgba(99,102,241,0.05)!important}
+.bg-red-50{background:rgba(239,68,68,0.05)!important}
+.border-emerald-200{border-color:rgba(16,185,129,0.18)!important}
+.border-sky-200{border-color:rgba(14,165,233,0.18)!important}
+.border-amber-200{border-color:rgba(245,158,11,0.18)!important}
+.border-violet-100,.border-violet-200{border-color:rgba(139,92,246,0.18)!important}
+.border-indigo-200{border-color:rgba(99,102,241,0.18)!important}
+.border-red-200{border-color:rgba(239,68,68,0.18)!important}
+/* Button/hover resets */
+.hover\:bg-slate-50:hover,.hover\:bg-slate-100:hover{background:#111114!important}
+.hover\:shadow-xl:hover{box-shadow:none!important}
+/* Input dark */
+input,textarea,select{background:#0d0d0f!important;color:#e4e4e7!important;border-color:rgba(255,255,255,0.08)!important}
+input::placeholder,textarea::placeholder{color:#2e2e36!important}
+/* Rounded overrides for pills/badges only */
+.rounded-full{border-radius:999px!important}
+/* Extended color bg overrides */
+.bg-orange-50{background:rgba(249,115,22,0.05)!important}
+.bg-blue-50{background:rgba(59,130,246,0.05)!important}
+.bg-emerald-100{background:rgba(16,185,129,0.1)!important}
+.bg-red-100{background:rgba(239,68,68,0.1)!important}
+.bg-amber-100{background:rgba(245,158,11,0.1)!important}
+.bg-indigo-100{background:rgba(99,102,241,0.1)!important}
+/* Extended border color overrides */
+.border-orange-200{border-color:rgba(249,115,22,0.18)!important}
+.border-blue-200{border-color:rgba(59,130,246,0.18)!important}
+.border-emerald-300{border-color:rgba(16,185,129,0.22)!important}
+.border-amber-300{border-color:rgba(245,158,11,0.22)!important}
+.border-sky-300{border-color:rgba(14,165,233,0.22)!important}
+.border-violet-300{border-color:rgba(139,92,246,0.22)!important}
+.border-red-400{border-color:rgba(239,68,68,0.4)!important}
+.border-emerald-400{border-color:rgba(16,185,129,0.4)!important}
+.border-indigo-400{border-color:rgba(99,102,241,0.35)!important}
+.border-slate-50{border-color:rgba(255,255,255,0.03)!important}
+/* Dark-bg text overrides for deep color shades */
+.text-emerald-700,.text-emerald-800,.text-emerald-900{color:#4ade80!important}
+.text-red-600,.text-red-700,.text-red-900{color:#f87171!important}
+.text-amber-700,.text-amber-800,.text-amber-900{color:#fbbf24!important}
+.text-indigo-900,.text-indigo-700,.text-indigo-600{color:#818cf8!important}
+.text-violet-700,.text-violet-900{color:#c084fc!important}
+.text-blue-700,.text-blue-900{color:#60a5fa!important}
+/* Hover state overrides */
+.hover\:bg-emerald-50:hover{background:rgba(16,185,129,0.07)!important}
+.hover\:bg-indigo-50\/40:hover,.hover\:bg-indigo-50:hover{background:rgba(99,102,241,0.07)!important}
+.hover\:border-slate-300:hover,.hover\:border-slate-400:hover{border-color:rgba(255,255,255,0.12)!important}
+.hover\:border-indigo-200:hover,.hover\:border-indigo-300:hover{border-color:rgba(99,102,241,0.3)!important}
+/* Divider overrides */
+.divide-slate-100>*+*,.divide-slate-200>*+*{border-color:rgba(255,255,255,0.05)!important}
+
+/* Typewriter */
 @keyframes typeOn{from{width:0}to{width:100%}}
 @keyframes blink{0%,100%{border-color:currentColor}50%{border-color:transparent}}
 .typewriter{overflow:hidden;white-space:nowrap;border-right:2px solid;animation:typeOn 1.4s steps(35,end) both,blink .8s step-end 1.4s infinite}
-/* Card lift */
-.lift{transition:box-shadow .15s,transform .15s}
-.lift:hover{box-shadow:0 8px 28px rgba(0,0,0,.10);transform:translateY(-2px)}
+/* Card lift - subtle on dark */
+.lift{transition:border-color .15s}
+.lift:hover{border-color:rgba(255,255,255,0.12)!important}
 /* Domain tag pill */
 .tag{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border-width:1px;border-style:solid}
 /* Answer letter badge */
-.opt-letter{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f1f5f9;font-size:.7rem;font-weight:700;flex-shrink:0;margin-right:10px}
+.opt-letter{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.06);font-size:.7rem;font-weight:700;flex-shrink:0;margin-right:10px;color:#a1a1aa}
 </style>
 </head>
-<body class="min-h-screen text-slate-800">
+<body class="min-h-screen" style="background:#09090b;color:#e4e4e7">
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo}=React;
@@ -1729,37 +1801,47 @@ const NAV=[
 function Sidebar({active,setActive,streak}){
   const examNav=NAV.filter(n=>n.group==='exam');
   const archNav=NAV.filter(n=>n.group==='arch');
+  const S={
+    wrap:{background:'#0c0c0e',borderRight:'1px solid rgba(255,255,255,0.06)',display:'flex',flexDirection:'column',height:'100vh',position:'sticky',top:0,width:220,flexShrink:0},
+    logo:{padding:'16px 20px 14px',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer',background:'none',border:'none',textAlign:'left',width:'100%'},
+    label:{fontSize:10,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',padding:'18px 20px 6px 20px',color:'rgba(255,255,255,0.2)'},
+    navItem:(on,accent='#7c3aed')=>({
+      display:'flex',alignItems:'center',gap:10,width:'100%',textAlign:'left',
+      padding:'7px 20px',fontSize:13,fontWeight:on?600:400,
+      background:'none',border:'none',cursor:'pointer',
+      borderLeft:on?`2px solid ${accent}`:'2px solid transparent',
+      color:on?'#f4f4f5':'#52525b',
+      transition:'color .12s,border-color .12s',
+    }),
+    divider:{borderTop:'1px solid rgba(255,255,255,0.05)',margin:'8px 0'},
+    footer:{padding:'14px 20px',borderTop:'1px solid rgba(255,255,255,0.05)'},
+  };
   return(
-    <div className="hidden md:flex w-56 flex-col h-screen sticky top-0" style={{background:'#0f0a1e',borderRight:'1px solid rgba(139,92,246,0.15)'}}>
-      <button onClick={()=>setActive('home')} className="p-4 text-left transition-colors group" style={{borderBottom:'1px solid rgba(139,92,246,0.12)'}}>
-        <div className="font-bold text-base tracking-tight" style={{color:'#a78bfa'}}>AWS SAA-C03</div>
-        <div className="text-xs mt-0.5 font-medium" style={{color:'rgba(167,139,250,0.5)'}}>Study Hub · Home</div>
+    <div className="hidden md:flex flex-col" style={S.wrap}>
+      <button onClick={()=>setActive('home')} style={S.logo}>
+        <div style={{fontWeight:700,fontSize:13,letterSpacing:'-0.01em',color:'#f4f4f5'}}>AWS SAA-C03</div>
+        <div style={{fontSize:11,marginTop:2,color:'rgba(255,255,255,0.25)'}}>Study Hub</div>
       </button>
-      <nav className="flex-1 p-2 overflow-y-auto">
-        <div className="text-[10px] font-bold uppercase tracking-widest px-3 pt-2 pb-1" style={{color:'rgba(167,139,250,0.35)'}}>SAA-C03 Exam</div>
-        <div className="space-y-0.5 mb-3">
-          {examNav.map(n=>(
-            <button key={n.id} onClick={()=>setActive(n.id)}
-              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all"
-              style={active===n.id?{background:'rgba(139,92,246,0.2)',color:'#c4b5fd',fontWeight:600}:{color:'rgba(167,139,250,0.55)'}}>
-              <span className="text-sm" style={{opacity:active===n.id?1:0.6}}>{n.icon}</span>{n.label}
-            </button>
-          ))}
-        </div>
-        <div className="pt-3" style={{borderTop:'1px solid rgba(139,92,246,0.12)'}}>
-          <div className="text-[10px] font-bold uppercase tracking-widest px-3 pb-1" style={{color:'rgba(52,211,153,0.4)'}}>Architect Mind</div>
-          {archNav.map(n=>(
-            <button key={n.id} onClick={()=>setActive(n.id)}
-              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2.5 transition-all"
-              style={active===n.id?{background:'rgba(52,211,153,0.15)',color:'#6ee7b7',fontWeight:600}:{color:'rgba(52,211,153,0.5)'}}>
-              <span className="text-sm" style={{opacity:active===n.id?1:0.6}}>{n.icon}</span>{n.label}
-            </button>
-          ))}
-        </div>
+      <nav style={{flex:1,overflowY:'auto',padding:'8px 0'}}>
+        <div style={S.label}>Exam Prep</div>
+        {examNav.map(n=>(
+          <button key={n.id} onClick={()=>setActive(n.id)} style={S.navItem(active===n.id,'#7c3aed')}>
+            <span style={{fontSize:12,opacity:active===n.id?0.9:0.4}}>{n.icon}</span>
+            <span>{n.label}</span>
+          </button>
+        ))}
+        <div style={S.divider}/>
+        <div style={{...S.label,color:'rgba(34,197,94,0.35)'}}>Architect Mind</div>
+        {archNav.map(n=>(
+          <button key={n.id} onClick={()=>setActive(n.id)} style={S.navItem(active===n.id,'#22c55e')}>
+            <span style={{fontSize:12,opacity:active===n.id?0.9:0.4}}>{n.icon}</span>
+            <span>{n.label}</span>
+          </button>
+        ))}
       </nav>
-      <div className="p-4" style={{borderTop:'1px solid rgba(139,92,246,0.12)'}}>
-        <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{color:'rgba(167,139,250,0.4)'}}>Streak</div>
-        <div className="text-lg font-bold" style={{color:'#c4b5fd'}}>{streak} <span className="text-base">🔥</span></div>
+      <div style={S.footer}>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginBottom:3,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase'}}>Streak</div>
+        <div style={{fontSize:16,fontWeight:700,color:'#f4f4f5'}}>{streak} 🔥</div>
       </div>
     </div>
   );
@@ -1778,26 +1860,26 @@ function BottomNav({active,setActive}){
     <>
       {more&&(
         <div className="fixed inset-0 z-40 md:hidden" onClick={()=>setMore(false)}>
-          <div className="absolute bottom-16 left-0 right-0 bg-white border-t border-slate-200 p-2 grid grid-cols-2 gap-1" onClick={e=>e.stopPropagation()}>
+          <div className="absolute bottom-16 left-0 right-0 p-2 grid grid-cols-2 gap-1" style={{background:'#111113',borderTop:'1px solid rgba(255,255,255,0.07)'}} onClick={e=>e.stopPropagation()}>
             {secondary.map(n=>(
               <button key={n.id} onClick={()=>{setActive(n.id);setMore(false)}}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded text-sm transition-colors ${active===n.id?'bg-indigo-50 text-indigo-700':'text-slate-500'}`}>
-                <span className="text-xs">{n.icon}</span>{n.label}
+                style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderRadius:8,fontSize:13,background:'none',border:'none',cursor:'pointer',color:active===n.id?'#a78bfa':'#52525b'}}>
+                <span style={{fontSize:11}}>{n.icon}</span>{n.label}
               </button>
             ))}
           </div>
         </div>
       )}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 flex shadow-lg">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex" style={{background:'#0c0c0e',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
         {primary.map(n=>(
           <button key={n.id} onClick={()=>{setActive(n.id);setMore(false)}}
-            className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs transition-colors ${active===n.id?'text-indigo-600':'text-slate-400'}`}>
-            <span className="text-base leading-none">{n.icon}</span>{n.label}
+            style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'10px 0 8px',gap:2,fontSize:10,background:'none',border:'none',cursor:'pointer',color:active===n.id?'#a78bfa':'#3f3f46'}}>
+            <span style={{fontSize:15,lineHeight:1}}>{n.icon}</span>{n.label}
           </button>
         ))}
         <button onClick={()=>setMore(m=>!m)}
-          className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs transition-colors ${more||secondary.find(n=>n.id===active)?'text-indigo-600':'text-slate-400'}`}>
-          <span className="text-base leading-none">···</span>More
+          style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'10px 0 8px',gap:2,fontSize:10,background:'none',border:'none',cursor:'pointer',color:more||secondary.find(n=>n.id===active)?'#a78bfa':'#3f3f46'}}>
+          <span style={{fontSize:15,lineHeight:1}}>···</span>More
         </button>
       </nav>
     </>
@@ -1840,61 +1922,56 @@ function ReadinessCard({r,examHistory,quizHistory,setActive,targetDate}){
     {lbl:'Quiz Accuracy',val:quizHistory.length>=5?`${r.quizPct}%`:'—',sub:quizHistory.length>=5?`${r.tried} unique questions tried`:'Need 5+ answers',id:'quiz',good:r.quizPct>=72},
     {lbl:'Flashcards',val:`${r.flashPct}%`,sub:`${r.known} of ${ALL_FLASH.length} mastered`,id:'flashcards',good:r.flashPct>=70},
   ];
+  const B='rgba(255,255,255,0.07)';
   return(
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Exam Readiness</span>
+    <div style={{borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'28px 24px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+        <span style={{fontSize:10,fontWeight:700,color:'#3f3f46',letterSpacing:'0.1em',textTransform:'uppercase'}}>Exam Readiness</span>
         {r.total>=80
-          ?<span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">✓ Ready to Book</span>
-          :days?<span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">{days} days left</span>:null}
+          ?<span style={{fontSize:10,fontWeight:700,color:'#22c55e',border:'1px solid rgba(34,197,94,0.3)',padding:'2px 8px',borderRadius:4}}>✓ Ready to Book</span>
+          :days?<span style={{fontSize:10,fontWeight:600,color:'#f59e0b',border:'1px solid rgba(245,158,11,0.3)',padding:'2px 8px',borderRadius:4}}>{days} days left</span>:null}
       </div>
-      <div className="flex items-end gap-1.5 mb-3">
-        <span className="text-6xl font-bold leading-none tabular-nums" style={{color:col}}>{r.total}</span>
-        <div className="mb-1.5">
-          <span className="text-xl font-bold text-slate-400">%</span>
-          <div className="text-xs text-slate-500 font-medium mt-0.5">{msg}</div>
+      <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:12}}>
+        <span style={{fontSize:52,fontWeight:900,lineHeight:1,letterSpacing:'-0.04em',color:col}}>{r.total}</span>
+        <div style={{marginBottom:6}}>
+          <span style={{fontSize:18,fontWeight:700,color:'#3f3f46'}}>%</span>
+          <div style={{fontSize:11,color:'#52525b',fontWeight:500,marginTop:2}}>{msg}</div>
         </div>
       </div>
-      <div className="mb-5">
-        <div className="relative w-full bg-slate-100 rounded-full h-2.5 mb-1.5 overflow-hidden">
-          <div className="absolute inset-y-0 left-0 h-2.5 rounded-full transition-all duration-700" style={{width:`${r.total}%`,background:col}}/>
-          {[40,65,80].map(v=>(
-            <div key={v} className="absolute top-0 bottom-0 w-px" style={{left:`${v}%`,background:r.total>=v?'rgba(255,255,255,.6)':'rgba(148,163,184,.6)'}}/>
-          ))}
+      <div style={{marginBottom:18}}>
+        <div style={{position:'relative',width:'100%',background:'rgba(255,255,255,0.05)',borderRadius:999,height:4,marginBottom:6,overflow:'hidden'}}>
+          <div style={{position:'absolute',inset:'0 auto 0 0',height:4,borderRadius:999,transition:'width .7s',width:`${r.total}%`,background:col}}/>
+          {[40,65,80].map(v=><div key={v} style={{position:'absolute',top:0,bottom:0,width:1,left:`${v}%`,background:'rgba(255,255,255,0.12)'}}/>)}
         </div>
-        <div className="flex justify-between text-[9px] font-semibold px-0.5">
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:9,fontWeight:600,color:'#3f3f46'}}>
           {[{v:40,l:'Building'},{v:65,l:'Almost'},{v:80,l:'Book it!'}].map(m=>(
-            <span key={m.v} className={r.total>=m.v?'text-emerald-500':'text-slate-400'}>{m.l}</span>
+            <span key={m.v} style={{color:r.total>=m.v?'#22c55e':'#3f3f46'}}>{m.l}</span>
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:10}}>
         {tiles.map(c=>(
           <button key={c.id} onClick={()=>setActive(c.id)}
-            className="rounded-xl p-3 text-left border transition-all hover:shadow-sm"
-            style={{
-              borderColor:c.val!=='—'?(c.good?'#bbf7d0':'#fde68a'):'#e2e8f0',
-              background:c.val!=='—'?(c.good?'#f0fdf4':'#fffbeb'):'#f8fafc'
-            }}>
-            <div className="text-[10px] text-slate-400 font-medium mb-1.5 leading-tight">{c.lbl}</div>
-            <div className="text-lg font-bold leading-none mb-1 text-slate-800">{c.val}</div>
-            <div className="text-[10px] text-slate-400 leading-tight">{c.sub}</div>
+            style={{borderRadius:8,padding:'10px 12px',textAlign:'left',border:`1px solid ${c.val!=='—'?(c.good?'rgba(34,197,94,0.2)':'rgba(245,158,11,0.2)'):B}`,background:c.val!=='—'?(c.good?'rgba(34,197,94,0.05)':'rgba(245,158,11,0.05)'):'transparent',cursor:'pointer'}}>
+            <div style={{fontSize:9,color:'#52525b',fontWeight:600,marginBottom:6,letterSpacing:'0.04em'}}>{c.lbl}</div>
+            <div style={{fontSize:17,fontWeight:800,color:'#f4f4f5',marginBottom:3}}>{c.val}</div>
+            <div style={{fontSize:9,color:'#3f3f46',lineHeight:1.4}}>{c.sub}</div>
           </button>
         ))}
       </div>
       {weakest&&(
-        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs">
-          <span className="text-amber-400">▲</span>
-          <span className="text-amber-700 font-semibold">Focus:</span>
-          <span className="text-amber-600">{DOMAINS[weakest[0]].label} — {weakest[1].pct}% accuracy</span>
-          <button onClick={()=>setActive('quiz')} className="ml-auto text-amber-700 font-bold hover:underline shrink-0">Practice →</button>
+        <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.15)',borderRadius:7,padding:'8px 12px',fontSize:11}}>
+          <span style={{color:'#f59e0b'}}>▲</span>
+          <span style={{color:'#d97706',fontWeight:600}}>Focus:</span>
+          <span style={{color:'#92400e'}}>{DOMAINS[weakest[0]].label} — {weakest[1].pct}%</span>
+          <button onClick={()=>setActive('quiz')} style={{marginLeft:'auto',color:'#f59e0b',fontWeight:700,background:'none',border:'none',cursor:'pointer',fontSize:11}}>Practice →</button>
         </div>
       )}
       {!r.hasExam&&quizHistory.length>=20&&(
-        <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs mt-2">
-          <span className="text-indigo-500">◎</span>
-          <span className="text-indigo-600">Take a full practice exam to unlock an accurate readiness score</span>
-          <button onClick={()=>setActive('exam')} className="ml-auto text-indigo-700 font-bold hover:underline shrink-0">Go →</button>
+        <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(99,102,241,0.06)',border:'1px solid rgba(99,102,241,0.15)',borderRadius:7,padding:'8px 12px',fontSize:11,marginTop:6}}>
+          <span style={{color:'#818cf8'}}>◎</span>
+          <span style={{color:'#6366f1'}}>Take a full practice exam to unlock an accurate readiness score</span>
+          <button onClick={()=>setActive('exam')} style={{marginLeft:'auto',color:'#818cf8',fontWeight:700,background:'none',border:'none',cursor:'pointer',fontSize:11}}>Go →</button>
         </div>
       )}
     </div>
@@ -1934,9 +2011,9 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,
   const greeting=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
 
   return(
-    <div className="p-4 md:p-6 space-y-5">
+    <div style={{padding:'32px 40px',maxWidth:900,display:'flex',flexDirection:'column',gap:0}}>
       {/* Today's Session */}
-      <div style={{background:'linear-gradient(135deg,#4f46e5,#7c3aed)',borderRadius:20,padding:20,color:'white',boxShadow:'0 8px 32px rgba(79,70,229,0.35)'}}>
+      <div style={{background:'linear-gradient(135deg,#1e1260,#3b0d6e)',border:'1px solid rgba(124,58,237,0.25)',padding:24,color:'white',marginBottom:0}}>
         <div className="flex items-start justify-between" style={{marginBottom:12}}>
           <div>
             <div style={{color:'rgba(199,210,254,0.8)',fontSize:11,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div>
@@ -1974,60 +2051,66 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,
         </div>
         <button
           onClick={()=>todayPlan.targetDomain?startTargeted(todayPlan.targetDomain):setActive(quizHistory.length===0?'assessment':'quiz')}
-          style={{width:'100%',background:'white',color:'#4338ca',fontWeight:800,fontSize:14,padding:'12px 0',borderRadius:14,border:'none',cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>
+          style={{width:'100%',background:'rgba(255,255,255,0.1)',color:'white',fontWeight:700,fontSize:13,padding:'11px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',backdropFilter:'blur(8px)'}}>
           {todayPlan.targetDomain?`Start: ${DOMAINS[todayPlan.targetDomain].label} session →`:"Start today's session →"}
         </button>
       </div>
 
       <ReadinessCard r={r} examHistory={examHistory} quizHistory={quizHistory} setActive={setActive} targetDate={settings?.targetDate}/>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderTop:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',marginBottom:0}}>
         {[
-          {label:'Quiz Answers',val:quizHistory.length,sub:`${quizHistory.filter(h=>h.correct).length} correct`,color:'text-emerald-600',bg:'bg-emerald-50',icon:'◉'},
-          {label:'Lessons Done',val:`${lessonsRead.length}/${LESSONS.length}`,sub:'study guides completed',color:'text-sky-600',bg:'bg-sky-50',icon:'▦'},
-          {label:'Questions Tried',val:`${r.tried}/${QUESTIONS.length}`,sub:'unique questions seen',color:'text-amber-600',bg:'bg-amber-50',icon:'◷'},
-          {label:'Day Streak',val:`${streak}🔥`,sub:'days in a row',color:'text-violet-600',bg:'bg-violet-50',icon:'◆'},
-        ].map(c=>(
-          <div key={c.label} className={`${c.bg} rounded-xl p-4 lift cursor-default`}>
-            <div className="text-slate-500 text-xs font-medium mb-2">{c.label}</div>
-            <div className={`${c.color} text-2xl font-bold leading-none mb-1`}>{c.val}</div>
-            <div className="text-slate-400 text-xs">{c.sub}</div>
+          {label:'Quiz Answers',val:quizHistory.length,sub:`${quizHistory.filter(h=>h.correct).length} correct`,accent:'#22c55e'},
+          {label:'Lessons Done',val:`${lessonsRead.length}/${LESSONS.length}`,sub:'completed',accent:'#38bdf8'},
+          {label:'Questions Tried',val:`${r.tried}/${QUESTIONS.length}`,sub:'unique seen',accent:'#f59e0b'},
+          {label:'Day Streak',val:`${streak} 🔥`,sub:'days in a row',accent:'#a78bfa'},
+        ].map((c,i)=>(
+          <div key={c.label} style={{padding:'20px 24px',borderRight:i<3?'1px solid rgba(255,255,255,0.07)':'none'}}>
+            <div style={{fontSize:9,color:'#3f3f46',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:10}}>{c.label}</div>
+            <div style={{fontSize:28,fontWeight:900,color:c.accent,letterSpacing:'-0.03em',marginBottom:4}}>{c.val}</div>
+            <div style={{fontSize:11,color:'#404048'}}>{c.sub}</div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="text-slate-700 text-sm font-semibold mb-4">Domain Performance</div>
-          <div className="space-y-3.5">
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+        <div style={{padding:'28px 24px',borderRight:'1px solid rgba(255,255,255,0.07)'}}>
+          <div style={{fontSize:9,color:'#3f3f46',fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:20}}>Domain Performance</div>
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
             {Object.entries(DOMAINS).map(([key,d])=>{
               const s=domainScores[key]||{correct:0,total:0};
               const score=s.total?pct(s.correct,s.total):0;
+              const accent={secure:'#22c55e',resilient:'#38bdf8',performing:'#f59e0b',cost:'#a78bfa'}[key];
               return(
                 <div key={key}>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className={`${d.color} font-medium`}>{d.label} <span className="text-slate-400 font-normal">({d.pct}% of exam)</span></span>
-                    <span className={s.total?`${d.color} font-semibold`:'text-slate-400'}>{s.total?`${score}%`:'—'}</span>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:7}}>
+                    <span style={{color:'#c4c4c8',fontWeight:500}}>{d.label} <span style={{color:'#27272a',fontWeight:400}}>({d.pct}%)</span></span>
+                    <span style={{color:s.total?accent:'#27272a',fontWeight:700,fontSize:13}}>{s.total?`${score}%`:'—'}</span>
                   </div>
-                  <ProgressBar value={score} max={100} domain={key}/>
+                  <div style={{height:2,background:'rgba(255,255,255,0.04)'}}>
+                    <div style={{height:2,width:`${score}%`,background:accent,transition:'width .5s'}}/>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="text-slate-700 text-sm font-semibold mb-4">Jump Into</div>
-          <div className="space-y-2">
+        <div style={{padding:'28px 24px'}}>
+          <div style={{fontSize:9,color:'#3f3f46',fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:20}}>Quick Access</div>
+          <div style={{borderTop:'1px solid rgba(255,255,255,0.06)'}}>
             {[
-              {label:'Learn',id:'learn',color:'text-emerald-700',bg:'bg-emerald-50 hover:bg-emerald-100',icon:'▦'},
-              {label:'Practice Quiz',id:'quiz',color:'text-sky-700',bg:'bg-sky-50 hover:bg-sky-100',icon:'◉'},
-              {label:'Flashcards',id:'flashcards',color:'text-amber-700',bg:'bg-amber-50 hover:bg-amber-100',icon:'⬜'},
-              {label:'Practice Exam',id:'exam',color:'text-violet-700',bg:'bg-violet-50 hover:bg-violet-100',icon:'◎'},
+              {label:'Learn',id:'learn',accent:'#22c55e'},
+              {label:'Practice Quiz',id:'quiz',accent:'#38bdf8'},
+              {label:'Flashcards',id:'flashcards',accent:'#f59e0b'},
+              {label:'Practice Exam',id:'exam',accent:'#a78bfa'},
             ].map(a=>(
               <button key={a.id} onClick={()=>setActive(a.id)}
-                className={`w-full text-left ${a.color} ${a.bg} text-sm py-2.5 px-3 rounded-lg flex items-center gap-2 transition-colors font-medium`}>
-                <span className="text-base">{a.icon}</span>{a.label}
+                style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'14px 0',background:'none',border:'none',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer',fontSize:13,color:'#8c8c94',fontWeight:500,transition:'color .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.color=a.accent}
+                onMouseLeave={e=>e.currentTarget.style.color='#8c8c94'}>
+                <span>{a.label}</span>
+                <span style={{fontSize:12}}>→</span>
               </button>
             ))}
           </div>
@@ -2039,55 +2122,37 @@ function Dashboard({quizHistory,examHistory,flashConf,streak,setActive,settings,
 
 // ── Welcome / Home ───────────────────────────────────────────────────────────
 function Welcome({setActive}){
+  const options=[
+    {id:'assessment',accent:'#7c3aed',num:'01',title:'Gap Assessment',tag:'START HERE',desc:'15-question diagnostic. Find your weakest domains before you waste a single hour.'},
+    {id:'dashboard',accent:'#f4f4f5',num:'02',title:'SAA-C03 Exam Prep',tag:null,desc:'Quiz, flashcards, practice exams. Everything you need to pass.'},
+    {id:'architect',accent:'#22c55e',num:'03',title:"Architect's Mindset",tag:null,desc:'Real business scenarios. Learn to choose services and defend trade-offs.'},
+  ];
   return(
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full">
-        <div className="text-center mb-10">
-          <div className="text-4xl mb-3">⬡</div>
-          <h1 className="text-slate-900 text-3xl font-bold mb-2">AWS Study Hub</h1>
-          <p className="text-slate-500 text-base">What do you want to work on today?</p>
+    <div style={{minHeight:'100vh',background:'#09090b',display:'flex',flexDirection:'column',justifyContent:'center',padding:'0 40px'}}>
+      <div style={{maxWidth:680,width:'100%',margin:'0 auto'}}>
+        <div style={{marginBottom:56}}>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:'0.18em',color:'#3f3f46',marginBottom:12,textTransform:'uppercase'}}>AWS SAA-C03</div>
+          <h1 style={{fontSize:42,fontWeight:900,letterSpacing:'-0.03em',color:'#f4f4f5',lineHeight:1.08,marginBottom:10}}>Study Hub</h1>
+          <p style={{fontSize:14,color:'#52525b',letterSpacing:'-0.01em'}}>Choose a mode to begin.</p>
         </div>
-        <div className="grid sm:grid-cols-2 gap-5">
-          <button onClick={()=>setActive('assessment')}
-            className="group bg-white rounded-2xl p-6 border-2 border-indigo-200 hover:border-indigo-400 hover:shadow-xl transition-all text-left shadow-sm bg-gradient-to-br from-white to-indigo-50/50">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-2xl mb-4 text-white shadow-sm">◎</div>
-            <div className="font-bold text-slate-900 text-lg mb-1">Gap Assessment <span className="text-xs font-semibold bg-indigo-600 text-white px-2 py-0.5 rounded-full ml-1">Start here</span></div>
-            <p className="text-slate-500 text-sm leading-relaxed mb-4">15-question diagnostic across all 4 SAA-C03 domains. Get a personalized gap report showing exactly what to study first.</p>
-            <div className="flex flex-wrap gap-1.5">
-              {['Gap Report','Domain Analysis','Readiness Score','Targeted Practice'].map(t=>(
-                <span key={t} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
-              ))}
-            </div>
-            <div className="mt-4 text-indigo-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Take assessment →</div>
-          </button>
-
-          <button onClick={()=>setActive('dashboard')}
-            className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all text-left shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-2xl mb-4 group-hover:bg-indigo-200 transition-colors">◉</div>
-            <div className="font-bold text-slate-900 text-lg mb-1">SAA-C03 Exam Prep</div>
-            <p className="text-slate-500 text-sm leading-relaxed mb-4">Quizzes, flashcards, practice exams, and structured lessons to pass the Solutions Architect Associate exam.</p>
-            <div className="flex flex-wrap gap-1.5">
-              {['Quiz','Flashcards','Practice Exam','Learn'].map(t=>(
-                <span key={t} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
-              ))}
-            </div>
-            <div className="mt-4 text-indigo-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Go to Dashboard →</div>
-          </button>
-
-          <button onClick={()=>setActive('architect')}
-            className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-violet-300 hover:shadow-xl transition-all text-left shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-2xl mb-4 group-hover:bg-violet-200 transition-colors">⬟</div>
-            <div className="font-bold text-slate-900 text-lg mb-1">Architect's Mindset</div>
-            <p className="text-slate-500 text-sm leading-relaxed mb-4">Real business scenarios. Learn to choose the right services, explain the trade-offs, and defend decisions to executives and engineers.</p>
-            <div className="flex flex-wrap gap-1.5">
-              {['Scenarios','Principles','Trade-offs','Explanations'].map(t=>(
-                <span key={t} className="text-xs bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
-              ))}
-            </div>
-            <div className="mt-4 text-violet-600 font-semibold text-sm group-hover:translate-x-1 transition-transform inline-block">Start thinking →</div>
-          </button>
+        <div style={{borderTop:'1px solid rgba(255,255,255,0.07)'}}>
+          {options.map((o,i)=>(
+            <button key={o.id} onClick={()=>setActive(o.id)}
+              style={{width:'100%',textAlign:'left',background:'none',border:'none',borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'28px 0',cursor:'pointer',display:'flex',alignItems:'flex-start',gap:32,transition:'background .1s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+              onMouseLeave={e=>e.currentTarget.style.background='none'}>
+              <span style={{fontSize:11,fontWeight:700,color:'#27272a',letterSpacing:'0.08em',marginTop:4,minWidth:24}}>{o.num}</span>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                  <span style={{fontSize:17,fontWeight:800,color:o.accent,letterSpacing:'-0.01em'}}>{o.title}</span>
+                  {o.tag&&<span style={{fontSize:9,fontWeight:800,letterSpacing:'0.12em',textTransform:'uppercase',color:'#7c3aed',border:'1px solid rgba(124,58,237,0.4)',padding:'2px 6px'}}>{o.tag}</span>}
+                </div>
+                <p style={{fontSize:13,color:'#52525b',lineHeight:1.5,margin:0}}>{o.desc}</p>
+              </div>
+              <span style={{fontSize:16,color:'#27272a',marginTop:4,transition:'transform .15s',display:'block'}}>→</span>
+            </button>
+          ))}
         </div>
-        <p className="text-center text-slate-300 text-xs mt-8">You can switch between sections any time from the sidebar</p>
       </div>
     </div>
   );
@@ -2105,7 +2170,7 @@ function ArchitectMind(){
   if(selected){
     const s=ARCH_SCENARIOS.find(x=>x.id===selected);
     const isRevealed=revealed.includes(s.id);
-    const signalStyle=(sig)=>sig==='good'?{border:'1.5px solid #10b981',background:'#f0fdf4'}:sig==='partial'?{border:'1.5px solid #f59e0b',background:'#fffbeb'}:{border:'1.5px solid #fca5a5',background:'#fff1f2'};
+    const signalStyle=(sig)=>sig==='good'?{border:'1.5px solid rgba(16,185,129,0.4)',background:'rgba(16,185,129,0.07)'}:sig==='partial'?{border:'1.5px solid rgba(245,158,11,0.4)',background:'rgba(245,158,11,0.07)'}:{border:'1.5px solid rgba(239,68,68,0.4)',background:'rgba(239,68,68,0.07)'};
     const signalIcon=(sig)=>sig==='good'?'✓':sig==='partial'?'~':'✗';
     const signalColor=(sig)=>sig==='good'?'#10b981':sig==='partial'?'#d97706':'#ef4444';
     return(
@@ -2130,7 +2195,7 @@ function ArchitectMind(){
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Your Options</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {s.options.map((o,i)=>(
-              <div key={i} className="rounded-lg p-3 text-sm" style={isRevealed?signalStyle(o.signal):{border:'1.5px solid #e2e8f0',background:'#fff'}}>
+              <div key={i} className="rounded-lg p-3 text-sm" style={isRevealed?signalStyle(o.signal):{border:'1.5px solid rgba(255,255,255,0.07)',background:'#111113'}}>
                 <div className="flex items-start gap-2">
                   {isRevealed&&<span className="font-bold mt-0.5 flex-shrink-0 text-sm" style={{color:signalColor(o.signal)}}>{signalIcon(o.signal)}</span>}
                   <div>
@@ -2460,22 +2525,28 @@ function Quiz({onAnswer,startDomain}){
     else setSession('done');
   };
 
+  const domainAccent={all:'#7c3aed',secure:'#22c55e',resilient:'#38bdf8',performing:'#f59e0b',cost:'#a78bfa'};
+
   if(!session){
     return(
-      <div className="p-4 md:p-6 max-w-2xl">
-        <h1 className="text-slate-900 text-xl font-bold mb-2">Practice Quiz</h1>
-        <p className="text-slate-400 text-sm mb-5">10 randomized questions · adaptive difficulty</p>
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <div className="text-slate-600 text-sm font-semibold mb-3">Focus on domain:</div>
-          <div className="grid grid-cols-2 gap-2 mb-6 sm:grid-cols-3">
-            {[{id:'all',label:'All Domains',color:'text-slate-700'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label,color:v.color,bg:v.bg}))].map(d=>(
-              <button key={d.id} onClick={()=>setDomain(d.id)}
-                className={`text-sm py-2 px-3 rounded-lg border-2 font-medium transition-all ${domain===d.id?`border-indigo-500 text-indigo-700 bg-indigo-50`:`border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50`}`}>
-                {d.label}
-              </button>
-            ))}
+      <div style={{padding:'24px',maxWidth:580}}>
+        <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:4,letterSpacing:'-0.01em'}}>Practice Quiz</h1>
+        <p style={{fontSize:12,color:'#52525b',marginBottom:20}}>10 randomized questions · type your recall first</p>
+        <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#52525b',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:12}}>Focus domain</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:20}}>
+            {[{id:'all',label:'All Domains'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>{
+              const on=domain===d.id;
+              const acc=domainAccent[d.id];
+              return(
+                <button key={d.id} onClick={()=>setDomain(d.id)}
+                  style={{padding:'8px 10px',borderRadius:6,border:`1px solid ${on?acc+'66':'rgba(255,255,255,0.07)'}`,background:on?acc+'11':'transparent',color:on?acc:'#52525b',fontSize:12,fontWeight:on?600:400,cursor:'pointer',transition:'all .12s'}}>
+                  {d.label}
+                </button>
+              );
+            })}
           </div>
-          <button onClick={startQuiz} className="bg-indigo-600 text-white text-sm font-bold px-8 py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-md">
+          <button onClick={startQuiz} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:8,padding:'11px 28px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
             Start Quiz →
           </button>
         </div>
@@ -2493,54 +2564,49 @@ function Quiz({onAnswer,startDomain}){
       if(!bySubtopic[key])bySubtopic[key]={sub:r.sub,domain:r.domain,items:[]};
       bySubtopic[key].items.push(r);
     });
+    const acc=correct>=7?'#22c55e':correct>=5?'#f59e0b':'#ef4444';
+    const dAcc={secure:'#22c55e',resilient:'#38bdf8',performing:'#f59e0b',cost:'#a78bfa'};
     return(
-      <div className="p-4 md:p-6 max-w-2xl">
-        <h1 className="text-slate-900 text-xl font-bold mb-5">Results</h1>
-        <div className={`rounded-2xl p-6 mb-4 text-center ${correct>=7?'bg-emerald-50':correct>=5?'bg-amber-50':'bg-red-50'}`}>
-          <div className={`text-5xl font-black mb-1 ${correct>=7?'text-emerald-600':correct>=5?'text-amber-600':'text-red-500'}`}>
-            {correct}/10
-          </div>
-          <div className={`text-sm font-semibold mb-4 ${correct>=7?'text-emerald-600':correct>=5?'text-amber-600':'text-red-500'}`}>
-            {pct(correct,10)}% · {correct>=7?'Great work! 🎉':correct>=5?'Getting there 💪':'Keep studying 📚'}
-          </div>
-          <div className="flex flex-wrap justify-center gap-3 mb-5">
+      <div style={{padding:'24px',maxWidth:580}}>
+        <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:16,letterSpacing:'-0.01em'}}>Results</h1>
+        <div style={{background:'#111113',border:`1px solid ${acc}33`,borderRadius:10,padding:24,marginBottom:12,textAlign:'center'}}>
+          <div style={{fontSize:52,fontWeight:900,color:acc,letterSpacing:'-0.04em',lineHeight:1}}>{correct}/10</div>
+          <div style={{fontSize:13,color:acc,fontWeight:600,marginTop:6,marginBottom:16}}>{pct(correct,10)}% · {correct>=7?'Great work! 🎉':correct>=5?'Getting there 💪':'Keep studying 📚'}</div>
+          <div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:8,marginBottom:18}}>
             {Object.keys(DOMAINS).map(d=>{
               const dr=sessionResults.filter(r=>r.domain===d);
               if(!dr.length)return null;
               const sc=dr.filter(r=>r.correct).length;
-              return<div key={d} className={`text-xs px-3 py-1 rounded-full font-semibold ${DOMAINS[d].bg} ${DOMAINS[d].color}`}>
+              return<div key={d} style={{fontSize:11,padding:'3px 10px',borderRadius:4,background:dAcc[d]+'18',color:dAcc[d],fontWeight:600}}>
                 {DOMAINS[d].label}: {sc}/{dr.length}
               </div>;
             })}
           </div>
-          <button onClick={()=>{setSession(null);setDomain('all');}} className="bg-white text-slate-700 font-semibold text-sm px-5 py-2 rounded-lg border-2 border-slate-200 hover:border-slate-300 transition-colors">
+          <button onClick={()=>{setSession(null);setDomain('all');}}
+            style={{background:'none',border:'1px solid rgba(255,255,255,0.12)',borderRadius:6,padding:'7px 18px',color:'#d4d4d8',fontSize:13,fontWeight:600,cursor:'pointer'}}>
             New Quiz
           </button>
         </div>
 
         {missed.length>0&&(
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <div className="text-slate-800 font-bold mb-0.5">Review List</div>
-            <div className="text-slate-400 text-xs mb-4">{missed.length} topic{missed.length!==1?'s':''} to revisit</div>
-            <div className="space-y-4">
-              {Object.values(bySubtopic).map((group,i)=>(
-                <div key={i} className={`${DOMAINS[group.domain].bg} rounded-lg p-3`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`${DOMAINS[group.domain].color} text-xs font-bold`}>{group.sub}</span>
-                    <span className="text-slate-300 text-xs">·</span>
-                    <span className="text-slate-400 text-xs">{DOMAINS[group.domain].label}</span>
-                    {group.items.some(r=>r.dontKnow)&&<span className="text-xs text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-full">didn't know</span>}
-                  </div>
-                  <div className="space-y-2 pl-2 border-l-2 border-white/70">
+          <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20}}>
+            <div style={{fontSize:13,fontWeight:700,color:'#f4f4f5',marginBottom:2}}>Review List</div>
+            <div style={{fontSize:11,color:'#52525b',marginBottom:16}}>{missed.length} topic{missed.length!==1?'s':''} to revisit</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {Object.values(bySubtopic).map((group,i)=>{
+                const a=dAcc[group.domain];
+                return(
+                  <div key={i} style={{borderLeft:`2px solid ${a}`,paddingLeft:12}}>
+                    <div style={{fontSize:11,color:a,fontWeight:700,marginBottom:6}}>{group.sub} <span style={{color:'#52525b',fontWeight:400}}>· {DOMAINS[group.domain].label}</span></div>
                     {group.items.map((r,j)=>(
-                      <div key={j}>
-                        <div className="text-slate-600 text-xs leading-relaxed">{r.qtext}</div>
-                        <div className={`${DOMAINS[group.domain].color} text-xs mt-0.5 font-semibold`}>→ {r.ans}</div>
+                      <div key={j} style={{marginBottom:6}}>
+                        <div style={{fontSize:11,color:'#71717a',lineHeight:1.5}}>{r.qtext}</div>
+                        <div style={{fontSize:11,color:a,fontWeight:600,marginTop:2}}>→ {r.ans}</div>
                       </div>
                     ))}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -2550,34 +2616,32 @@ function Quiz({onAnswer,startDomain}){
 
   const q=session[idx];
   const d=DOMAINS[q.domain];
+  const dAccent={secure:'#22c55e',resilient:'#38bdf8',performing:'#f59e0b',cost:'#a78bfa'}[q.domain];
 
   return(
-    <div className="p-4 md:p-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-3">
+    <div style={{padding:'24px',maxWidth:580}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
         <div>
-          <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-0.5">{d.label} · {q.sub}</div>
-          <h1 className="text-slate-900 text-lg font-bold">Question {idx+1} / {session.length}</h1>
+          <div style={{fontSize:10,color:'#3f3f46',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:3}}>{d.label} · {q.sub}</div>
+          <div style={{fontSize:16,fontWeight:800,color:'#f4f4f5'}}>Question {idx+1} <span style={{color:'#3f3f46',fontWeight:400}}>/ {session.length}</span></div>
         </div>
-        <div className="flex items-center gap-2">
-          {!recalled&&selected===null&&(
-            <div className={`w-11 h-11 rounded-full flex items-center justify-center font-mono font-bold text-sm border-2 transition-colors ${timer<=10?'border-red-400 text-red-500 bg-red-50':'border-indigo-300 text-indigo-600 bg-indigo-50'}`}>{timer}</div>
-          )}
-        </div>
+        {!recalled&&selected===null&&(
+          <div style={{width:40,height:40,borderRadius:'50%',border:`1.5px solid ${timer<=10?'#ef4444':dAccent}`,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,color:timer<=10?'#ef4444':dAccent}}>{timer}</div>
+        )}
       </div>
-      <ProgressBar value={idx+1} max={session.length} domain={q.domain} className="mb-5"/>
-      <div className="bg-white border-l-4 border border-slate-200 rounded-xl p-5 mb-4 shadow-sm" style={{borderLeftColor:q.domain==='secure'?'#10b981':q.domain==='resilient'?'#0ea5e9':q.domain==='performing'?'#f59e0b':'#8b5cf6'}}>
-        <div className="flex items-center gap-2 mb-3">
-          <Tag domain={q.domain}/><span className="text-slate-400 text-xs font-medium uppercase tracking-wide">{q.sub}</span>
-        </div>
-        <p className="text-slate-800 text-sm leading-relaxed font-medium">{q.q}</p>
+      <div style={{height:3,background:'rgba(255,255,255,0.05)',borderRadius:2,marginBottom:20}}>
+        <div style={{height:3,width:`${((idx+1)/session.length)*100}%`,background:dAccent,borderRadius:2,transition:'width .3s'}}/>
+      </div>
+      <div style={{background:'#111113',borderLeft:`3px solid ${dAccent}`,border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:20,marginBottom:14}}>
+        <p style={{fontSize:14,color:'#e4e4e7',lineHeight:1.7,fontWeight:500}}>{q.q}</p>
       </div>
       {!recalled&&selected===null?(
-        <div className="space-y-3">
-          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-3">
-            <div className="text-indigo-500 text-lg leading-none mt-0.5">✏</div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{background:'rgba(124,58,237,0.08)',border:'1px solid rgba(124,58,237,0.2)',borderRadius:8,padding:'10px 14px',display:'flex',gap:10,alignItems:'flex-start'}}>
+            <span style={{color:'#a78bfa',fontSize:14}}>✏</span>
             <div>
-              <div className="text-indigo-700 font-bold text-sm mb-0.5">Write your answer first</div>
-              <div className="text-indigo-500 text-xs">Commit something before you see the options — even a few words. This is the recall.</div>
+              <div style={{fontSize:12,fontWeight:700,color:'#a78bfa',marginBottom:2}}>Write your answer first</div>
+              <div style={{fontSize:11,color:'#6d6d9a'}}>Commit something before you see the options — even a few words.</div>
             </div>
           </div>
           <textarea
@@ -2586,59 +2650,63 @@ function Quiz({onAnswer,startDomain}){
             placeholder="Type your answer here..."
             rows={3}
             autoFocus
-            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 resize-none focus:border-indigo-400 focus:bg-indigo-50/30 transition-colors placeholder-slate-300"
+            style={{width:'100%',background:'#0c0c0e',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:'12px 14px',fontSize:13,color:'#e4e4e7',resize:'none',lineHeight:1.6}}
           />
           <button
             onClick={()=>setRecalled(true)}
             disabled={typed.trim().length===0}
-            className={`w-full font-bold text-sm py-3.5 rounded-xl transition-colors shadow-sm ${typed.trim().length>0?'bg-indigo-600 text-white hover:bg-indigo-700':'bg-slate-100 text-slate-300 cursor-not-allowed'}`}>
+            style={{width:'100%',padding:'13px 0',borderRadius:8,border:'none',fontSize:13,fontWeight:700,cursor:typed.trim().length>0?'pointer':'not-allowed',background:typed.trim().length>0?'#7c3aed':'rgba(255,255,255,0.05)',color:typed.trim().length>0?'white':'#3f3f46',transition:'background .15s'}}>
             Reveal Options →
           </button>
-          <button onClick={handleDontKnow} className="w-full text-sm px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+          <button onClick={handleDontKnow}
+            style={{width:'100%',padding:'10px 0',borderRadius:8,border:'1px dashed rgba(255,255,255,0.1)',background:'none',fontSize:12,color:'#52525b',cursor:'pointer'}}>
             I don't know this one
           </button>
         </div>
       ):(
         <>
           {typed&&selected===null&&(
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-3 flex items-start gap-2">
-              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wide mt-0.5 shrink-0">Your recall</span>
-              <span className="text-slate-600 text-sm italic leading-snug">{typed}</span>
+            <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'8px 14px',marginBottom:10,display:'flex',gap:10,alignItems:'flex-start'}}>
+              <span style={{fontSize:10,fontWeight:700,color:'#3f3f46',textTransform:'uppercase',letterSpacing:'0.08em',whiteSpace:'nowrap',marginTop:2}}>Your recall</span>
+              <span style={{fontSize:12,color:'#71717a',fontStyle:'italic',lineHeight:1.5}}>{typed}</span>
             </div>
           )}
-          <div className="space-y-2 mb-3">
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
             {q.opts.map((opt,i)=>{
-              let cls='border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40';
-              let letterCls='bg-slate-100 text-slate-500';
+              let borderColor='rgba(255,255,255,0.07)';
+              let bg='#111113';
+              let textColor='#d4d4d8';
+              let letterBg='rgba(255,255,255,0.06)';
+              let letterColor='#71717a';
               if(selected!==null){
-                if(isCorrectOpt(q,i)){cls='border-emerald-400 bg-emerald-50 text-emerald-800';letterCls='bg-emerald-400 text-white';}
-                else if(i===selected&&!isCorrectOpt(q,i)&&selected!=='dk'){cls='border-red-400 bg-red-50 text-red-700';letterCls='bg-red-400 text-white';}
-                else{cls='border-slate-100 bg-slate-50 text-slate-400';letterCls='bg-slate-200 text-slate-400';}
+                if(isCorrectOpt(q,i)){borderColor='#22c55e';bg='rgba(34,197,94,0.06)';textColor='#86efac';letterBg='#22c55e';letterColor='#fff';}
+                else if(i===selected&&!isCorrectOpt(q,i)&&selected!=='dk'){borderColor='#ef4444';bg='rgba(239,68,68,0.06)';textColor='#fca5a5';letterBg='#ef4444';letterColor='#fff';}
+                else{borderColor='rgba(255,255,255,0.04)';textColor='#3f3f46';letterColor='#3f3f46';}
               }
               return(
                 <button key={i} onClick={()=>handleSelect(i)}
-                  className={`w-full text-left text-sm px-3 py-3 rounded-lg border-2 transition-all flex items-start gap-0 ${cls}`}>
-                  <span className={`opt-letter ${letterCls}`}>{String.fromCharCode(65+i)}</span>
-                  <span className="flex-1 leading-snug pt-0.5">{opt}</span>
+                  style={{width:'100%',textAlign:'left',padding:'11px 14px',borderRadius:8,border:`1px solid ${borderColor}`,background:bg,cursor:'pointer',display:'flex',alignItems:'flex-start',gap:0,transition:'all .12s'}}>
+                  <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:22,height:22,borderRadius:'50%',background:letterBg,color:letterColor,fontSize:10,fontWeight:700,flexShrink:0,marginRight:12}}>{String.fromCharCode(65+i)}</span>
+                  <span style={{fontSize:13,color:textColor,lineHeight:1.55,flex:1}}>{opt}</span>
                 </button>
               );
             })}
           </div>
           {selected===null&&(
             <button onClick={handleDontKnow}
-              className="w-full text-sm px-4 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors mb-4">
+              style={{width:'100%',padding:'9px 0',borderRadius:8,border:'1px dashed rgba(255,255,255,0.08)',background:'none',fontSize:12,color:'#3f3f46',cursor:'pointer',marginBottom:12}}>
               I don't know this one
             </button>
           )}
           {showExp&&(
-            <div className={`rounded-xl p-4 mb-4 ${selected==='dk'?'bg-amber-50 border-2 border-amber-200':'bg-indigo-50 border-2 border-indigo-100'}`}>
-              {selected==='dk'&&<div className="text-amber-700 text-xs font-semibold mb-2">✓ Correct: {correctLabel(q)}</div>}
-              <div className={`text-xs font-semibold mb-1.5 ${selected==='dk'?'text-amber-600':'text-indigo-600'}`}>Explanation</div>
-              <p className="text-slate-700 text-sm leading-relaxed">{q.exp}</p>
+            <div style={{background:selected==='dk'?'rgba(245,158,11,0.07)':'rgba(124,58,237,0.07)',border:`1px solid ${selected==='dk'?'rgba(245,158,11,0.2)':'rgba(124,58,237,0.2)'}`,borderRadius:8,padding:'14px 16px',marginBottom:12}}>
+              {selected==='dk'&&<div style={{fontSize:11,fontWeight:700,color:'#fbbf24',marginBottom:6}}>✓ Correct: {correctLabel(q)}</div>}
+              <div style={{fontSize:10,fontWeight:700,color:selected==='dk'?'#d97706':'#a78bfa',letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:6}}>Explanation</div>
+              <p style={{fontSize:12,color:'#a1a1aa',lineHeight:1.65}}>{q.exp}</p>
             </div>
           )}
           {selected!==null&&(
-            <button onClick={next} className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+            <button onClick={next} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:8,padding:'11px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
               {idx<session.length-1?'Next Question →':'View Results'}
             </button>
           )}
@@ -3002,146 +3070,130 @@ function Flashcards(){
 
   const frontLabel=card?.source==='question'?'QUESTION':card?.source==='vocab'?'TERM':'CONCEPT';
 
+  const pill=(on,color='#7c3aed')=>({
+    fontSize:11,padding:'5px 11px',borderRadius:5,border:`1px solid ${on?color+'55':'rgba(255,255,255,0.07)'}`,
+    background:on?color+'12':'transparent',color:on?color:'#52525b',cursor:'pointer',fontWeight:on?600:400,
+  });
+
   return(
-    <div className="p-4 md:p-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h1 className="text-slate-800 text-xl font-semibold">Flashcards</h1>
-        <div className="flex items-center gap-2 text-xs flex-wrap">
-          <button onClick={()=>{setSrMode(s=>!s);setIdx(0);setFlipped(false)}}
-            className={`border px-2 py-1 rounded transition-colors font-medium ${srMode?'border-violet-400 text-violet-700 bg-violet-50':'border-slate-200 text-slate-500 hover:text-slate-700'}`}>
+    <div style={{padding:'24px',maxWidth:580}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:8}}>
+        <h1 style={{fontSize:18,fontWeight:800,color:'#f4f4f5',letterSpacing:'-0.01em'}}>Flashcards</h1>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          <button onClick={()=>{setSrMode(s=>!s);setIdx(0);setFlipped(false)}} style={pill(srMode,'#a78bfa')}>
             📅 SR {srMode?`(${cards.length} due)`:`(${dueToday.length})`}
           </button>
-          {!srMode&&<button onClick={shuffleOn?reshuffle:toggleShuffle}
-            className={`border px-2 py-1 rounded transition-colors ${shuffleOn?'border-indigo-400 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+          {!srMode&&<button onClick={shuffleOn?reshuffle:toggleShuffle} style={pill(shuffleOn,'#6366f1')}>
             🔀 {shuffleOn?'Shuffled':'Shuffle'}
           </button>}
-          {shuffleOn&&!srMode&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">↺ Order</button>}
-          <button onClick={()=>setShowAll(true)} className="text-slate-400 hover:text-slate-600 border border-slate-200 px-2 py-1 rounded">All</button>
+          {shuffleOn&&!srMode&&<button onClick={()=>{setShuffleOn(false);setIdx(0);setFlipped(false)}} style={pill(false)}>↺ Order</button>}
+          <button onClick={()=>setShowAll(true)} style={pill(false)}>All</button>
         </div>
       </div>
 
       {srMode&&(
-        <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-4 flex items-center justify-between">
+        <div style={{background:'rgba(139,92,246,0.07)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:8,padding:'12px 16px',marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
-            <div className="text-violet-700 font-bold text-sm">Spaced Repetition Mode</div>
-            <div className="text-violet-500 text-xs">{dueToday.length} card{dueToday.length!==1?'s':''} due today · Rate each card to schedule its next review</div>
+            <div style={{fontSize:13,fontWeight:700,color:'#a78bfa'}}>Spaced Repetition Mode</div>
+            <div style={{fontSize:11,color:'#6d6d9a',marginTop:2}}>{dueToday.length} card{dueToday.length!==1?'s':''} due today</div>
           </div>
-          <button onClick={()=>{setSrMode(false);setIdx(0);setFlipped(false)}} className="text-violet-400 hover:text-violet-600 text-xs border border-violet-200 px-2 py-1 rounded">Exit</button>
+          <button onClick={()=>{setSrMode(false);setIdx(0);setFlipped(false)}} style={pill(false)}>Exit</button>
         </div>
       )}
 
       {!srMode&&(
         <>
-          {/* Source tabs */}
-          <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
-            {[{k:'all',label:'All '+ALL_FLASH.length},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
+          <div style={{display:'flex',gap:4,marginBottom:10,background:'rgba(255,255,255,0.04)',padding:4,borderRadius:7,width:'fit-content'}}>
+            {[{k:'all',label:`All ${ALL_FLASH.length}`},{k:'concept',label:'Concepts'},{k:'vocab',label:'Vocab'},{k:'question',label:'Questions'}].map(s=>(
               <button key={s.k} onClick={()=>{setSource(s.k);setIdx(0);setFlipped(false)}}
-                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${source===s.k?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+                style={{fontSize:11,padding:'5px 10px',borderRadius:5,border:'none',background:source===s.k?'#1c1c1f':'transparent',color:source===s.k?'#f4f4f5':'#52525b',cursor:'pointer',fontWeight:source===s.k?600:400}}>
                 {s.label}
               </button>
             ))}
           </div>
-          {/* Domain filter */}
-          <div className="flex gap-2 mb-3 flex-wrap">
-            {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>(
-              <button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}}
-                className={`text-xs px-2.5 py-1 rounded border transition-colors ${domain===d.id?'border-indigo-500 text-indigo-600 bg-indigo-50':'border-slate-200 text-slate-500 hover:border-slate-400'}`}>
-                {d.label}
-              </button>
-            ))}
+          <div style={{display:'flex',gap:5,marginBottom:8,flexWrap:'wrap'}}>
+            {[{id:'all',label:'All'},...Object.entries(DOMAINS).map(([k,v])=>({id:k,label:v.label}))].map(d=>{
+              const a={all:'#7c3aed',secure:'#22c55e',resilient:'#38bdf8',performing:'#f59e0b',cost:'#a78bfa'}[d.id];
+              return<button key={d.id} onClick={()=>{setDomain(d.id);setIdx(0);setFlipped(false)}} style={pill(domain===d.id,a)}>{d.label}</button>;
+            })}
           </div>
-          {/* Confidence filter */}
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {[
-              {k:'new',label:`New ${stats.new}`,cls:'border-slate-300 text-slate-500',activeCls:'border-slate-500 text-slate-700 bg-slate-100'},
-              {k:'nope',label:`✗ Nope ${stats.nope}`,cls:'border-red-200 text-red-400',activeCls:'border-red-400 text-red-600 bg-red-50'},
-              {k:'sorta',label:`~ Sorta ${stats.sorta}`,cls:'border-amber-200 text-amber-500',activeCls:'border-amber-400 text-amber-700 bg-amber-50'},
-              {k:'know',label:`✓ Know ${stats.know}`,cls:'border-emerald-200 text-emerald-500',activeCls:'border-emerald-400 text-emerald-700 bg-emerald-50'},
-            ].map(f=>(
-              <button key={f.k} onClick={()=>setFilter(f.k)}
-                className={`text-xs px-2.5 py-1 rounded border transition-colors ${confFilter===f.k?f.activeCls+' font-semibold':f.cls+' hover:border-slate-400'}`}>
-                {f.label}
-              </button>
+          <div style={{display:'flex',gap:5,marginBottom:16,flexWrap:'wrap'}}>
+            {[{k:'new',label:`New ${stats.new}`,c:'#71717a'},{k:'nope',label:`✗ ${stats.nope}`,c:'#ef4444'},{k:'sorta',label:`~ ${stats.sorta}`,c:'#f59e0b'},{k:'know',label:`✓ ${stats.know}`,c:'#22c55e'}].map(f=>(
+              <button key={f.k} onClick={()=>setFilter(f.k)} style={pill(confFilter===f.k,f.c)}>{f.label}</button>
             ))}
-            {confFilter!=='all'&&<button onClick={()=>setFilter('all')} className="text-xs px-2.5 py-1 rounded border border-slate-200 text-slate-400 hover:text-slate-600">✕ Clear filter</button>}
+            {confFilter!=='all'&&<button onClick={()=>setFilter('all')} style={pill(false)}>✕ Clear</button>}
           </div>
         </>
       )}
 
       {cards.length===0?(
-        <div className="text-center py-16 text-slate-400">
-          <div className="text-3xl mb-3">📭</div>
-          <p>No cards match this filter</p>
+        <div style={{textAlign:'center',padding:'60px 0',color:'#3f3f46'}}>
+          <div style={{fontSize:28,marginBottom:10}}>📭</div>
+          <p style={{fontSize:13}}>No cards match this filter</p>
         </div>
       ):(
         <>
-          <div className="text-slate-400 text-xs mb-3 text-center">{idx+1} / {cards.length} · tap to flip</div>
+          <div style={{textAlign:'center',fontSize:11,color:'#3f3f46',marginBottom:10}}>{idx+1} / {cards.length} · tap to flip</div>
 
           <div className="relative mb-4 cursor-pointer select-none" style={{height:card?.source==='question'?340:290}} onClick={()=>setFlipped(f=>!f)}>
             {/* Front */}
             <div style={{
-              position:'absolute',inset:0,borderRadius:16,background:'#fff',
-              border:'2px solid #e2e8f0',
+              position:'absolute',inset:0,borderRadius:10,background:'#111113',
+              border:`1px solid rgba(255,255,255,0.07)`,
               display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
               padding:'24px',textAlign:'center',
-              boxShadow:'0 4px 24px rgba(0,0,0,.07)',
               transition:'opacity .22s ease,transform .22s ease',
               opacity:flipped?0:1,
               transform:flipped?'scale(.97)':'scale(1)',
               pointerEvents:flipped?'none':'auto',
               overflowY:'auto',
             }}>
-              {card&&<div style={{position:'absolute',top:0,left:0,right:0,height:5,borderRadius:'14px 14px 0 0',background:domainColors[card.domain]}}/>}
-              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3">{frontLabel}</div>
-              {card?.badge&&<div style={{marginBottom:8,fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:999,background:domainColors[card.domain]+'22',color:domainColors[card.domain]}}>{card.badge}</div>}
+              {card&&<div style={{position:'absolute',top:0,left:0,right:0,height:3,borderRadius:'8px 8px 0 0',background:domainColors[card.domain]}}/>}
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:'0.12em',color:'#3f3f46',marginBottom:12}}>{frontLabel}</div>
+              {card?.badge&&<div style={{marginBottom:8,fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:4,background:domainColors[card.domain]+'18',color:domainColors[card.domain]}}>{card.badge}</div>}
               {card?.source==='question'?(
-                <div className="text-slate-400 text-sm leading-snug mb-3">Scenario question — tap to read</div>
+                <div style={{fontSize:12,color:'#52525b',lineHeight:1.5}}>Scenario question — tap to read</div>
               ):(
-                <div className="text-slate-900 font-semibold leading-snug mb-3 text-lg">{card?.front}</div>
+                <div style={{fontSize:17,fontWeight:700,color:'#f4f4f5',lineHeight:1.4,marginBottom:12}}>{card?.front}</div>
               )}
               {card&&<Tag domain={card.domain}/>}
-              <div className="text-slate-300 text-xs mt-4">tap to reveal →</div>
+              <div style={{fontSize:10,color:'#27272a',marginTop:14}}>tap to reveal →</div>
             </div>
             {/* Back */}
             <div style={{
-              position:'absolute',inset:0,borderRadius:16,
-              background:domainBg[card?.domain]||'#f8fafc',
-              border:'2px solid',
-              borderColor:domainBorder[card?.domain]||'#e2e8f0',
+              position:'absolute',inset:0,borderRadius:10,
+              background:'#0f0f12',
+              border:`1px solid ${domainColors[card?.domain]||'rgba(255,255,255,0.07)'}33`,
               display:'flex',flexDirection:'column',alignItems:'flex-start',justifyContent:'center',
               padding:'24px',textAlign:'left',
-              boxShadow:'0 4px 24px rgba(0,0,0,.07)',
               transition:'opacity .22s ease,transform .22s ease',
               opacity:flipped?1:0,
               transform:flipped?'scale(1)':'scale(1.03)',
               pointerEvents:flipped?'auto':'none',
               overflowY:'auto',
             }}>
-              <div className="text-slate-400 text-xs font-semibold tracking-widest mb-3 w-full text-center">{card?.source==='question'?'QUESTION & ANSWER':'ANSWER'}</div>
-              {card?.source==='question'&&<div className="text-slate-900 text-sm leading-relaxed font-semibold w-full mb-3 pb-3 border-b border-slate-200" style={{whiteSpace:'pre-wrap'}}>{card.front}</div>}
-              <div className="text-slate-800 text-sm leading-relaxed font-medium w-full" style={{whiteSpace:'pre-wrap'}}>{card?.back}</div>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:'0.12em',color:'#3f3f46',marginBottom:12,width:'100%',textAlign:'center'}}>{card?.source==='question'?'QUESTION & ANSWER':'ANSWER'}</div>
+              {card?.source==='question'&&<div style={{fontSize:12,color:'#d4d4d8',fontWeight:600,width:'100%',marginBottom:10,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.06)',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{card.front}</div>}
+              <div style={{fontSize:13,color:'#e4e4e7',lineHeight:1.65,fontWeight:500,width:'100%',whiteSpace:'pre-wrap'}}>{card?.back}</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={()=>go(-1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">← Prev</button>
-            <div className="flex gap-2">
-              {[{k:'nope',label:'✗ Nope',cls:'border-red-400 text-red-600 hover:bg-red-50 bg-white'},
-                {k:'sorta',label:'~ Sorta',cls:'border-amber-400 text-amber-700 hover:bg-amber-50 bg-white'},
-                {k:'know',label:'✓ Know',cls:'border-emerald-400 text-emerald-700 hover:bg-emerald-50 bg-white'}
-              ].map(b=>(
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <button onClick={()=>go(-1)} style={{background:'none',border:'1px solid rgba(255,255,255,0.07)',borderRadius:6,padding:'6px 14px',fontSize:12,color:'#52525b',cursor:'pointer'}}>← Prev</button>
+            <div style={{display:'flex',gap:6}}>
+              {[{k:'nope',label:'✗ Nope',c:'#ef4444'},{k:'sorta',label:'~ Sorta',c:'#f59e0b'},{k:'know',label:'✓ Know',c:'#22c55e'}].map(b=>(
                 <button key={b.k} onClick={()=>setCardConf(b.k)}
-                  className={`text-xs px-3 py-1.5 rounded border transition-colors ${b.cls} ${cardConf?.conf===b.k?'opacity-100 font-semibold':'opacity-60'}`}>
+                  style={{fontSize:11,padding:'6px 12px',borderRadius:6,border:`1px solid ${cardConf?.conf===b.k?b.c:b.c+'44'}`,background:cardConf?.conf===b.k?b.c+'18':'transparent',color:b.c,fontWeight:cardConf?.conf===b.k?700:400,cursor:'pointer',opacity:cardConf?.conf===b.k?1:0.6}}>
                   {b.label}
                 </button>
               ))}
             </div>
-            <button onClick={()=>go(1)} className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1.5 border border-slate-200 rounded hover:border-slate-400">Next →</button>
+            <button onClick={()=>go(1)} style={{background:'none',border:'1px solid rgba(255,255,255,0.07)',borderRadius:6,padding:'6px 14px',fontSize:12,color:'#52525b',cursor:'pointer'}}>Next →</button>
           </div>
           {cardConf?.nextReview&&(
-            <div className="text-center text-xs text-slate-400 mt-2">
-              Next review: <span className="font-semibold text-slate-600">{cardConf.nextReview===todayStr?'Today':cardConf.nextReview}</span>
-              {cardConf.interval&&<span className="text-slate-300"> · interval {cardConf.interval}d</span>}
+            <div style={{textAlign:'center',fontSize:11,color:'#3f3f46',marginTop:4}}>
+              Next review: <span style={{fontWeight:600,color:'#71717a'}}>{cardConf.nextReview===todayStr?'Today':cardConf.nextReview}</span>
+              {cardConf.interval&&<span style={{color:'#27272a'}}> · interval {cardConf.interval}d</span>}
             </div>
           )}
         </>
@@ -4040,7 +4092,7 @@ function ConsoleLabs(){
                 {isOpen&&(
                   <div className="px-4 pb-4 pt-0">
                     <div className={`text-xs rounded-lg p-3 mb-4 border font-medium leading-relaxed`}
-                      style={{background:'#f5f3ff',borderColor:'#c4b5fd',color:'#5b21b6'}}>
+                      style={{background:'rgba(139,92,246,0.08)',borderColor:'rgba(196,181,253,0.2)',color:'#a78bfa'}}>
                       <span className="font-bold uppercase tracking-wide text-xs block mb-1">📋 Exam Concept This Phase Teaches</span>
                       {phase.examConcept}
                     </div>
@@ -4208,7 +4260,7 @@ function App(){
   };
 
   return(
-    <div className="flex min-h-screen bg-white font-mono">
+    <div className="flex min-h-screen" style={{background:'#09090b',color:'#e4e4e7'}}>
       {active!=='home'&&<Sidebar active={active} setActive={setActive} streak={streak}/>}
       <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         {renderPage()}
