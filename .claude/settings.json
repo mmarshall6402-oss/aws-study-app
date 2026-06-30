@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push *)",
+            "statusMessage": "Syncing gh-pages...",
+            "command": "INPUT=$(cat); echo \"$INPUT\" | jq -r '.tool_input.command' | grep -q '\\bmain\\b' || exit 0; git checkout gh-pages && git checkout main -- index.html && git add index.html; if ! git diff --staged --quiet; then git commit -m 'Sync gh-pages from main'; git push origin gh-pages; fi; git checkout main"
+          }
+        ]
+      }
+    ]
+  }
+}
