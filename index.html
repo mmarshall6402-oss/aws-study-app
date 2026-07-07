@@ -139,7 +139,7 @@ const DOMAINS={
   cost:{label:'Cost',color:'text-violet-600',bg:'bg-violet-50',border:'border-violet-300',pct:20},
 };
 
-// ── Question Bank (65 questions) ──────────────────────────────────────────────
+// ── Question Bank (167 questions) ─────────────────────────────────────────────
 const QUESTIONS=[
 // ── SECURE (20) ──
 {id:1,domain:'secure',sub:'IAM',q:'A company needs to grant an EC2 instance access to S3 without hardcoding credentials. What is the recommended approach?',opts:['Embed IAM access keys in user data','Attach an IAM role to the EC2 instance','Store credentials in AWS Secrets Manager and retrieve at startup','Create an IAM user and install the CLI'],ans:1,exp:'IAM roles attached to EC2 instances provide temporary, automatically-rotated credentials via the metadata service. No static keys needed.',plain:'Give EC2 an IAM role instead of hardcoded keys — it gets temporary credentials automatically.'},
@@ -308,6 +308,20 @@ const QUESTIONS=[
 {id:152,domain:'cost',sub:'Architecture',q:'A company stores application logs in S3 and runs daily EMR jobs to analyze them. The EMR clusters are provisioned at maximum peak capacity but are only busy for 2 hours of their 8-hour runtime. What optimization reduces cost MOST significantly?',opts:['Switch EMR core nodes to Reserved Instances.','Use EMR managed scaling with Spot Instances for task nodes.','Increase EMR cluster size to finish jobs faster.','Migrate log analysis to a persistent RDS cluster.'],ans:1,exp:'EMR managed scaling automatically adds and removes task nodes (which don\'t store HDFS data) based on workload demand. Using Spot Instances for task nodes saves up to 90% on those nodes. Since task nodes hold no HDFS data, their interruption only slows jobs momentarily — they\'re restarted from the last checkpoint. Core nodes (on On-Demand or Reserved) maintain the cluster. This combination — managed scaling + Spot tasks — is the canonical cost optimization for variable EMR workloads. Larger clusters finish faster but don\'t reduce total cluster-hour cost.',plain:'Use EMR managed scaling with Spot task nodes so you\'re not paying full price for capacity that\'s idle most of the time.'},
 {id:153,domain:'cost',sub:'Networking',q:'A company runs a NAT Gateway in each of its 3 Availability Zones for high availability. Each NAT Gateway processes 10 TB/month of outbound traffic. The team notices NAT Gateway data processing fees are a top cost. Which architectural change MOST reduces these costs?',opts:['Replace NAT Gateways with a single NAT instance.','Use a VPC Gateway Endpoint for S3 traffic and an Interface Endpoint for other AWS service traffic, removing that traffic from the NAT Gateway path.','Reduce the number of NAT Gateways to one to cut the hourly charge.','Enable NAT Gateway data compression to reduce processing fees.'],ans:1,exp:'NAT Gateway charges $0.045/GB for all data processed. Traffic to AWS services (S3, DynamoDB via Gateway Endpoint; ECR, SSM, Secrets Manager, CloudWatch via Interface Endpoints) can be routed through VPC endpoints — bypassing the NAT Gateway entirely and eliminating those processing fees. This is commonly the largest component of NAT Gateway costs in containerized workloads (container image pulls from ECR being a major contributor). Reducing to one NAT Gateway saves the hourly fee (~$100/month) but creates an AZ single point of failure. NAT instances have no data compression feature.',plain:'Route AWS-service traffic through VPC endpoints instead of the NAT Gateway to cut its biggest per-GB cost driver.'},
 {id:154,domain:'cost',sub:'EC2',q:'AWS Compute Optimizer recommends downsizing 10 production EC2 instances from m5.4xlarge to m5.2xlarge based on utilization data. The operations team is concerned about performance impact. What is the SAFEST way to act on this recommendation?',opts:['Immediately resize all 10 instances at once during the next maintenance window.','Resize one instance, monitor CPU/memory/application metrics for a week, then proceed with the rest if no degradation is observed.','Dismiss the recommendation — Compute Optimizer can\'t account for traffic spikes.','Purchase Reserved Instances for the current m5.4xlarge size before resizing.'],ans:1,exp:'Rightsize one instance first (a canary approach). Monitor CPU utilization, memory, application response times, and error rates under real production traffic for several days to a week. If metrics remain healthy, proceed with the remaining instances in batches. Compute Optimizer analyzes 14 days of CloudWatch metrics and is generally accurate — dismissing recommendations without validation is a missed cost optimization opportunity. Resizing all 10 at once risks widespread performance impact if the recommendation is wrong for peak scenarios. Buying RIs at the current size locks in ongoing waste.',plain:'Resize one instance first, watch it for a week, then roll out the rest if it holds up.'},
+
+// ── Additional original scenarios ──
+{id:200,domain:'resilient',sub:'Storage',q:'A company duplicated a single EC2 instance into a two-instance fleet behind a load balancer. Each instance has its own EBS volume, so user-uploaded documents saved to one instance aren\'t visible when a later request lands on the other instance. What is the standard fix?',opts:['Enable EBS Multi-Attach on both volumes so each instance can read and write the same volume.','Replace the per-instance EBS volumes with a shared Amazon EFS file system mounted on both instances.','Increase the EBS volume size on both instances so they can hold more documents.','Configure the load balancer to use sticky sessions so each user always hits the same instance.'],ans:1,exp:'EFS is a managed NFS file system that can be mounted concurrently by many instances across multiple AZs, giving every instance the same view of uploaded files — the standard pattern for shared, scale-out file storage. EBS Multi-Attach is limited to specific instance types/volume types (io1/io2), is intended for cluster-aware filesystems (not general-purpose apps), and only works within a single AZ. Bigger volumes don\'t solve the visibility problem. Sticky sessions mask the symptom but break as soon as an instance is replaced or the fleet scales, and don\'t help background jobs that need every file.',plain:'When multiple EC2 instances all need to see the same uploaded files, put the files on EFS instead of separate per-instance EBS volumes.'},
+{id:201,domain:'secure',sub:'Organizations',q:'A company\'s AWS Organizations management account owns an S3 bucket of internal reports. It must be reachable only by principals belonging to accounts inside the organization — not by any outside AWS account, even if that account is somehow granted a matching IAM policy. What is the LEAST operational-overhead way to enforce this at the bucket?',opts:['List every current member account ID in the bucket policy Principal element and update it whenever accounts are added or removed.','Add a bucket policy condition using the aws:PrincipalOrgID global condition key set to the organization ID.','Create an IAM group per account and require every caller to assume a role from that group.','Enable S3 Block Public Access on the bucket.'],ans:1,exp:'aws:PrincipalOrgID lets a resource policy allow (or deny) access based on organization membership in one condition key, so the policy keeps working automatically as accounts are added to or removed from the organization — no manual updates needed. Listing account IDs individually works but is high-maintenance and error-prone as the org changes. Per-account IAM groups don\'t change the resource-side trust boundary. Block Public Access prevents public exposure but does nothing to distinguish between organization member accounts and other authenticated AWS accounts.',plain:'aws:PrincipalOrgID on the bucket policy locks access to "any account in my organization" and keeps working automatically as accounts come and go.'},
+{id:202,domain:'cost',sub:'Data Transfer',q:'A company operates sensor sites on multiple continents, each generating about 500 GB per day on a fast internet connection, and needs to land all of it in one S3 bucket in a single Region as quickly as possible with the least operational complexity. Which approach fits best?',opts:['Turn on S3 Transfer Acceleration on the destination bucket and have each site upload directly with multipart uploads.','Have each site upload to an S3 bucket in its nearest Region, then use S3 Cross-Region Replication into the destination bucket.','Ship an AWS Snowball Edge device to each site on a recurring schedule and copy data onto it for transfer.','Write the data to an EBS volume on a local EC2 instance and snapshot-copy it to the destination Region nightly.'],ans:0,exp:'S3 Transfer Acceleration routes uploads through CloudFront edge locations onto the AWS backbone, speeding up long-distance transfers over the public internet, and multipart upload lets each site push directly to the destination bucket with no intermediate hops to manage. Since each site already has a high-speed connection and the volume (500 GB/day) doesn\'t require physical shipping, Snowball adds unnecessary logistics and latency (days per cycle). Routing through a per-Region bucket plus Cross-Region Replication adds an extra hop, extra buckets to manage, and replication lag. EBS snapshot copying is slow, batches only once a day, and was designed for volume backups, not continuous data ingestion.',plain:'When every site already has fast internet, turn on S3 Transfer Acceleration and upload straight to the destination bucket — no extra hardware or hops needed.'},
+{id:203,domain:'performing',sub:'API Gateway',q:'A public REST API built on API Gateway and Lambda serves read-heavy GET requests where the response rarely changes within a short window. The team wants to cut Lambda invocations and latency for repeated identical requests without changing client behavior. What should they configure?',opts:['Enable API Gateway response caching with a TTL tuned to how often the underlying data changes.','Increase the Lambda function\'s reserved concurrency.','Switch the API from REST API to HTTP API type.','Add an Application Load Balancer in front of API Gateway.'],ans:0,exp:'API Gateway can cache responses per method/stage for a configurable TTL (up to 3600s), so repeated identical requests are served straight from the cache without invoking Lambda at all — cutting both cost and latency. Reserved concurrency guarantees Lambda capacity but doesn\'t reduce the number of invocations. Switching API types changes features and pricing but doesn\'t add caching by itself (HTTP APIs don\'t support the built-in response cache that REST APIs do). Putting an ALB in front adds cost and complexity without a caching layer of its own.',plain:'Turn on API Gateway\'s built-in response caching so repeat requests for the same data skip Lambda entirely.'},
+{id:204,domain:'resilient',sub:'Messaging',q:'A checkout service publishes an order-placed event that must fan out to three independent downstream systems: inventory, billing, and shipping. Each system should receive its own copy of every event, and adding a fourth subscriber later shouldn\'t require changing the publisher. Which pattern fits?',opts:['Publish the event to a single SQS standard queue that all three systems poll.','Publish the event to an SNS topic with an SQS queue subscribed per downstream system.','Have the checkout service call each downstream system\'s API directly and retry on failure.','Write the event to a DynamoDB table and have each system poll the table on a schedule.'],ans:1,exp:'SNS fan-out delivers an independent copy of each published message to every subscribed SQS queue, so each downstream system processes events at its own pace with its own retry/DLQ behavior, and a new subscriber can be added just by subscribing another queue — no publisher changes. A single shared SQS queue lets only one consumer process each message (competing consumers), not three independent copies. Direct synchronous API calls couple the checkout service to the availability of all three downstream systems. Polling a DynamoDB table on a schedule adds latency and reinvents what SNS/SQS already do.',plain:'SNS fan-out to one SQS queue per downstream system gives everyone their own copy of every event, and you can add subscribers without touching the publisher.'},
+{id:205,domain:'secure',sub:'KMS',q:'A company replicates a DynamoDB Global Table across us-east-1 and eu-west-1 and wants all data encrypted at rest with customer managed KMS keys, using a single logical key that both Regions\' applications can reference without copying ciphertext between Regions during failover.',opts:['Create one customer managed KMS key in us-east-1 and grant eu-west-1 principals cross-Region access to it.','Create a KMS multi-Region key, with a primary key in us-east-1 and a replica key in eu-west-1 sharing the same key ID.','Use the AWS managed aws/dynamodb key, since it already works across all Regions by default.','Export the KMS key material from us-east-1 and import it as a new key in eu-west-1.'],ans:1,exp:'KMS multi-Region keys let you create a primary key and replica keys in other Regions that share the same key material and key ID, so data encrypted in one Region can be decrypted in another without re-encrypting or copying ciphertext across Regions — the standard fit for DynamoDB Global Tables. Standard (single-Region) KMS keys cannot be used to decrypt in another Region even with cross-account/cross-Region IAM grants — the key itself never leaves its Region. AWS managed keys are Region-scoped by design and can\'t be shared as a single logical key across Regions. Manually exporting and reimporting key material creates two independent keys, breaking the "single logical key" requirement and complicating rotation.',plain:'A KMS multi-Region key keeps the same key ID and material in both Regions, so Global Table data encrypted in one Region can be decrypted in the other without copying keys around.'},
+{id:206,domain:'performing',sub:'Database',q:'A read-heavy DynamoDB table backs a product catalog. Query latency needs to drop from single-digit milliseconds to microseconds for the most frequently requested items, without re-architecting the application\'s DynamoDB API calls.',opts:['Enable DynamoDB Accelerator (DAX) in front of the table and point the application at the DAX endpoint.','Switch the table from on-demand to provisioned capacity with auto scaling.','Add a Global Secondary Index on the most frequently queried attribute.','Enable DynamoDB Streams and process changes with Lambda.'],ans:0,exp:'DAX is an in-memory cache purpose-built for DynamoDB that sits in front of the table and is API-compatible with the DynamoDB SDK, so the application changes only its endpoint — no query logic changes — and gets microsecond read latency for cached items. Switching capacity modes affects cost and throughput handling, not per-request latency for hot items. A GSI changes which attributes you can query efficiently but doesn\'t cache results or beat DynamoDB\'s normal millisecond latency. Streams capture change events for downstream processing; they don\'t serve reads or reduce latency.',plain:'DAX is a drop-in, DynamoDB-API-compatible cache that gets your hottest reads down to microseconds without rewriting queries.'},
+{id:207,domain:'secure',sub:'WAF',q:'A public web application is being hit by a script that sends thousands of requests per minute from a single IP address, degrading performance for legitimate users. Which AWS WAF rule type directly addresses this?',opts:['A rate-based rule that blocks or throttles an IP once it exceeds a request threshold within a rolling time window.','A geo-match rule that blocks traffic from the country the requests originate from.','A SQL injection managed rule group.','An IP set rule listing every known bad IP address to block individually.'],ans:0,exp:'A WAF rate-based rule automatically tracks request counts per IP over a rolling 5-minute window and blocks (or CAPTCHAs/challenges) any IP that crosses the configured threshold — purpose-built for this kind of single-source flooding, and it adapts as the offending IP changes without manual updates. Geo-blocking only helps if the abuse is concentrated in one country, and blocks legitimate users there too. SQLi managed rules protect against a different attack class entirely. Manually maintained IP sets don\'t scale against an attacker that rotates or wasn\'t previously known.',plain:'A WAF rate-based rule automatically throttles any single IP that starts sending too many requests too fast.'},
+{id:208,domain:'resilient',sub:'Compute',q:'An Auto Scaling group\'s health check is configured to use only the EC2 status check. Instances are passing that check but the application on some instances is deadlocked and returning HTTP 500s, yet Auto Scaling never replaces them. What should be changed?',opts:['Lower the Auto Scaling group\'s minimum capacity so unhealthy instances are replaced faster.','Switch the health check type to ELB and attach the instances to a target group with an application-level health check path.','Increase the health check grace period so instances have more time to recover.','Enable detailed CloudWatch monitoring on the Auto Scaling group.'],ans:1,exp:'EC2 status checks only detect hardware/hypervisor-level failures (the instance is running) — they say nothing about whether the application on top of it is healthy. Switching the ASG\'s health check type to ELB and defining a target group health check (e.g., an HTTP path that must return 200) lets Auto Scaling detect and replace instances that are up but application-broken. Lowering minimum capacity doesn\'t change what "unhealthy" means. A longer grace period only delays when checks start, it doesn\'t change what\'s being checked. Detailed monitoring shortens metric intervals but doesn\'t add an application-level health signal.',plain:'EC2 status checks only see "is the instance alive" — switch to ELB health checks so Auto Scaling can see "is the app actually responding."'},
+{id:209,domain:'performing',sub:'Caching',q:'A session-state store for a web tier needs sub-millisecond reads, native support for complex data structures (sorted sets, lists), and the ability to fail over automatically to a replica if the primary node fails. Which service and engine fits best?',opts:['Amazon ElastiCache for Memcached, since it\'s simpler to operate.','Amazon ElastiCache for Redis (cluster mode) with Multi-AZ automatic failover.','Amazon DynamoDB Accelerator (DAX) as the primary session store.','Amazon RDS for PostgreSQL with a read replica.'],ans:1,exp:'ElastiCache for Redis supports rich data structures (sorted sets, lists, hashes), persistence, and Multi-AZ with automatic failover to a replica — matching both the data-structure and availability requirements. Memcached is simpler but is purely a flat key-value cache with no persistence, no complex data structures, and no built-in replication/failover. DAX only accelerates DynamoDB reads; it isn\'t a general-purpose session store. RDS PostgreSQL can fail over via Multi-AZ too, but relational query latency doesn\'t match an in-memory store\'s sub-millisecond profile for this use case.',plain:'Redis (not Memcached) is the ElastiCache engine with rich data structures and automatic Multi-AZ failover.'},
+{id:210,domain:'resilient',sub:'Decoupling',q:'A order-processing Lambda function occasionally fails due to a downstream dependency timeout. Failed events are currently lost because the function has no error handling configured. The team wants failed events captured for later inspection and reprocessing without blocking new events from being processed.',opts:['Configure an SQS dead-letter queue (or Lambda destination on failure) to capture events that fail after retries are exhausted.','Increase the Lambda function\'s timeout setting so the downstream call is less likely to fail.','Set the Lambda function\'s reserved concurrency to 1 so events process strictly one at a time.','Wrap the downstream call in a try/catch block that logs the error to CloudWatch Logs and continues.'],ans:0,exp:'A dead-letter queue (for SQS/SNS-triggered functions) or an on-failure destination (for async invocations) captures the event payload after Lambda\'s built-in retries are exhausted, so nothing is silently dropped and the event can be replayed once the downstream issue is fixed — while new events keep flowing through the function normally. A longer timeout may reduce failures but doesn\'t eliminate or capture the ones that still happen. Reserved concurrency of 1 serializes processing and can create backlogs, but doesn\'t capture failures. Logging the error preserves a record for humans to read but doesn\'t preserve the event in a replayable form.',plain:'Add a dead-letter queue or on-failure destination so events that fail all their retries get captured for replay instead of vanishing.'},
+{id:211,domain:'cost',sub:'Storage',q:'A media company stores 50 TB of finished video renders in S3. Access patterns are unpredictable — some files are re-downloaded heavily right after release, others go completely cold within days, and nobody can reliably predict which. The team wants to minimize storage cost without manually managing lifecycle rules or risking retrieval fees on files that turn out to still be hot.',opts:['Manually tag files by expected popularity and apply a lifecycle rule to move each tag group to a different storage class.','Use S3 Intelligent-Tiering, which automatically moves objects between access tiers based on observed usage with no retrieval fees.','Move everything to S3 Glacier Instant Retrieval immediately after upload.','Keep everything in S3 Standard and rely on CloudFront caching to reduce S3 request costs.'],ans:1,exp:'S3 Intelligent-Tiering monitors actual access patterns per object and automatically moves objects between frequent-access and infrequent/archive tiers with no retrieval fees and no operational overhead — built specifically for unpredictable access patterns like this one. Manual tagging requires predicting popularity in advance, which the scenario says isn\'t reliable. Glacier Instant Retrieval charges a retrieval fee and has a minimum storage duration, which would penalize files that turn out to still be frequently accessed. Standard plus CloudFront reduces request costs and latency but does nothing about the underlying S3 storage cost for cold data.',plain:'When you can\'t predict which files will stay hot or go cold, S3 Intelligent-Tiering automates the tiering for you with no retrieval-fee risk.'},
 ];
 
 // ── Flashcards ────────────────────────────────────────────────────────────────
@@ -1825,6 +1839,7 @@ const NAV=[
   {id:'flashcards',icon:'⬜',label:'Flashcards',group:'exam'},
   {id:'vocab',icon:'◧',label:'Glossary',group:'exam'},
   {id:'vocabquiz',icon:'✎',label:'Vocab Quiz',group:'exam'},
+  {id:'vocabfocus',icon:'★',label:'Focus Areas',group:'exam'},
   {id:'exam',icon:'◎',label:'Practice Exam',group:'exam'},
   {id:'history',icon:'◷',label:'History',group:'exam'},
   {id:'analytics',icon:'◈',label:'Analytics',group:'exam'},
@@ -3990,6 +4005,13 @@ const catColor={
 function Vocab({plainMode,setPlainMode,startVocabQuiz}){
   const[search,setSearch]=useState('');
   const[cat,setCat]=useState('All');
+  const[weak,setWeak]=useStore('vocab_weak',{});
+  const togglePin=(term)=>{
+    setWeak(w=>{
+      if(w[term]){const{[term]:_,...rest}=w;return rest;}
+      return{...w,[term]:{wrong:0,correctStreak:0,manual:true}};
+    });
+  };
   const filtered=useMemo(()=>{
     const q=search.toLowerCase().trim();
     return VOCAB.filter(v=>{
@@ -4054,10 +4076,17 @@ function Vocab({plainMode,setPlainMode,startVocabQuiz}){
             <div key={v.term} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="font-bold text-slate-900 text-sm leading-tight">{v.term}</span>
-                <span
-                  className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{background:catColor[v.cat]+'22',color:catColor[v.cat]}}
-                >{v.cat}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={{background:catColor[v.cat]+'22',color:catColor[v.cat]}}
+                  >{v.cat}</span>
+                  <button onClick={()=>togglePin(v.term)} title={weak[v.term]?'Remove from Focus Areas':'Add to Focus Areas'}
+                    className="text-sm leading-none"
+                    style={{color:weak[v.term]?'#7c3aed':'#cbd5e1',background:'none',border:'none',cursor:'pointer',padding:0}}>
+                    {weak[v.term]?'★':'☆'}
+                  </button>
+                </div>
               </div>
               {plainMode&&v.plain?(
                 <p className="text-slate-700 text-xs leading-relaxed">{v.plain}</p>
@@ -4075,6 +4104,7 @@ function Vocab({plainMode,setPlainMode,startVocabQuiz}){
 // ── Vocab Quiz ────────────────────────────────────────────────────────────────
 function VocabQuiz({plainMode,startCat}){
   const[history,setHistory]=useStore('vocab_quiz_history',[]);
+  const[weak,setWeak]=useStore('vocab_weak',{});
   const[cat,setCat]=useState(startCat&&startCat!=='All'?startCat:'all');
   const[session,setSession]=useState(null);
   const[idx,setIdx]=useState(0);
@@ -4083,11 +4113,12 @@ function VocabQuiz({plainMode,startCat}){
 
   useEffect(()=>{if(startCat&&startCat!=='All')setCat(startCat)},[startCat]);
 
-  const pool=cat==='all'?VOCAB:VOCAB.filter(v=>v.cat===cat);
+  const weakCount=Object.keys(weak).length;
+  const pool=cat==='all'?VOCAB:cat==='focus'?VOCAB.filter(v=>weak[v.term]):VOCAB.filter(v=>v.cat===cat);
 
   const startQuiz=()=>{
     const n=Math.min(10,pool.length);
-    const distractSource=(cat!=='all'&&pool.length>=4)?pool:VOCAB;
+    const distractSource=(cat!=='all'&&cat!=='focus'&&pool.length>=4)?pool:VOCAB;
     const picks=shuffle(pool).slice(0,n);
     const qs=picks.map(term=>{
       const wrongPool=distractSource.filter(v=>v.term!==term.term);
@@ -4103,7 +4134,18 @@ function VocabQuiz({plainMode,startCat}){
     if(selected!==null)return;
     setSelected(i);
     const q=session[idx];
-    setResults(r=>[...r,{term:q.term,cat:q.cat,correct:i===q.ans,correctAns:q.opts[q.ans]}]);
+    const correct=i===q.ans;
+    setResults(r=>[...r,{term:q.term,cat:q.cat,correct,correctAns:q.opts[q.ans]}]);
+    setWeak(w=>{
+      const cur=w[q.term];
+      if(correct){
+        if(!cur)return w;
+        const streak=(cur.correctStreak||0)+1;
+        if(streak>=3&&!cur.manual){const{[q.term]:_,...rest}=w;return rest;}
+        return{...w,[q.term]:{...cur,correctStreak:streak}};
+      }
+      return{...w,[q.term]:{wrong:(cur?.wrong||0)+1,correctStreak:0,manual:cur?.manual||false}};
+    });
   };
 
   const next=()=>{
@@ -4126,6 +4168,12 @@ function VocabQuiz({plainMode,startCat}){
         <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20}}>
           <div style={{fontSize:11,fontWeight:700,color:'#52525b',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:12}}>Category</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:20}}>
+            {weakCount>0&&(
+              <button onClick={()=>setCat('focus')}
+                style={{padding:'8px 12px',borderRadius:6,border:`1px solid ${cat==='focus'?'#a78bfa66':'rgba(255,255,255,0.07)'}`,background:cat==='focus'?'#7c3aed11':'transparent',color:cat==='focus'?'#a78bfa':'#52525b',fontSize:12,fontWeight:cat==='focus'?600:400,cursor:'pointer',transition:'all .12s'}}>
+                ★ Focus Areas ({weakCount})
+              </button>
+            )}
             {['all',...VOCAB_CATS.filter(c=>c!=='All')].map(c=>{
               const on=cat===c;
               const acc=c==='all'?'#7c3aed':catColor[c];
@@ -4137,10 +4185,12 @@ function VocabQuiz({plainMode,startCat}){
               );
             })}
           </div>
-          <div style={{fontSize:12,color:'#3f3f46',marginBottom:16}}>{pool.length} term{pool.length!==1?'s':''} in pool · {Math.min(10,pool.length)} questions this round</div>
+          <div style={{fontSize:12,color:'#3f3f46',marginBottom:16}}>
+            {pool.length===0&&cat==='focus'?'No focus terms tracked yet.':`${pool.length} term${pool.length!==1?'s':''} in pool · ${Math.min(10,pool.length)} questions this round`}
+          </div>
           {best&&<div style={{fontSize:11,color:'#52525b',marginBottom:16}}>Best in this category: <span style={{color:'#a78bfa',fontWeight:700}}>{pct(best.score,best.total)}%</span></div>}
-          <button onClick={startQuiz} disabled={pool.length<4}
-            style={{background:pool.length<4?'rgba(255,255,255,0.05)':'#7c3aed',color:pool.length<4?'#3f3f46':'white',border:'none',borderRadius:8,padding:'11px 28px',fontSize:13,fontWeight:700,cursor:pool.length<4?'not-allowed':'pointer'}}>
+          <button onClick={startQuiz} disabled={pool.length===0}
+            style={{background:pool.length===0?'rgba(255,255,255,0.05)':'#7c3aed',color:pool.length===0?'#3f3f46':'white',border:'none',borderRadius:8,padding:'11px 28px',fontSize:13,fontWeight:700,cursor:pool.length===0?'not-allowed':'pointer'}}>
             Start Quiz →
           </button>
         </div>
@@ -4229,6 +4279,90 @@ function VocabQuiz({plainMode,startCat}){
         <button onClick={next} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:8,padding:'11px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
           {idx<session.length-1?'Next Question →':'View Results'}
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── Vocab Focus Areas ───────────────────────────────────────────────────────────
+function VocabFocus({plainMode,startVocabQuiz}){
+  const[weak,setWeak]=useStore('vocab_weak',{});
+  const[search,setSearch]=useState('');
+
+  const entries=useMemo(()=>{
+    return Object.entries(weak).map(([term,meta])=>{
+      const v=VOCAB.find(x=>x.term===term);
+      return v?{...v,...meta}:null;
+    }).filter(Boolean).sort((a,b)=>(b.wrong||0)-(a.wrong||0));
+  },[weak]);
+
+  const searchResults=useMemo(()=>{
+    const q=search.toLowerCase().trim();
+    if(!q)return[];
+    return VOCAB.filter(v=>!weak[v.term]&&(v.term.toLowerCase().includes(q)||v.def.toLowerCase().includes(q))).slice(0,8);
+  },[search,weak]);
+
+  const pin=(term)=>setWeak(w=>({...w,[term]:{...(w[term]||{wrong:0,correctStreak:0}),manual:true}}));
+  const unpin=(term)=>setWeak(w=>{const{[term]:_,...rest}=w;return rest;});
+
+  return(
+    <div style={{padding:'24px',maxWidth:640}}>
+      <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:4,letterSpacing:'-0.01em'}}>Focus Areas</h1>
+      <p style={{fontSize:12,color:'#52525b',marginBottom:20}}>Terms you keep missing in Vocab Quiz land here automatically — or pin any term yourself.</p>
+
+      <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20,marginBottom:16}}>
+        <div style={{fontSize:11,fontWeight:700,color:'#52525b',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Add any term</div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search all glossary terms…"
+          style={{width:'100%',background:'#0c0c0e',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#e4e4e7',marginBottom:searchResults.length?10:0}}/>
+        {searchResults.length>0&&(
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {searchResults.map(v=>(
+              <button key={v.term} onClick={()=>{pin(v.term);setSearch('');}}
+                style={{textAlign:'left',padding:'8px 12px',borderRadius:6,border:'1px solid rgba(255,255,255,0.07)',background:'transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontSize:12,color:'#d4d4d8'}}>{v.term} <span style={{color:'#52525b'}}>· {v.cat}</span></span>
+                <span style={{fontSize:11,color:'#a78bfa',fontWeight:600}}>+ Add</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
+        <div style={{fontSize:13,fontWeight:700,color:'#f4f4f5'}}>{entries.length} term{entries.length!==1?'s':''} tracked</div>
+        <button onClick={()=>startVocabQuiz&&startVocabQuiz('focus')} disabled={entries.length===0}
+          style={{background:entries.length?'#7c3aed':'rgba(255,255,255,0.05)',color:entries.length?'white':'#3f3f46',border:'none',borderRadius:8,padding:'9px 18px',fontSize:12,fontWeight:700,cursor:entries.length?'pointer':'not-allowed'}}>
+          Quiz These Terms →
+        </button>
+      </div>
+
+      {entries.length===0?(
+        <div style={{textAlign:'center',padding:'48px 0',color:'#3f3f46'}}>
+          <div style={{fontSize:13}}>Nothing here yet.</div>
+          <div style={{fontSize:12,marginTop:4}}>Miss a term in Vocab Quiz, or pin one above, and it'll show up here.</div>
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {entries.map(v=>{
+            const a=catColor[v.cat]||'#7c3aed';
+            return(
+              <div key={v.term} style={{background:'#111113',borderLeft:`3px solid ${a}`,borderTop:'1px solid rgba(255,255,255,0.07)',borderRight:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'12px 16px',display:'flex',justifyContent:'space-between',gap:12,alignItems:'flex-start'}}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
+                    <span style={{fontSize:13,fontWeight:700,color:'#f4f4f5'}}>{v.term}</span>
+                    <span style={{fontSize:10,color:a,fontWeight:600}}>{v.cat}</span>
+                    {v.wrong>0&&<span style={{fontSize:10,color:'#ef4444',fontWeight:700}}>missed {v.wrong}×</span>}
+                    {v.manual&&<span style={{fontSize:10,color:'#a78bfa'}}>📌 pinned</span>}
+                  </div>
+                  <div style={{fontSize:12,color:'#a1a1aa',lineHeight:1.5}}>{plainMode&&v.plain?v.plain:v.def}</div>
+                </div>
+                <button onClick={()=>unpin(v.term)}
+                  style={{background:'none',border:'1px solid rgba(255,255,255,0.1)',borderRadius:6,padding:'5px 10px',color:'#52525b',fontSize:11,cursor:'pointer',whiteSpace:'nowrap'}}>
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -4627,6 +4761,7 @@ function App(){
       case'flashcards':return<Flashcards plainMode={plainMode} setPlainMode={setPlainMode}/>;
       case'vocab':return<Vocab plainMode={plainMode} setPlainMode={setPlainMode} startVocabQuiz={startVocabQuiz}/>;
       case'vocabquiz':return<VocabQuiz plainMode={plainMode} startCat={vocabQuizCat}/>;
+      case'vocabfocus':return<VocabFocus plainMode={plainMode} startVocabQuiz={startVocabQuiz}/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
       case'history':return<History quizHistory={quizHistory} examHistory={examHistory}/>;
       case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
