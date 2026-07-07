@@ -106,6 +106,13 @@ input::placeholder,textarea::placeholder{color:#2e2e36!important}
 .tag{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border-width:1px;border-style:solid}
 /* Answer letter badge */
 .opt-letter{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.06);font-size:.7rem;font-weight:700;flex-shrink:0;margin-right:10px;color:#a1a1aa}
+/* Quick Notes floating widget */
+.qn-btn{position:fixed;right:16px;bottom:80px;z-index:60}
+.qn-panel{position:fixed;right:16px;bottom:140px;z-index:59}
+@media(min-width:768px){
+  .qn-btn{bottom:24px}
+  .qn-panel{bottom:84px}
+}
 </style>
 </head>
 <body class="min-h-screen" style="background:#09090b;color:#e4e4e7">
@@ -1817,6 +1824,7 @@ const NAV=[
   {id:'quiz',icon:'◉',label:'Quiz',group:'exam'},
   {id:'flashcards',icon:'⬜',label:'Flashcards',group:'exam'},
   {id:'vocab',icon:'◧',label:'Glossary',group:'exam'},
+  {id:'vocabquiz',icon:'✎',label:'Vocab Quiz',group:'exam'},
   {id:'exam',icon:'◎',label:'Practice Exam',group:'exam'},
   {id:'history',icon:'◷',label:'History',group:'exam'},
   {id:'analytics',icon:'◈',label:'Analytics',group:'exam'},
@@ -3779,6 +3787,52 @@ function Notes(){
   );
 }
 
+// ── Quick Notes (floating, cross-screen) ───────────────────────────────────────
+function QuickNotes({setActive}){
+  const[notes,setNotes]=useStore('notes',{});
+  const[open,setOpen]=useState(false);
+  const[domain,setDomain]=useState('secure');
+
+  const update=(val)=>{setNotes(n=>({...n,[domain]:val}))};
+
+  return(
+    <>
+      <button onClick={()=>setOpen(o=>!o)} aria-label="Quick notes"
+        className="qn-btn"
+        style={{width:48,height:48,borderRadius:'50%',background:'#7c3aed',border:'none',color:'#fff',fontSize:18,cursor:'pointer',boxShadow:'0 4px 14px rgba(124,58,237,0.45)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {open?'✕':'▤'}
+      </button>
+      {open&&(
+        <div className="qn-panel"
+          style={{width:320,maxWidth:'calc(100vw - 32px)',maxHeight:'60vh',background:'#111113',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,boxShadow:'0 10px 40px rgba(0,0,0,0.5)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <div style={{padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontSize:12,fontWeight:700,color:'#f4f4f5'}}>Quick Notes</span>
+            <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:'#52525b',cursor:'pointer',fontSize:14,lineHeight:1}}>✕</button>
+          </div>
+          <div style={{display:'flex',gap:4,padding:'8px 10px',flexWrap:'wrap',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+            {Object.entries(DOMAINS).map(([k,d])=>(
+              <button key={k} onClick={()=>setDomain(k)}
+                style={{fontSize:10,padding:'4px 8px',borderRadius:5,border:'1px solid '+(domain===k?'rgba(124,58,237,0.5)':'rgba(255,255,255,0.07)'),background:domain===k?'rgba(124,58,237,0.12)':'transparent',color:domain===k?'#a78bfa':'#52525b',cursor:'pointer'}}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={notes[domain]||''}
+            onChange={e=>update(e.target.value)}
+            placeholder={`Jot notes for ${DOMAINS[domain].label}…`}
+            style={{flex:1,minHeight:160,background:'transparent',border:'none',color:'#e4e4e7',fontSize:12,padding:'12px 14px',resize:'none',lineHeight:1.6,fontFamily:'inherit',outline:'none'}}
+          />
+          <button onClick={()=>{setOpen(false);setActive('notes');}}
+            style={{padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.05)',fontSize:10,color:'#71717a',background:'none',border:'none',textAlign:'left',cursor:'pointer'}}>
+            Saved automatically · open full Notes page →
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 function Leaderboard({quizHistory,examHistory,streak}){
   const milestones=[
@@ -3933,7 +3987,7 @@ const catColor={
   Security:'#10b981',Monitoring:'#f59e0b',Messaging:'#ec4899',Analytics:'#6366f1',
   Management:'#64748b',Migration:'#84cc16',
 };
-function Vocab({plainMode,setPlainMode}){
+function Vocab({plainMode,setPlainMode,startVocabQuiz}){
   const[search,setSearch]=useState('');
   const[cat,setCat]=useState('All');
   const filtered=useMemo(()=>{
@@ -3951,7 +4005,14 @@ function Vocab({plainMode,setPlainMode}){
           <h1 className="text-2xl font-bold text-slate-900 mb-1">AWS Glossary</h1>
           <p className="text-slate-500 text-sm">{VOCAB.length} terms across {VOCAB_CATS.length-1} categories</p>
         </div>
-        <PlainToggle on={plainMode} setOn={setPlainMode}/>
+        <div className="flex items-center gap-2">
+          <PlainToggle on={plainMode} setOn={setPlainMode}/>
+          <button onClick={()=>startVocabQuiz&&startVocabQuiz(cat)}
+            className="text-xs font-semibold px-3 py-2 rounded-lg text-white transition-opacity hover:opacity-90"
+            style={{background:'#7c3aed'}}>
+            Quiz Yourself →
+          </button>
+        </div>
       </div>
       {/* Search */}
       <div className="relative mb-4">
@@ -4006,6 +4067,168 @@ function Vocab({plainMode,setPlainMode}){
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vocab Quiz ────────────────────────────────────────────────────────────────
+function VocabQuiz({plainMode,startCat}){
+  const[history,setHistory]=useStore('vocab_quiz_history',[]);
+  const[cat,setCat]=useState(startCat&&startCat!=='All'?startCat:'all');
+  const[session,setSession]=useState(null);
+  const[idx,setIdx]=useState(0);
+  const[selected,setSelected]=useState(null);
+  const[results,setResults]=useState([]);
+
+  useEffect(()=>{if(startCat&&startCat!=='All')setCat(startCat)},[startCat]);
+
+  const pool=cat==='all'?VOCAB:VOCAB.filter(v=>v.cat===cat);
+
+  const startQuiz=()=>{
+    const n=Math.min(10,pool.length);
+    const distractSource=(cat!=='all'&&pool.length>=4)?pool:VOCAB;
+    const picks=shuffle(pool).slice(0,n);
+    const qs=picks.map(term=>{
+      const wrongPool=distractSource.filter(v=>v.term!==term.term);
+      const correctText=plainMode&&term.plain?term.plain:term.def;
+      const distractorTexts=shuffle(wrongPool).slice(0,3).map(v=>plainMode&&v.plain?v.plain:v.def);
+      const opts=shuffle([correctText,...distractorTexts]);
+      return{term:term.term,cat:term.cat,opts,ans:opts.indexOf(correctText)};
+    });
+    setSession(qs);setIdx(0);setSelected(null);setResults([]);
+  };
+
+  const handleSelect=(i)=>{
+    if(selected!==null)return;
+    setSelected(i);
+    const q=session[idx];
+    setResults(r=>[...r,{term:q.term,cat:q.cat,correct:i===q.ans,correctAns:q.opts[q.ans]}]);
+  };
+
+  const next=()=>{
+    if(idx<session.length-1){setIdx(i=>i+1);setSelected(null);}
+    else setSession('done');
+  };
+
+  useEffect(()=>{
+    if(session!=='done')return;
+    const score=results.filter(r=>r.correct).length;
+    setHistory(h=>[...h,{ts:Date.now(),score,total:results.length,cat}]);
+  },[session]);
+
+  if(!session){
+    const best=history.filter(h=>h.cat===cat).sort((a,b)=>pct(b.score,b.total)-pct(a.score,a.total))[0];
+    return(
+      <div style={{padding:'24px',maxWidth:580}}>
+        <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:4,letterSpacing:'-0.01em'}}>Vocab Quiz</h1>
+        <p style={{fontSize:12,color:'#52525b',marginBottom:20}}>Multiple choice · matched against the AWS glossary</p>
+        <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#52525b',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:12}}>Category</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:20}}>
+            {['all',...VOCAB_CATS.filter(c=>c!=='All')].map(c=>{
+              const on=cat===c;
+              const acc=c==='all'?'#7c3aed':catColor[c];
+              return(
+                <button key={c} onClick={()=>setCat(c)}
+                  style={{padding:'8px 12px',borderRadius:6,border:`1px solid ${on?acc+'66':'rgba(255,255,255,0.07)'}`,background:on?acc+'11':'transparent',color:on?acc:'#52525b',fontSize:12,fontWeight:on?600:400,cursor:'pointer',transition:'all .12s'}}>
+                  {c==='all'?'All Categories':c}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{fontSize:12,color:'#3f3f46',marginBottom:16}}>{pool.length} term{pool.length!==1?'s':''} in pool · {Math.min(10,pool.length)} questions this round</div>
+          {best&&<div style={{fontSize:11,color:'#52525b',marginBottom:16}}>Best in this category: <span style={{color:'#a78bfa',fontWeight:700}}>{pct(best.score,best.total)}%</span></div>}
+          <button onClick={startQuiz} disabled={pool.length<4}
+            style={{background:pool.length<4?'rgba(255,255,255,0.05)':'#7c3aed',color:pool.length<4?'#3f3f46':'white',border:'none',borderRadius:8,padding:'11px 28px',fontSize:13,fontWeight:700,cursor:pool.length<4?'not-allowed':'pointer'}}>
+            Start Quiz →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if(session==='done'){
+    const correct=results.filter(r=>r.correct).length;
+    const total=results.length;
+    const missed=results.filter(r=>!r.correct);
+    const score=pct(correct,total);
+    const acc=score>=70?'#22c55e':score>=50?'#f59e0b':'#ef4444';
+    return(
+      <div style={{padding:'24px',maxWidth:580}}>
+        <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:16,letterSpacing:'-0.01em'}}>Results</h1>
+        <div style={{background:'#111113',border:`1px solid ${acc}33`,borderRadius:10,padding:24,marginBottom:12,textAlign:'center'}}>
+          <div style={{fontSize:52,fontWeight:900,color:acc,letterSpacing:'-0.04em',lineHeight:1}}>{correct}/{total}</div>
+          <div style={{fontSize:13,color:acc,fontWeight:600,marginTop:6,marginBottom:18}}>{score}% · {score>=70?'Great work!':score>=50?'Getting there':'Keep studying'}</div>
+          <button onClick={()=>setSession(null)}
+            style={{background:'none',border:'1px solid rgba(255,255,255,0.12)',borderRadius:6,padding:'7px 18px',color:'#d4d4d8',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+            New Quiz
+          </button>
+        </div>
+        {missed.length>0&&(
+          <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20}}>
+            <div style={{fontSize:13,fontWeight:700,color:'#f4f4f5',marginBottom:2}}>Review List</div>
+            <div style={{fontSize:11,color:'#52525b',marginBottom:16}}>{missed.length} term{missed.length!==1?'s':''} to revisit</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {missed.map((r,i)=>{
+                const a=catColor[r.cat]||'#7c3aed';
+                return(
+                  <div key={i} style={{borderLeft:`2px solid ${a}`,paddingLeft:12}}>
+                    <div style={{fontSize:11,color:a,fontWeight:700,marginBottom:4}}>{r.term} <span style={{color:'#52525b',fontWeight:400}}>· {r.cat}</span></div>
+                    <div style={{fontSize:11,color:'#71717a',lineHeight:1.5}}>{r.correctAns}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const q=session[idx];
+  const accent=catColor[q.cat]||'#7c3aed';
+
+  return(
+    <div style={{padding:'24px',maxWidth:580}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+        <div>
+          <div style={{fontSize:10,color:'#3f3f46',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:3}}>{q.cat}</div>
+          <div style={{fontSize:16,fontWeight:800,color:'#f4f4f5'}}>Question {idx+1} <span style={{color:'#3f3f46',fontWeight:400}}>/ {session.length}</span></div>
+        </div>
+      </div>
+      <div style={{height:3,background:'rgba(255,255,255,0.05)',borderRadius:2,marginBottom:20}}>
+        <div style={{height:3,width:`${((idx+1)/session.length)*100}%`,background:accent,borderRadius:2,transition:'width .3s'}}/>
+      </div>
+      <div style={{background:'#111113',borderLeft:`3px solid ${accent}`,borderTop:'1px solid rgba(255,255,255,0.07)',borderRight:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:20,marginBottom:14}}>
+        <div style={{fontSize:11,color:'#52525b',fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>Which definition matches this term?</div>
+        <p style={{fontSize:20,color:'#e4e4e7',lineHeight:1.4,fontWeight:800}}>{q.term}</p>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+        {q.opts.map((opt,i)=>{
+          let borderColor='rgba(255,255,255,0.07)';
+          let bg='#111113';
+          let textColor='#d4d4d8';
+          let letterBg='rgba(255,255,255,0.06)';
+          let letterColor='#71717a';
+          if(selected!==null){
+            if(i===q.ans){borderColor='#22c55e';bg='rgba(34,197,94,0.06)';textColor='#86efac';letterBg='#22c55e';letterColor='#fff';}
+            else if(i===selected){borderColor='#ef4444';bg='rgba(239,68,68,0.06)';textColor='#fca5a5';letterBg='#ef4444';letterColor='#fff';}
+            else{borderColor='rgba(255,255,255,0.04)';textColor='#3f3f46';letterColor='#3f3f46';}
+          }
+          return(
+            <button key={i} onClick={()=>handleSelect(i)} disabled={selected!==null}
+              style={{width:'100%',textAlign:'left',padding:'11px 14px',borderRadius:8,border:`1px solid ${borderColor}`,background:bg,cursor:selected!==null?'default':'pointer',display:'flex',alignItems:'flex-start',gap:0,transition:'all .12s'}}>
+              <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:22,height:22,borderRadius:'50%',background:letterBg,color:letterColor,fontSize:10,fontWeight:700,flexShrink:0,marginRight:12}}>{String.fromCharCode(65+i)}</span>
+              <span style={{fontSize:13,color:textColor,lineHeight:1.55,flex:1}}>{opt}</span>
+            </button>
+          );
+        })}
+      </div>
+      {selected!==null&&(
+        <button onClick={next} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:8,padding:'11px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {idx<session.length-1?'Next Question →':'View Results'}
+        </button>
       )}
     </div>
   );
@@ -4357,8 +4580,10 @@ function App(){
   const[skillMap,setSkillMap]=useStore('skill_map',{});
   const[readinessHistory,setReadinessHistory]=useStore('readiness_history',[]);
   const[plainMode,setPlainMode]=useStore('plain_mode',false);
+  const[vocabQuizCat,setVocabQuizCat]=useState('all');
 
   const startTargeted=(domain)=>{setQuizDomain(domain||'all');setActive('quiz');};
+  const startVocabQuiz=(cat)=>{setVocabQuizCat(cat||'all');setActive('vocabquiz');};
 
   // Updates both quizHistory and per-question skillMap on every answer
   const handleQuizAnswer=(a)=>{
@@ -4400,7 +4625,8 @@ function App(){
       case'lesson':return<Lesson/>;
       case'quiz':return<Quiz onAnswer={handleQuizAnswer} startDomain={quizDomain} quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf} skillMap={skillMap} onSessionComplete={handleSessionComplete}/>;
       case'flashcards':return<Flashcards plainMode={plainMode} setPlainMode={setPlainMode}/>;
-      case'vocab':return<Vocab plainMode={plainMode} setPlainMode={setPlainMode}/>;
+      case'vocab':return<Vocab plainMode={plainMode} setPlainMode={setPlainMode} startVocabQuiz={startVocabQuiz}/>;
+      case'vocabquiz':return<VocabQuiz plainMode={plainMode} startCat={vocabQuizCat}/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
       case'history':return<History quizHistory={quizHistory} examHistory={examHistory}/>;
       case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
@@ -4418,6 +4644,7 @@ function App(){
         {renderPage()}
       </main>
       {active!=='home'&&<BottomNav active={active} setActive={setActive}/>}
+      {active!=='notes'&&<QuickNotes setActive={setActive}/>}
     </div>
   );
 }
