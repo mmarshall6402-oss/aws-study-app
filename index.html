@@ -1839,6 +1839,7 @@ const NAV=[
   {id:'flashcards',icon:'⬜',label:'Flashcards',group:'exam'},
   {id:'vocab',icon:'◧',label:'Glossary',group:'exam'},
   {id:'vocabquiz',icon:'✎',label:'Vocab Quiz',group:'exam'},
+  {id:'vocabfocus',icon:'★',label:'Focus Areas',group:'exam'},
   {id:'exam',icon:'◎',label:'Practice Exam',group:'exam'},
   {id:'history',icon:'◷',label:'History',group:'exam'},
   {id:'analytics',icon:'◈',label:'Analytics',group:'exam'},
@@ -4004,6 +4005,13 @@ const catColor={
 function Vocab({plainMode,setPlainMode,startVocabQuiz}){
   const[search,setSearch]=useState('');
   const[cat,setCat]=useState('All');
+  const[weak,setWeak]=useStore('vocab_weak',{});
+  const togglePin=(term)=>{
+    setWeak(w=>{
+      if(w[term]){const{[term]:_,...rest}=w;return rest;}
+      return{...w,[term]:{wrong:0,correctStreak:0,manual:true}};
+    });
+  };
   const filtered=useMemo(()=>{
     const q=search.toLowerCase().trim();
     return VOCAB.filter(v=>{
@@ -4068,10 +4076,17 @@ function Vocab({plainMode,setPlainMode,startVocabQuiz}){
             <div key={v.term} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="font-bold text-slate-900 text-sm leading-tight">{v.term}</span>
-                <span
-                  className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{background:catColor[v.cat]+'22',color:catColor[v.cat]}}
-                >{v.cat}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={{background:catColor[v.cat]+'22',color:catColor[v.cat]}}
+                  >{v.cat}</span>
+                  <button onClick={()=>togglePin(v.term)} title={weak[v.term]?'Remove from Focus Areas':'Add to Focus Areas'}
+                    className="text-sm leading-none"
+                    style={{color:weak[v.term]?'#7c3aed':'#cbd5e1',background:'none',border:'none',cursor:'pointer',padding:0}}>
+                    {weak[v.term]?'★':'☆'}
+                  </button>
+                </div>
               </div>
               {plainMode&&v.plain?(
                 <p className="text-slate-700 text-xs leading-relaxed">{v.plain}</p>
@@ -4089,6 +4104,7 @@ function Vocab({plainMode,setPlainMode,startVocabQuiz}){
 // ── Vocab Quiz ────────────────────────────────────────────────────────────────
 function VocabQuiz({plainMode,startCat}){
   const[history,setHistory]=useStore('vocab_quiz_history',[]);
+  const[weak,setWeak]=useStore('vocab_weak',{});
   const[cat,setCat]=useState(startCat&&startCat!=='All'?startCat:'all');
   const[session,setSession]=useState(null);
   const[idx,setIdx]=useState(0);
@@ -4097,11 +4113,12 @@ function VocabQuiz({plainMode,startCat}){
 
   useEffect(()=>{if(startCat&&startCat!=='All')setCat(startCat)},[startCat]);
 
-  const pool=cat==='all'?VOCAB:VOCAB.filter(v=>v.cat===cat);
+  const weakCount=Object.keys(weak).length;
+  const pool=cat==='all'?VOCAB:cat==='focus'?VOCAB.filter(v=>weak[v.term]):VOCAB.filter(v=>v.cat===cat);
 
   const startQuiz=()=>{
     const n=Math.min(10,pool.length);
-    const distractSource=(cat!=='all'&&pool.length>=4)?pool:VOCAB;
+    const distractSource=(cat!=='all'&&cat!=='focus'&&pool.length>=4)?pool:VOCAB;
     const picks=shuffle(pool).slice(0,n);
     const qs=picks.map(term=>{
       const wrongPool=distractSource.filter(v=>v.term!==term.term);
@@ -4117,7 +4134,18 @@ function VocabQuiz({plainMode,startCat}){
     if(selected!==null)return;
     setSelected(i);
     const q=session[idx];
-    setResults(r=>[...r,{term:q.term,cat:q.cat,correct:i===q.ans,correctAns:q.opts[q.ans]}]);
+    const correct=i===q.ans;
+    setResults(r=>[...r,{term:q.term,cat:q.cat,correct,correctAns:q.opts[q.ans]}]);
+    setWeak(w=>{
+      const cur=w[q.term];
+      if(correct){
+        if(!cur)return w;
+        const streak=(cur.correctStreak||0)+1;
+        if(streak>=3&&!cur.manual){const{[q.term]:_,...rest}=w;return rest;}
+        return{...w,[q.term]:{...cur,correctStreak:streak}};
+      }
+      return{...w,[q.term]:{wrong:(cur?.wrong||0)+1,correctStreak:0,manual:cur?.manual||false}};
+    });
   };
 
   const next=()=>{
@@ -4140,6 +4168,12 @@ function VocabQuiz({plainMode,startCat}){
         <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20}}>
           <div style={{fontSize:11,fontWeight:700,color:'#52525b',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:12}}>Category</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:20}}>
+            {weakCount>0&&(
+              <button onClick={()=>setCat('focus')}
+                style={{padding:'8px 12px',borderRadius:6,border:`1px solid ${cat==='focus'?'#a78bfa66':'rgba(255,255,255,0.07)'}`,background:cat==='focus'?'#7c3aed11':'transparent',color:cat==='focus'?'#a78bfa':'#52525b',fontSize:12,fontWeight:cat==='focus'?600:400,cursor:'pointer',transition:'all .12s'}}>
+                ★ Focus Areas ({weakCount})
+              </button>
+            )}
             {['all',...VOCAB_CATS.filter(c=>c!=='All')].map(c=>{
               const on=cat===c;
               const acc=c==='all'?'#7c3aed':catColor[c];
@@ -4151,10 +4185,12 @@ function VocabQuiz({plainMode,startCat}){
               );
             })}
           </div>
-          <div style={{fontSize:12,color:'#3f3f46',marginBottom:16}}>{pool.length} term{pool.length!==1?'s':''} in pool · {Math.min(10,pool.length)} questions this round</div>
+          <div style={{fontSize:12,color:'#3f3f46',marginBottom:16}}>
+            {pool.length===0&&cat==='focus'?'No focus terms tracked yet.':`${pool.length} term${pool.length!==1?'s':''} in pool · ${Math.min(10,pool.length)} questions this round`}
+          </div>
           {best&&<div style={{fontSize:11,color:'#52525b',marginBottom:16}}>Best in this category: <span style={{color:'#a78bfa',fontWeight:700}}>{pct(best.score,best.total)}%</span></div>}
-          <button onClick={startQuiz} disabled={pool.length<4}
-            style={{background:pool.length<4?'rgba(255,255,255,0.05)':'#7c3aed',color:pool.length<4?'#3f3f46':'white',border:'none',borderRadius:8,padding:'11px 28px',fontSize:13,fontWeight:700,cursor:pool.length<4?'not-allowed':'pointer'}}>
+          <button onClick={startQuiz} disabled={pool.length===0}
+            style={{background:pool.length===0?'rgba(255,255,255,0.05)':'#7c3aed',color:pool.length===0?'#3f3f46':'white',border:'none',borderRadius:8,padding:'11px 28px',fontSize:13,fontWeight:700,cursor:pool.length===0?'not-allowed':'pointer'}}>
             Start Quiz →
           </button>
         </div>
@@ -4243,6 +4279,90 @@ function VocabQuiz({plainMode,startCat}){
         <button onClick={next} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:8,padding:'11px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
           {idx<session.length-1?'Next Question →':'View Results'}
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── Vocab Focus Areas ───────────────────────────────────────────────────────────
+function VocabFocus({plainMode,startVocabQuiz}){
+  const[weak,setWeak]=useStore('vocab_weak',{});
+  const[search,setSearch]=useState('');
+
+  const entries=useMemo(()=>{
+    return Object.entries(weak).map(([term,meta])=>{
+      const v=VOCAB.find(x=>x.term===term);
+      return v?{...v,...meta}:null;
+    }).filter(Boolean).sort((a,b)=>(b.wrong||0)-(a.wrong||0));
+  },[weak]);
+
+  const searchResults=useMemo(()=>{
+    const q=search.toLowerCase().trim();
+    if(!q)return[];
+    return VOCAB.filter(v=>!weak[v.term]&&(v.term.toLowerCase().includes(q)||v.def.toLowerCase().includes(q))).slice(0,8);
+  },[search,weak]);
+
+  const pin=(term)=>setWeak(w=>({...w,[term]:{...(w[term]||{wrong:0,correctStreak:0}),manual:true}}));
+  const unpin=(term)=>setWeak(w=>{const{[term]:_,...rest}=w;return rest;});
+
+  return(
+    <div style={{padding:'24px',maxWidth:640}}>
+      <h1 style={{fontSize:20,fontWeight:800,color:'#f4f4f5',marginBottom:4,letterSpacing:'-0.01em'}}>Focus Areas</h1>
+      <p style={{fontSize:12,color:'#52525b',marginBottom:20}}>Terms you keep missing in Vocab Quiz land here automatically — or pin any term yourself.</p>
+
+      <div style={{background:'#111113',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:20,marginBottom:16}}>
+        <div style={{fontSize:11,fontWeight:700,color:'#52525b',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Add any term</div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search all glossary terms…"
+          style={{width:'100%',background:'#0c0c0e',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#e4e4e7',marginBottom:searchResults.length?10:0}}/>
+        {searchResults.length>0&&(
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {searchResults.map(v=>(
+              <button key={v.term} onClick={()=>{pin(v.term);setSearch('');}}
+                style={{textAlign:'left',padding:'8px 12px',borderRadius:6,border:'1px solid rgba(255,255,255,0.07)',background:'transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontSize:12,color:'#d4d4d8'}}>{v.term} <span style={{color:'#52525b'}}>· {v.cat}</span></span>
+                <span style={{fontSize:11,color:'#a78bfa',fontWeight:600}}>+ Add</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
+        <div style={{fontSize:13,fontWeight:700,color:'#f4f4f5'}}>{entries.length} term{entries.length!==1?'s':''} tracked</div>
+        <button onClick={()=>startVocabQuiz&&startVocabQuiz('focus')} disabled={entries.length===0}
+          style={{background:entries.length?'#7c3aed':'rgba(255,255,255,0.05)',color:entries.length?'white':'#3f3f46',border:'none',borderRadius:8,padding:'9px 18px',fontSize:12,fontWeight:700,cursor:entries.length?'pointer':'not-allowed'}}>
+          Quiz These Terms →
+        </button>
+      </div>
+
+      {entries.length===0?(
+        <div style={{textAlign:'center',padding:'48px 0',color:'#3f3f46'}}>
+          <div style={{fontSize:13}}>Nothing here yet.</div>
+          <div style={{fontSize:12,marginTop:4}}>Miss a term in Vocab Quiz, or pin one above, and it'll show up here.</div>
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {entries.map(v=>{
+            const a=catColor[v.cat]||'#7c3aed';
+            return(
+              <div key={v.term} style={{background:'#111113',borderLeft:`3px solid ${a}`,borderTop:'1px solid rgba(255,255,255,0.07)',borderRight:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'12px 16px',display:'flex',justifyContent:'space-between',gap:12,alignItems:'flex-start'}}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
+                    <span style={{fontSize:13,fontWeight:700,color:'#f4f4f5'}}>{v.term}</span>
+                    <span style={{fontSize:10,color:a,fontWeight:600}}>{v.cat}</span>
+                    {v.wrong>0&&<span style={{fontSize:10,color:'#ef4444',fontWeight:700}}>missed {v.wrong}×</span>}
+                    {v.manual&&<span style={{fontSize:10,color:'#a78bfa'}}>📌 pinned</span>}
+                  </div>
+                  <div style={{fontSize:12,color:'#a1a1aa',lineHeight:1.5}}>{plainMode&&v.plain?v.plain:v.def}</div>
+                </div>
+                <button onClick={()=>unpin(v.term)}
+                  style={{background:'none',border:'1px solid rgba(255,255,255,0.1)',borderRadius:6,padding:'5px 10px',color:'#52525b',fontSize:11,cursor:'pointer',whiteSpace:'nowrap'}}>
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -4641,6 +4761,7 @@ function App(){
       case'flashcards':return<Flashcards plainMode={plainMode} setPlainMode={setPlainMode}/>;
       case'vocab':return<Vocab plainMode={plainMode} setPlainMode={setPlainMode} startVocabQuiz={startVocabQuiz}/>;
       case'vocabquiz':return<VocabQuiz plainMode={plainMode} startCat={vocabQuizCat}/>;
+      case'vocabfocus':return<VocabFocus plainMode={plainMode} startVocabQuiz={startVocabQuiz}/>;
       case'exam':return<PracticeExam onExamComplete={r=>setExamHistory(h=>[...h,r])}/>;
       case'history':return<History quizHistory={quizHistory} examHistory={examHistory}/>;
       case'analytics':return<Analytics quizHistory={quizHistory} examHistory={examHistory} flashConf={flashConf}/>;
