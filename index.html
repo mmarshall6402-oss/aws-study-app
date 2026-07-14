@@ -4346,7 +4346,7 @@ function VocabQuiz({plainMode,startCat}){
       </div>
       <div style={{background:'#111113',borderLeft:`3px solid ${accent}`,borderTop:'1px solid rgba(255,255,255,0.07)',borderRight:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:20,marginBottom:14}}>
         <div style={{fontSize:11,color:'#52525b',fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>Which definition matches this term?</div>
-        <p data-noexpand="true" style={{fontSize:20,color:'#e4e4e7',lineHeight:1.4,fontWeight:800}}>{q.term}</p>
+        <p style={{fontSize:20,color:'#e4e4e7',lineHeight:1.4,fontWeight:800}}>{q.term}</p>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
         {q.opts.map((opt,i)=>{
