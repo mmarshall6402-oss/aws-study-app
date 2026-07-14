@@ -120,6 +120,100 @@ input::placeholder,textarea::placeholder{color:#2e2e36!important}
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo}=React;
 
+// ── AWS abbreviation expansion ───────────────────────────────────────────────
+// Every abbreviated AWS service/term rendered anywhere in the app gets its full
+// name appended in parentheses, e.g. "S3 (Simple Storage Service)". Applied at
+// render time (see the React.createElement patch below), so it covers questions,
+// flashcards, lessons, labs, the glossary, and all UI text without touching data.
+const ABBR={
+  // Services
+  S3:'Simple Storage Service',EC2:'Elastic Compute Cloud',IAM:'Identity and Access Management',
+  STS:'Security Token Service',KMS:'Key Management Service',SQS:'Simple Queue Service',
+  SNS:'Simple Notification Service',SES:'Simple Email Service',RDS:'Relational Database Service',
+  EBS:'Elastic Block Store',EFS:'Elastic File System',ECS:'Elastic Container Service',
+  EKS:'Elastic Kubernetes Service',ECR:'Elastic Container Registry',EMR:'Elastic MapReduce',
+  ELB:'Elastic Load Balancing',ALB:'Application Load Balancer',NLB:'Network Load Balancer',
+  GLB:'Gateway Load Balancer',CLB:'Classic Load Balancer',VPC:'Virtual Private Cloud',
+  WAF:'Web Application Firewall',ACM:'AWS Certificate Manager',SSM:'AWS Systems Manager',
+  DMS:'Database Migration Service',MGN:'Application Migration Service',
+  MSK:'Managed Streaming for Apache Kafka',QLDB:'Quantum Ledger Database',
+  DAX:'DynamoDB Accelerator',RAM:'Resource Access Manager',CDK:'Cloud Development Kit',
+  SCT:'Schema Conversion Tool',DX:'Direct Connect',
+  // AWS concepts & exam terms
+  SCP:'Service Control Policy',NACL:'Network Access Control List',ACL:'Access Control List',
+  SG:'Security Group',ASG:'Auto Scaling Group',AMI:'Amazon Machine Image',
+  AZ:'Availability Zone',OU:'Organizational Unit',TGW:'Transit Gateway',IGW:'Internet Gateway',
+  NAT:'Network Address Translation',EIP:'Elastic IP address',ENI:'Elastic Network Interface',
+  ENA:'Elastic Network Adapter',EFA:'Elastic Fabric Adapter',OAC:'Origin Access Control',
+  OAI:'Origin Access Identity',GSI:'Global Secondary Index',LSI:'Local Secondary Index',
+  DLQ:'Dead-Letter Queue',FIFO:'First-In, First-Out',TTL:'Time To Live',
+  IOPS:'Input/Output Operations Per Second',RTO:'Recovery Time Objective',
+  RPO:'Recovery Point Objective',DR:'Disaster Recovery',CRR:'Cross-Region Replication',
+  RTC:'Replication Time Control',IMDS:'Instance Metadata Service',KCL:'Kinesis Client Library',
+  MPP:'Massively Parallel Processing',IaC:'Infrastructure as Code',CDC:'Change Data Capture',
+  RI:'Reserved Instance',SP:'Savings Plan',IA:'Infrequent Access',CMK:'Customer Master Key',
+  DEK:'Data Encryption Key',HSM:'Hardware Security Module',MFA:'Multi-Factor Authentication',
+  SSO:'Single Sign-On',PII:'Personally Identifiable Information',
+  DDoS:'Distributed Denial of Service',DRT:'DDoS Response Team',SLA:'Service Level Agreement',
+  TPS:'Transactions Per Second',RPS:'Requests Per Second',
+  // Security & identity
+  SAML:'Security Assertion Markup Language',OIDC:'OpenID Connect',JWT:'JSON Web Token',
+  IdP:'Identity Provider',PKI:'Public Key Infrastructure',CA:'Certificate Authority',
+  U2F:'Universal 2nd Factor',TOTP:'Time-based One-Time Password',XSS:'Cross-Site Scripting',
+  SQLi:'SQL injection',OWASP:'Open Worldwide Application Security Project',
+  CVE:'Common Vulnerabilities and Exposures',
+  // Email & protocols
+  DKIM:'DomainKeys Identified Mail',SPF:'Sender Policy Framework',
+  DMARC:'Domain-based Message Authentication, Reporting and Conformance',
+  SMTP:'Simple Mail Transfer Protocol',SFTP:'SSH File Transfer Protocol',
+  FTPS:'File Transfer Protocol Secure',NFS:'Network File System',SMB:'Server Message Block',
+  CIDR:'Classless Inter-Domain Routing',DNS:'Domain Name System',VPN:'Virtual Private Network',
+  CDN:'Content Delivery Network',
+  // General tech
+  ML:'Machine Learning',BI:'Business Intelligence',ETL:'Extract, Transform, Load',
+  HPC:'High-Performance Computing',OLAP:'Online Analytical Processing',
+  MPI:'Message Passing Interface',K8s:'Kubernetes',IoT:'Internet of Things',
+  VPS:'Virtual Private Server',PaaS:'Platform as a Service',VM:'Virtual Machine',
+  CLI:'Command Line Interface',SDK:'Software Development Kit',DDL:'Data Definition Language',
+  SSD:'Solid State Drive',HDD:'Hard Disk Drive',
+};
+// Expansions whose auto-pluralized form would read wrong
+const ABBR_PLURAL_OVERRIDE={CIDR:'Classless Inter-Domain Routing',CVE:'Common Vulnerabilities and Exposures',IOPS:'Input/Output Operations Per Second'};
+const pluralizeLast=full=>{
+  const w=full.split(' ');const last=w[w.length-1];
+  w[w.length-1]=/(?:x|ch|sh|s)$/.test(last)?last+'es':/[^aeiou]y$/.test(last)?last.slice(0,-1)+'ies':last+'s';
+  return w.join(' ');
+};
+const ABBR_RE=new RegExp('\\b('+Object.keys(ABBR).sort((a,b)=>b.length-a.length).join('|')+')(s)?\\b','g');
+function expandAbbr(text){
+  if(typeof text!=='string'||!text)return text;
+  const seen=new Set();
+  return text.replace(ABBR_RE,(m,base,plural,off,str)=>{
+    const prev=str[off-1]||'';
+    const rest=str.slice(off+m.length);
+    // Already sitting next to its own expansion, e.g. "Service Control Policies (SCPs)"
+    // or "DEK (Data Encryption Key)" — leave it, and count it as introduced.
+    if(prev==='('||/^\s*\(/.test(rest)){seen.add(base);return m;}
+    // Skip slash/hyphen compounds ("CPU/RAM/GPU", "Multi-AZ", "S3-IA") and possessives ("ASG's")
+    if(prev==='/'||prev==='-'||rest[0]==='/'||rest[0]==='-'||rest[0]==="'")return m;
+    if(seen.has(base))return m; // expand only the first occurrence per text chunk
+    seen.add(base);
+    const full=plural?(ABBR_PLURAL_OVERRIDE[base]||pluralizeLast(ABBR[base])):ABBR[base];
+    return m+' ('+full+')';
+  });
+}
+// Patch React.createElement so every string child rendered by any component is
+// expanded. Elements can opt out with data-noexpand (used where the expansion
+// would reveal a quiz/flashcard answer).
+const SKIP_EXPAND_TAGS=new Set(['textarea','input','script','style']);
+const _createElement=React.createElement;
+React.createElement=function(type,props,...children){
+  if((typeof type==='string'&&SKIP_EXPAND_TAGS.has(type))||(props&&props['data-noexpand'])){
+    return _createElement(type,props,...children);
+  }
+  return _createElement(type,props,...children.map(c=>typeof c==='string'?expandAbbr(c):c));
+};
+
 // ── Storage ──────────────────────────────────────────────────────────────────
 const S={
   get:(k)=>{try{const w=window.storage;return JSON.parse(w?w.getItem(k):localStorage.getItem(k))}catch{return null}},
@@ -3306,7 +3400,7 @@ function Flashcards({plainMode,setPlainMode}){
               {card?.source==='question'?(
                 <div style={{fontSize:12,color:'#52525b',lineHeight:1.5}}>Scenario question — tap to read</div>
               ):(
-                <div style={{fontSize:17,fontWeight:700,color:'#f4f4f5',lineHeight:1.4,marginBottom:12}}>{card?.front}</div>
+                <div data-noexpand={card?.source==='vocab'?'true':undefined} style={{fontSize:17,fontWeight:700,color:'#f4f4f5',lineHeight:1.4,marginBottom:12}}>{card?.front}</div>
               )}
               {card&&<Tag domain={card.domain}/>}
               <div style={{fontSize:10,color:'#27272a',marginTop:14}}>tap to reveal →</div>
@@ -4252,7 +4346,7 @@ function VocabQuiz({plainMode,startCat}){
       </div>
       <div style={{background:'#111113',borderLeft:`3px solid ${accent}`,borderTop:'1px solid rgba(255,255,255,0.07)',borderRight:'1px solid rgba(255,255,255,0.07)',borderBottom:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:20,marginBottom:14}}>
         <div style={{fontSize:11,color:'#52525b',fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>Which definition matches this term?</div>
-        <p style={{fontSize:20,color:'#e4e4e7',lineHeight:1.4,fontWeight:800}}>{q.term}</p>
+        <p data-noexpand="true" style={{fontSize:20,color:'#e4e4e7',lineHeight:1.4,fontWeight:800}}>{q.term}</p>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
         {q.opts.map((opt,i)=>{
