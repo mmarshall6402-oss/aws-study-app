@@ -8,7 +8,7 @@
             "type": "command",
             "if": "Bash(git push *)",
             "statusMessage": "Syncing gh-pages...",
-            "command": "INPUT=$(cat); echo \"$INPUT\" | jq -r '.tool_input.command' | grep -q '\\bmain\\b' || exit 0; git checkout gh-pages && git checkout main -- index.html && git add index.html; if ! git diff --staged --quiet; then git commit -m 'Sync gh-pages from main'; git push origin gh-pages; fi; git checkout main"
+            "command": "INPUT=$(cat); echo \"$INPUT\" | jq -r '.tool_input.command' | grep -q '\\bmain\\b' || exit 0; git checkout gh-pages && git checkout main -- index.html saa-c03.html dva-c02.html && git add index.html saa-c03.html dva-c02.html; if ! git diff --staged --quiet; then git commit -m 'Sync gh-pages from main'; git push origin gh-pages; fi; git checkout main"
           }
         ]
       }
